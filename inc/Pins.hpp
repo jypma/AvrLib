@@ -19,10 +19,6 @@ struct PinInfo {
     uint8_t const bitmask;
 };
 
-extern volatile void _configurePin0AsGPIO();
-extern volatile void _configurePin1AsGPIO();
-extern volatile void _noop();
-
 const PinInfo PROGMEM pinInfos[] = {
     { &PORTD, &DDRD, 1 << 0 },
     { &PORTD, &DDRD, 1 << 1 },
@@ -119,7 +115,7 @@ extern Callback int_1_callback;
 class SerialReceiver {
 public:
     void configureAsSerialReceiver() {
-
+        //TODO
     }
 };
 
