@@ -8,45 +8,34 @@
 #ifndef INTERRUPT_H_
 #define INTERRUPT_H_
 
-#include <avr/interrupt.h>
+#include "Interrupt.hpp"
 #include <avr/pgmspace.h>
 
 typedef volatile void (*Callback)();
 
 struct PinInfo {
-    volatile uint8_t * const port;
-    volatile uint8_t * const ddr;
-    uint8_t const bitmask;
+    uint16_t const _port;
+    uint16_t const _ddr;
+    uint8_t const _bitmask;
+
+    inline volatile uint8_t *port() const {
+        return (volatile uint8_t *)pgm_read_ptr(&_port);
+    }
+    inline volatile uint8_t *ddr() const {
+        return (volatile uint8_t *)pgm_read_ptr(&_ddr);
+    }
+    inline volatile uint8_t bitmask() const {
+        return pgm_read_byte(&_bitmask);
+    }
 };
 
-const PinInfo PROGMEM pinInfos[] = {
-    { &PORTD, &DDRD, 1 << 0 },
-    { &PORTD, &DDRD, 1 << 1 },
-    { &PORTD, &DDRD, 1 << 2 },
-    { &PORTD, &DDRD, 1 << 3 },
-    { &PORTD, &DDRD, 1 << 4 },
-    { &PORTD, &DDRD, 1 << 5 },
-    { &PORTD, &DDRD, 1 << 6 },
-    { &PORTD, &DDRD, 1 << 7 },
-    { &PORTB, &DDRB, 1 << 0 },
-    { &PORTB, &DDRB, 1 << 1 },
-    { &PORTB, &DDRB, 1 << 2 },
-    { &PORTB, &DDRB, 1 << 3 },
-    { &PORTB, &DDRB, 1 << 4 },
-    { &PORTB, &DDRB, 1 << 5 },
-    { &PORTC, &DDRD, 1 << 0 },
-    { &PORTC, &DDRC, 1 << 1 },
-    { &PORTC, &DDRC, 1 << 2 },
-    { &PORTC, &DDRC, 1 << 3 },
-    { &PORTC, &DDRC, 1 << 4 },
-    { &PORTC, &DDRC, 1 << 5 }
-};
+extern const PinInfo PROGMEM pinInfos[];
 
 class Pin {
     const PinInfo * const info;
-    inline volatile uint8_t * const port() const { return info->port; }
-    inline volatile uint8_t * const ddr() const { return info->ddr; }
-    inline uint8_t const bitmask() const { return info->bitmask; }
+    inline volatile uint8_t * const port() const { return info->port(); }
+    inline volatile uint8_t * const ddr() const { return info->ddr(); }
+    inline uint8_t const bitmask() const { return info->bitmask(); }
     inline uint8_t const pinNumber() const { return info - pinInfos; }
 
 protected:
@@ -60,25 +49,11 @@ protected:
 public:
     constexpr Pin(const PinInfo * const _info): info(_info) {}
 
-    void configureAsOutput() const {
-        configureAsGPIO();
-        *ddr() |= bitmask();
-    }
+    void configureAsOutput() const;
+    void configureAsInputWithoutPullup() const;
+    void configureAsInputWithPullup() const;
 
-
-    void configureAsInputWithoutPullup() const {
-        configureAsGPIO();
-        *ddr() &= ~bitmask();
-        *port() &= ~bitmask();
-    }
-
-    void configureAsInputWithPullup() const {
-        configureAsGPIO();
-        *ddr() &= ~bitmask();
-        *port() |= bitmask();
-    }
-
-    void setHigh (bool on) const {
+    inline void setHigh (bool on) const {
         if (on) {
             setHigh();
         } else {
@@ -86,53 +61,22 @@ public:
         }
     }
 
-    inline void setHigh() const {
-        *port() &= ~bitmask();
-    }
-
-    inline void setLow() const {
-        *port() |= bitmask();
-    }
-
-    bool isHigh() const {
-        return ((*port()) & bitmask());
-    }
+    void setHigh() const;
+    void setLow() const;
+    bool isHigh() const;
 };
 
-class Interrupt {
-    Callback * const callback;
+class HwInterruptPin: public Pin {
+    InterruptHandler extInterrupt;
 public:
-    constexpr Interrupt(Callback *callback_): callback(callback_) {}
-
-    void attach(Callback callback_) const {
-        *callback = callback_;
-    }
-};
-
-extern Callback int_0_callback;
-extern Callback int_1_callback;
-
-class SerialReceiver {
-public:
-    void configureAsSerialReceiver() {
-        //TODO
-    }
-};
-
-class Pin2: public Pin, Interrupt {
-public:
-    constexpr Pin2(): Pin(pinInfos + 2), Interrupt(&int_0_callback) {}
-};
-
-class Pin3: public Pin, Interrupt {
-public:
-    constexpr Pin3(): Pin(pinInfos + 3), Interrupt(&int_1_callback) {}
+    constexpr HwInterruptPin(const PinInfo * const _info): Pin(_info) {}
+    InterruptHandler &externalInterrupt() { return extInterrupt; }
 };
 
 const Pin pinD0(pinInfos + 0);
 const Pin pinD1(pinInfos + 1);
-const Pin2 pinD2;
-const Pin3 pinD3;
+extern HwInterruptPin pinD2;
+extern HwInterruptPin pinD3;
 const Pin pinD4(pinInfos + 4);
 const Pin pinD5(pinInfos + 5);
 const Pin pinD6(pinInfos + 6);
