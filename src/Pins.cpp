@@ -5,11 +5,11 @@ HwInterruptPin pinD2(pinInfos + 2);
 HwInterruptPin pinD3(pinInfos + 3);
 
 SIGNAL(INT0_vect) {
-    pinD2.externalInterrupt().invoke();
+    pinD2.invoke();
 }
 
 SIGNAL(INT1_vect) {
-    pinD3.externalInterrupt().invoke();
+    pinD3.invoke();
 }
 
 const PinInfo PROGMEM pinInfos[] = {
@@ -36,8 +36,8 @@ const PinInfo PROGMEM pinInfos[] = {
 };
 
 void Pin::configureAsOutput() const {
-    ScopedNoInterrupts cli;
-    configureAsGPIO();
+    //ScopedNoInterrupts cli;
+    //configureAsGPIO();
     *ddr() |= bitmask();
 }
 
@@ -67,4 +67,24 @@ void Pin::setLow() const {
 
 bool Pin::isHigh() const {
     return ((*port()) & bitmask());
+}
+
+void HwInterruptPin::externalInterruptOn(uint8_t mode) {
+    switch (pinNumber()) {
+        case 2:
+            EICRA = (EICRA & ~((1 << ISC00) | (1 << ISC01))) | (mode << ISC00);
+            EIMSK |= (1 << INT0);
+            break;
+        case 3:
+            EICRA = (EICRA & ~((1 << ISC10) | (1 << ISC11))) | (mode << ISC10);
+            EIMSK |= (1 << INT1);
+            break;
+    }
+}
+
+void HwInterruptPin::externalInterruptOff() {
+    switch (pinNumber()) {
+        case 2: EIMSK &= ~(1 << INT0); break;
+        case 3: EIMSK &= ~(1 << INT1); break;
+    }
 }

@@ -10,7 +10,7 @@ void InterruptHandler::attach(volatile void (*_func)(volatile void *)) {
     attach (_func, nullptr);
 }
 
-void InterruptHandler::remove() {
+void InterruptHandler::detach() {
     ScopedNoInterrupts cli;
     func = nullptr;
     ctx = nullptr;

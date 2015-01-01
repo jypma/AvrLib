@@ -14,80 +14,86 @@
 #include <avr/interrupt.h>
 
 struct TimerInfo {
-    volatile uint8_t * const regA;
-    volatile uint8_t * const regB;
-    volatile void * const count;
-    volatile uint8_t * const intFlag;
+    uint16_t const _regA;
+    uint16_t const _regB;
+    uint16_t const _counter;
+    uint16_t const _intFlag;
+    uint16_t const _intMask;
+
+    inline volatile uint8_t *regA() const {
+        return (volatile uint8_t *)pgm_read_ptr(&_regA);
+    }
+
+    inline volatile uint8_t *regB() const {
+        return (volatile uint8_t *)pgm_read_ptr(&_regB);
+    }
+
+    inline volatile void * counter() const {
+        return (volatile void *)pgm_read_ptr(&_counter);
+    }
+
+    inline volatile uint8_t * interruptFlag() const {
+        return (volatile uint8_t *)pgm_read_ptr(&_intFlag);
+    }
+
+    inline volatile uint8_t * interruptMask() const {
+        return (volatile uint8_t *)pgm_read_ptr(&_intMask);
+    }
 };
 
-const TimerInfo PROGMEM timerInfos[] = {
-    { &TCCR0A, &TCCR0B, &TCNT0, &TIFR0 },
-    { &TCCR1A, &TCCR1B, &TCNT1, &TIFR1 },
-    { &TCCR2A, &TCCR2B, &TCNT2, &TIFR2 },
-};
+extern const TimerInfo PROGMEM timerInfos[];
 
-SIGNAL(TIMER0_OVF_vect);
+//SIGNAL(TIMER0_OVF_vect);
 SIGNAL(TIMER1_OVF_vect);
 SIGNAL(TIMER2_OVF_vect);
+
+class TimerInterruptHandler: public InterruptHandler {
+    //friend void TIMER0_OVF_vect();
+    friend void TIMER1_OVF_vect();
+    friend void TIMER2_OVF_vect();
+};
 
 template <typename T> class Timer {
 private:
     const TimerInfo * const info;
-    volatile void (*onOverflow)(volatile void *) = nullptr;
-    volatile void *onOverflowCtx = nullptr;
+    TimerInterruptHandler _overflow;
 
-    friend void TIMER0_OVF_vect();
-    friend void TIMER1_OVF_vect();
-    friend void TIMER2_OVF_vect();
+    inline volatile uint8_t * const regA() const { return info->regA(); }
+    inline volatile uint8_t * const regB() const { return info->regB(); }
 
-    volatile uint8_t * const regA() const { return info->regA; }
-    volatile uint8_t * const regB() const { return info->regB; }
-
-    void configureFastPWM() const {
-        *regA() &= (1 << WGM00) | (1 << WGM01);
-        *regB() |= ~(1 << ~WGM02);
+    inline void configureFastPWM(uint8_t on, uint8_t off) const {
+        *regA() |= (1 << WGM00) | (1 << WGM01);
+        *regB() |= on;
+        *regB() &= ~((1 << WGM02) | off);
     }
 
 public:
     constexpr Timer(const TimerInfo * const info_): info(info_) {}
 
+    TimerInterruptHandler &interruptOnOverflow() { return _overflow; }
+
+    void interruptOnOverflowOn() {
+        *info->interruptMask() |= (1 << TOIE0);
+    }
+
     void configureFastPWM62500Hz() const {
-        configureFastPWM();
-        *regB() &= (1 << CS00);
-        *regB() |= ~((1 << CS01) | (1 << CS02));
+        configureFastPWM((1 << CS00), (1 << CS01) | (1 << CS02));
     }
     /** Actually 7812.5Hz */
     void configureFastPWM7813Hz() const {
-        configureFastPWM();
-        *regB() |= ~(1 << CS00);
-        *regB() &= (1 << CS01);
-        *regB() |= ~(1 << CS02);
+        configureFastPWM((1 << CS01), (1 << CS00) | (1 << CS02));
     }
     /** Actually 976.5625 Hz */
     void configureFastPWM977Hz() const {
-        configureFastPWM();
-        *regB() &= (1 << CS00);
-        *regB() &= (1 << CS01);
-        *regB() |= ~(1 << CS02);
+        configureFastPWM((1 << CS00) | (1 << CS01), (1 << CS02));
     }
     /** Actually 244.140625 Hz */
     void configureFastPWM244Hz() const {
-        configureFastPWM();
-        *regB() |= ~(1 << CS00);
-        *regB() |= ~(1 << CS01);
-        *regB() &= (1 << CS02);
+        configureFastPWM((1 << CS02), (1 << CS00) | (1 << CS01));
     }
     /** Actually 61.03515625 Hz */
     void configureFastPWM61Hz() const {
-        configureFastPWM();
-        *regB() &= (1 << CS00);
-        *regB() |= ~(1 << CS01);
-        *regB() &= (1 << CS02);
-    }
-
-    void doOnOverflow(volatile void (*callback)(volatile void*), void *ctx) {
-        onOverflowCtx = ctx;
-        onOverflow = callback;
+        configureFastPWM((1 << CS02) | (1 << CS00), (1 << CS01));
     }
 
     /** Returns the timer prescaler: 1, 8, 64, 256 or 1024 */
@@ -103,11 +109,11 @@ public:
     }
 
     T getValue() const {
-        return *((volatile T *)info->count);
+        return *((volatile T *)info->counter());
     }
 
     bool isOverflow() const {
-        return *(info->intFlag) & (1 << TOV0);
+        return *info->interruptFlag() & (1 << TOV0);
     }
 };
 
@@ -154,7 +160,8 @@ public:
         millisInc = microsPerTick / 1000;
         fractInc = microsPerTick % 1000;
 
-        timer->doOnOverflow(&RealTimer::doTick, this);
+        timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
+        timer->interruptOnOverflowOn();
     }
 
     uint64_t millis() const {

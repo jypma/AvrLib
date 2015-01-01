@@ -33,12 +33,14 @@ extern const PinInfo PROGMEM pinInfos[];
 
 class Pin {
     const PinInfo * const info;
+
     inline volatile uint8_t * const port() const { return info->port(); }
     inline volatile uint8_t * const ddr() const { return info->ddr(); }
     inline uint8_t const bitmask() const { return info->bitmask(); }
-    inline uint8_t const pinNumber() const { return info - pinInfos; }
 
 protected:
+    inline uint8_t const pinNumber() const { return info - pinInfos; }
+
     void configureAsGPIO() const {
         switch(pinNumber()) {
           case 0: UCSR0B &= ~(1 << TXEN0); break;
@@ -66,11 +68,55 @@ public:
     bool isHigh() const;
 };
 
-class HwInterruptPin: public Pin {
-    InterruptHandler extInterrupt;
+SIGNAL(INT0_vect);
+SIGNAL(INT1_vect);
+
+class HwInterruptPin: public Pin, public InterruptHandler {
+    void externalInterruptOn(uint8_t mode);
+
+    friend void INT0_vect();
+    friend void INT1_vect();
+
 public:
     constexpr HwInterruptPin(const PinInfo * const _info): Pin(_info) {}
-    InterruptHandler &externalInterrupt() { return extInterrupt; }
+
+    /**
+     * Invokes an attached interrupt handler whenever the pin is low. Works in all sleep modes.
+     * You should call externalInterruptOff() from your handler, otherwise it will be
+     * repeatedly invoked.
+     */
+    void externalInterruptOnLow() {
+        externalInterruptOn(0);
+    }
+
+    /**
+     * Invokes an attached interrupt handler whenever the pin changes value. Only works when
+     * the I/O clock is running.
+     */
+    void externalInterruptOnChange() {
+        externalInterruptOn(1);
+    }
+
+    /**
+     * Invokes an attached interrupt handler whenever the pin goes from low to high. Only works when
+     * the I/O clock is running.
+     */
+    void externalInterruptOnRising() {
+        externalInterruptOn(2);
+    }
+
+    /**
+     * Invokes an attached interrupt handler whenever the pin goes from high to low. Only works when
+     * the I/O clock is running.
+     */
+    void externalInterruptOnFalling() {
+        externalInterruptOn(3);
+    }
+
+    /**
+     * Disables raising any interrupts for this pin (but does not remove any registered interrupt handler).
+     */
+    void externalInterruptOff();
 };
 
 const Pin pinD0(pinInfos + 0);
