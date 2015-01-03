@@ -72,19 +72,19 @@ bool Pin::isHigh() const {
 void HwInterruptPin::externalInterruptOn(uint8_t mode) {
     switch (pinNumber()) {
         case 2:
-            EICRA = (EICRA & ~((1 << ISC00) | (1 << ISC01))) | (mode << ISC00);
-            EIMSK |= (1 << INT0);
+            EICRA = (EICRA & ~(_BV(ISC00) | _BV(ISC01))) | (mode << ISC00);
+            EIMSK |= _BV(INT0);
             break;
         case 3:
-            EICRA = (EICRA & ~((1 << ISC10) | (1 << ISC11))) | (mode << ISC10);
-            EIMSK |= (1 << INT1);
+            EICRA = (EICRA & ~(_BV(ISC10) | _BV(ISC11))) | (mode << ISC10);
+            EIMSK |= _BV(INT1);
             break;
     }
 }
 
 void HwInterruptPin::externalInterruptOff() {
     switch (pinNumber()) {
-        case 2: EIMSK &= ~(1 << INT0); break;
-        case 3: EIMSK &= ~(1 << INT1); break;
+        case 2: EIMSK &= ~_BV(INT0); break;
+        case 3: EIMSK &= ~_BV(INT1); break;
     }
 }

@@ -43,8 +43,8 @@ protected:
 
     void configureAsGPIO() const {
         switch(pinNumber()) {
-          case 0: UCSR0B &= ~(1 << TXEN0); break;
-          case 1: UCSR0B &= ~(1 << RXEN0); break;
+          case 0: UCSR0B &= ~_BV(TXEN0); break;
+          case 1: UCSR0B &= ~_BV(RXEN0); break;
         }
     }
 
