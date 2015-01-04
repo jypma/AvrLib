@@ -20,6 +20,7 @@ struct TimerInfo {
     uint16_t const _counter;
     uint16_t const _intFlag;
     uint16_t const _intMask;
+    uint8_t const _prescalerPowers[8];
 
     inline volatile uint8_t *regA() const {
         return (volatile uint8_t *)pgm_read_ptr(&_regA);
@@ -40,6 +41,10 @@ struct TimerInfo {
     inline volatile uint8_t * interruptMask() const {
         return (volatile uint8_t *)pgm_read_ptr(&_intMask);
     }
+
+    inline uint8_t prescalerPower(uint8_t bits) const {
+        return pgm_read_byte((_prescalerPowers) + bits);
+    }
 };
 
 extern const TimerInfo PROGMEM timerInfos[];
@@ -54,7 +59,7 @@ class TimerInterruptHandler: public InterruptHandler {
     friend void TIMER2_OVF_vect();
 };
 
-enum class Prescaler: uint8_t {
+enum class ExtPrescaler: uint8_t {
     _1 = _BV(CS00),
     _8 = _BV(CS01),
     _64 = _BV(CS00) | _BV(CS01),
@@ -62,31 +67,33 @@ enum class Prescaler: uint8_t {
     _1024 = _BV(CS02) | _BV(CS00)
 };
 
+enum class IntPrescaler: uint8_t {
+    _1 = _BV(CS00),
+    _8 = _BV(CS01),
+    _32 = _BV(CS00) | _BV(CS01),
+    _64 = _BV(CS02),
+    _128 = _BV(CS02) | _BV(CS00),
+    _256 = _BV(CS02) | _BV(CS01),
+    _1024 = _BV(CS02) | _BV(CS01) | _BV(CS00)
+};
+
 enum class TimerMode: uint8_t {
     fastPWM
 };
 
-struct TimerSettings {
-    TimerMode mode;
-    Prescaler prescaler;
-};
-
-const TimerSettings FastPWM62500Hz = { TimerMode::fastPWM, Prescaler::_1 };
-const TimerSettings FastPWM61Hz = { TimerMode::fastPWM, Prescaler::_1024 };
-
-class Timer {
+class AbstractTimer {
 private:
     TimerInterruptHandler _overflow;
 
     inline volatile uint8_t * const regA() const { return info->regA(); }
     inline volatile uint8_t * const regB() const { return info->regB(); }
 
-    Timer& configureFastPWM(uint8_t on, uint8_t off) const;
 protected:
     const TimerInfo * const info;
+    void configureFastPWM(const uint8_t prescalerBits) const;
 
 public:
-    constexpr Timer(const TimerInfo * const info_): info(info_) {}
+    constexpr AbstractTimer(const TimerInfo * const info_): info(info_) {}
 
     TimerInterruptHandler &interruptOnOverflow() { return _overflow; }
 
@@ -98,36 +105,35 @@ public:
         *info->interruptMask() &= ~_BV(TOIE0);
     }
 
-    void configure(const TimerSettings &settings) const;
-
-    inline Timer& configureFastPWM62500Hz() const {
-        return configureFastPWM(_BV(CS00), _BV(CS01) | _BV(CS02));
+    /** Returns the timer prescaler as 2^N, so prescaler 1 would return 0, prescaler 256 would return 8, etc. */
+    uint8_t getPrescalerPower2() const {
+        uint8_t prescaler = *regB() & (_BV(CS00) | _BV(CS01) | _BV(CS02));
+        return info->prescalerPower(prescaler);
     }
-    /** Actually 7812.5Hz */
-    inline Timer& configureFastPWM7813Hz() const {
-        return configureFastPWM(_BV(CS01), _BV(CS00) | _BV(CS02));
-    }
-    /** Actually 976.5625 Hz */
-    inline Timer& configureFastPWM977Hz() const {
-        return configureFastPWM(_BV(CS00) | _BV(CS01), _BV(CS02));
-    }
-    /** Actually 244.140625 Hz */
-    inline Timer& configureFastPWM244Hz() const {
-        return configureFastPWM(_BV(CS02), _BV(CS00) | _BV(CS01));
-    }
-    /** Actually 61.03515625 Hz */
-    inline Timer& configureFastPWM61Hz() const {
-        return configureFastPWM(_BV(CS02) | _BV(CS00), _BV(CS01));
-    }
-
-    /** Returns the timer prescaler: 1, 8, 64, 256 or 1024 */
-    uint16_t getPrescaler() const;
 
     bool isOverflow() const {
         return *info->interruptFlag() & _BV(TOV0);
     }
 };
 
+template<typename size_t, typename prescaler_t>
+class Timer: public AbstractTimer {
+public:
+    constexpr Timer(const TimerInfo * const info_): AbstractTimer(info_) {}
+
+    size_t getValue() const {
+        return *((volatile size_t *)info->counter());
+    }
+
+    void configure(const TimerMode mode, const prescaler_t prescaler) const {
+        switch (mode) {
+            case TimerMode::fastPWM:
+                configureFastPWM(static_cast<uint8_t>(prescaler));
+                break;
+        }
+    }
+};
+/*
 class Timer8: public Timer {
 public:
     constexpr Timer8(const TimerInfo * const info_): Timer(info_) {}
@@ -145,69 +151,71 @@ public:
         return *((volatile uint16_t *)info->counter());
     }
 };
+*/
 
-extern Timer8 timer0;
-extern Timer16 timer1;
-extern Timer8 timer2;
-extern volatile void *lastCtx;
-extern int timers;
+extern Timer<uint8_t,ExtPrescaler> timer0;
+extern Timer<uint16_t,ExtPrescaler> timer1;
+extern Timer<uint8_t,IntPrescaler> timer2;
 
+template<typename prescaler_t>
 class RealTimer {
 public:
-    Timer8 *timer ;
-    volatile uint64_t _millis = 0;
-    volatile uint16_t _fract = 0;
-    volatile uint64_t _ticks = 0;
-    volatile uint8_t millisInc;
-    volatile uint16_t fractInc;
+    Timer<uint8_t,prescaler_t> *timer ;
+    volatile uint32_t _millis = 0;
+    volatile uint32_t _micros = 0;
+    volatile uint32_t _ticks = 0;
+    volatile uint32_t millisInc;
+    volatile uint32_t microsInc;
 
     uint16_t _16thMicrosPerCount() const {
-        return timer->getPrescaler() * 16 / clockCyclesPerMicrosecond;
+        return (1 << timer->getPrescalerPower2()) * 16 / clockCyclesPerMicrosecond;
     }
 
-    void tick();
+    void tick() {
+       _ticks++;
+    }
 
     static volatile void doTick(volatile void *ctx) {
-        lastCtx = ctx;
         ((RealTimer*)(ctx))->tick();
     }
 
     static const uint64_t clockCyclesPerMicrosecond = F_CPU / 1000000L;
 public:
-    RealTimer(Timer8 &_timer): timer(&_timer) {
-        timers ++;
-//        Serial.println("Constructing");
-//        Serial.flush();
-
-        //timer->configureFastPWM7813Hz();
-        timer->configure(FastPWM62500Hz);
+    RealTimer(Timer<uint8_t,prescaler_t> &_timer): timer(&_timer) {
         configure();
- //       Serial.println(timer->getPrescaler());
- //       Serial.flush();
 
-  //      Serial.println((unsigned long) clockCyclesPerMicrosecond);
-  //      Serial.flush();
-
-   //     Serial.println(fractInc);
-  //      Serial.flush();
-
-        lastCtx = (volatile void *)this;
         timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
-   //     Serial.println("attached");
-   //     Serial.flush();
-
         timer->interruptOnOverflowOn();
-   //     Serial.println("on");
-   //     Serial.flush();
+    }
 
+    RealTimer(Timer<uint8_t,prescaler_t> &_timer, TimerMode mode, prescaler_t prescaler): timer(&_timer) {
+        timer->configure(mode, prescaler);
+        configure();
+
+        timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
+        timer->interruptOnOverflowOn();
     }
 
     uint64_t millis() const {
         ScopedNoInterrupts cli;
+        //uint16_t microsPerTick = _16thMicrosPerCount() * 16L * 256L;
+        // prescaler 1: 16 * 256 micros per tick, so _ticks * 16 * 256 = _micros, ticks * 16 * 256 / 1000 = _millis
+        // prescaler 8: 8 * 16 * 256 micros per tick, so _ticks * 16 * 256 = _micros, ticks * 16 * 256 / 1000 = _millis
+        // prescaler 1024: 1024 * 256 clock ticks, 1024 * 245
 
-        return _millis;
+        /*
+        switch (timer->getPrescaler()) {
+            case 1: return (((uint64_t)_ticks) * 1 / 16 * 256) / 1000;       // correct
+            case 8: return (((uint64_t)_ticks) * 8 / 16 * 256) / 1000;
+            case 64: return (((uint64_t)_ticks) * 64 / 16 * 256) / 1000;     // 2 times too many millis
+            case 256: return (((uint64_t)_ticks) * 256 / 16 * 256) / 1000;   // 4 times too many millis?
+            case 1024: return (((uint64_t)_ticks) * 1024 / 16 * 256) / 1000; // 8 times too many millis?
+        }
+        */
+
+        return (((uint64_t)_ticks) << timer->getPrescalerPower2()) / 16 * 256 / 1000;
     }
-
+/*
     uint64_t micros() const {
         ScopedNoInterrupts cli;
 
@@ -232,11 +240,14 @@ public:
             }
         }
     }
-
+*/
     void configure() {
+        ScopedNoInterrupts cli;
+
         uint16_t microsPerTick = _16thMicrosPerCount() * 16L * 256L;
         millisInc = microsPerTick / 1000;
-        fractInc = microsPerTick % 1000;
+        microsInc = microsPerTick % 1000;
+        _ticks = 0;
     }
 };
 
