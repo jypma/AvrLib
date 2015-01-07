@@ -13,26 +13,26 @@ SIGNAL(INT1_vect) {
 }
 
 const PinInfo PROGMEM pinInfos[] = {
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 0 },
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 1 },
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 2 },
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 3 },
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 4 },
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 5 },
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 6 },
-    { (uint16_t) &PORTD, (uint16_t) &DDRD, 1 << 7 },
-    { (uint16_t) &PORTB, (uint16_t) &DDRB, 1 << 0 },
-    { (uint16_t) &PORTB, (uint16_t) &DDRB, 1 << 1 },
-    { (uint16_t) &PORTB, (uint16_t) &DDRB, 1 << 2 },
-    { (uint16_t) &PORTB, (uint16_t) &DDRB, 1 << 3 },
-    { (uint16_t) &PORTB, (uint16_t) &DDRB, 1 << 4 },
-    { (uint16_t) &PORTB, (uint16_t) &DDRB, 1 << 5 },
-    { (uint16_t) &PORTC, (uint16_t) &DDRD, 1 << 0 },
-    { (uint16_t) &PORTC, (uint16_t) &DDRC, 1 << 1 },
-    { (uint16_t) &PORTC, (uint16_t) &DDRC, 1 << 2 },
-    { (uint16_t) &PORTC, (uint16_t) &DDRC, 1 << 3 },
-    { (uint16_t) &PORTC, (uint16_t) &DDRC, 1 << 4 },
-    { (uint16_t) &PORTC, (uint16_t) &DDRC, 1 << 5 }
+    { &PORTD, &DDRD, 1 << 0 },
+    { &PORTD, &DDRD, 1 << 1 },
+    { &PORTD, &DDRD, 1 << 2 },
+    { &PORTD, &DDRD, 1 << 3 },
+    { &PORTD, &DDRD, 1 << 4 },
+    { &PORTD, &DDRD, 1 << 5 },
+    { &PORTD, &DDRD, 1 << 6 },
+    { &PORTD, &DDRD, 1 << 7 },
+    { &PORTB, &DDRB, 1 << 0 },
+    { &PORTB, &DDRB, 1 << 1 },
+    { &PORTB, &DDRB, 1 << 2 },
+    { &PORTB, &DDRB, 1 << 3 },
+    { &PORTB, &DDRB, 1 << 4 },
+    { &PORTB, &DDRB, 1 << 5 },
+    { &PORTC, &DDRD, 1 << 0 },
+    { &PORTC, &DDRC, 1 << 1 },
+    { &PORTC, &DDRC, 1 << 2 },
+    { &PORTC, &DDRC, 1 << 3 },
+    { &PORTC, &DDRC, 1 << 4 },
+    { &PORTC, &DDRC, 1 << 5 }
 };
 
 void Pin::configureAsOutput() const {

@@ -14,8 +14,8 @@
 typedef volatile void (*Callback)();
 
 struct PinInfo {
-    uint16_t const _port;
-    uint16_t const _ddr;
+    volatile uint8_t * const _port;
+    volatile uint8_t * const _ddr;
     uint8_t const _bitmask;
 
     inline volatile uint8_t *port() const {

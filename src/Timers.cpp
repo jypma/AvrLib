@@ -1,9 +1,9 @@
 #include "Timers.hpp"
 
 const TimerInfo PROGMEM timerInfos[] = {
-    { (uint16_t) &TCCR0A, (uint16_t) &TCCR0B, (uint16_t) &TCNT0, (uint16_t) &TIFR0, (uint16_t) &TIMSK0, { 0, 0, 3, 6, 8, 10, 0, 0 } },
-    { (uint16_t) &TCCR1A, (uint16_t) &TCCR1B, (uint16_t) &TCNT1, (uint16_t) &TIFR1, (uint16_t) &TIMSK1, { 0, 0, 3, 6, 8, 10, 0, 0 } },
-    { (uint16_t) &TCCR2A, (uint16_t) &TCCR2B, (uint16_t) &TCNT2, (uint16_t) &TIFR2, (uint16_t) &TIMSK2, { 0, 0, 3, 5, 6, 7, 8, 10 } },
+    { &TCCR0A, &TCCR0B, &TCNT0, &TIFR0, &TIMSK0, { 0, 0, 3, 6, 8, 10, 0, 0 } },
+    { &TCCR1A, &TCCR1B, &TCNT1, &TIFR1, &TIMSK1, { 0, 0, 3, 6, 8, 10, 0, 0 } },
+    { &TCCR2A, &TCCR2B, &TCNT2, &TIFR2, &TIMSK2, { 0, 0, 3, 5, 6, 7, 8, 10 } },
 };
 
 Timer<uint8_t,ExtPrescaler> timer0(timerInfos + 0);

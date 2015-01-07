@@ -15,11 +15,11 @@
 #include "Arduino.h"
 
 struct TimerInfo {
-    uint16_t const _regA;
-    uint16_t const _regB;
-    uint16_t const _counter;
-    uint16_t const _intFlag;
-    uint16_t const _intMask;
+    volatile uint8_t * const _regA;
+    volatile uint8_t * const _regB;
+    volatile uint8_t * const _counter;
+    volatile uint8_t * const _intFlag;
+    volatile uint8_t * const _intMask;
     uint8_t const _prescalerPowers[8];
 
     inline volatile uint8_t *regA() const {
@@ -43,7 +43,7 @@ struct TimerInfo {
     }
 
     inline uint8_t prescalerPower(uint8_t bits) const {
-        return pgm_read_byte((_prescalerPowers) + bits);
+        return pgm_read_byte(_prescalerPowers + bits);
     }
 };
 
