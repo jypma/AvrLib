@@ -10,12 +10,11 @@ Timer<uint8_t,ExtPrescaler> timer0(timerInfos + 0);
 Timer<uint16_t,ExtPrescaler> timer1(timerInfos + 1);
 Timer<uint8_t,IntPrescaler> timer2(timerInfos + 2);
 
-/*
 ISR(TIMER0_OVF_vect)
 {
-    timer0.onOverflow().invoke();
+    timer0.interruptOnOverflow().invoke();
 }
-*/
+
 ISR(TIMER1_OVF_vect)
 {
     timer1.interruptOnOverflow().invoke();

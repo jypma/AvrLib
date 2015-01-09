@@ -48,12 +48,12 @@ struct TimerInfo {
 
 extern const TimerInfo PROGMEM timerInfos[];
 
-//ISR(TIMER0_OVF_vect);
+ISR(TIMER0_OVF_vect);
 ISR(TIMER1_OVF_vect);
 ISR(TIMER2_OVF_vect);
 
 class TimerInterruptHandler: public InterruptHandler {
-    //friend void TIMER0_OVF_vect();
+    friend void TIMER0_OVF_vect();
     friend void TIMER1_OVF_vect();
     friend void TIMER2_OVF_vect();
 };
@@ -77,7 +77,19 @@ enum class IntPrescaler: uint8_t {
 };
 
 #if F_CPU == 16000000
-#define int61Hz IntPrescaler::_1024;
+constexpr auto IntPrescaler62500Hz = IntPrescaler::_1;
+constexpr auto IntPrescaler7813Hz = IntPrescaler::_8;
+constexpr auto IntPrescaler1953Hz = IntPrescaler::_32;
+constexpr auto IntPrescaler977Hz = IntPrescaler::_64;
+constexpr auto IntPrescaler488Hz = IntPrescaler::_128;
+constexpr auto IntPrescaler244Hz = IntPrescaler::_256;
+constexpr auto IntPrescaler61Hz = IntPrescaler::_1024;
+
+constexpr auto ExtPrescaler62500Hz = ExtPrescaler::_1;
+constexpr auto ExtPrescaler7813Hz = ExtPrescaler::_8;
+constexpr auto ExtPrescaler977Hz = ExtPrescaler::_64;
+constexpr auto ExtPrescaler244Hz = ExtPrescaler::_256;
+constexpr auto ExtPrescaler61Hz = ExtPrescaler::_1024;
 #endif
 
 enum class TimerMode: uint8_t {
