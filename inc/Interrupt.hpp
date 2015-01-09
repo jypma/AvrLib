@@ -27,10 +27,10 @@ protected:
     /** Invokes any registered handler */
     void invoke();
 public:
-    volatile void (*func)(volatile void *) = nullptr;
+    void (*func)(volatile void *) = nullptr;
     volatile void *ctx = nullptr;
-    void attach(volatile void (*_func)(volatile void *), volatile void *_ctx);
-    void attach(volatile void (*_func)(volatile void *));
+    void attach(void (*_func)(volatile void *), volatile void *_ctx);
+    void attach(void (*_func)(volatile void *));
     void detach();
 };
 

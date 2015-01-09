@@ -74,16 +74,7 @@ public:
         *info->ucsrb() = (*info->ucsrb() | _BV(TXEN0) | _BV(RXEN0) | _BV(RXCIE0)) & ~_BV(UDRIE0);
     }
 
-    void write (uint8_t c) {
-        if (fifo == nullptr) return;
-        ScopedNoInterrupts cli;
-
-        //while (fifo->isFull()) ;
-        fifo->append(c);
-        *info->ucsrb() |= _BV(UDRIE0);
-        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
-        *info->ucsra() |= _BV(TXC0);
-    }
+    void write (uint8_t c);
 };
 
 extern Usart usart0;

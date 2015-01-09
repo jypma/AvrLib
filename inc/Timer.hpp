@@ -100,8 +100,8 @@ class AbstractTimer {
 private:
     TimerInterruptHandler _overflow;
 
-    inline volatile uint8_t * const regA() const { return info->regA(); }
-    inline volatile uint8_t * const regB() const { return info->regB(); }
+    inline volatile uint8_t * regA() const { return info->regA(); }
+    inline volatile uint8_t * regB() const { return info->regB(); }
 
 protected:
     const TimerInfo * const info;

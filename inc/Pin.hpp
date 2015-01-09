@@ -12,8 +12,6 @@
 #include "Usart.hpp"
 #include <avr/pgmspace.h>
 
-typedef volatile void (*Callback)();
-
 struct PinInfo {
     volatile uint8_t * const _port;
     volatile uint8_t * const _ddr;
@@ -25,7 +23,7 @@ struct PinInfo {
     inline volatile uint8_t *ddr() const {
         return (volatile uint8_t *)pgm_read_ptr(&_ddr);
     }
-    inline volatile uint8_t bitmask() const {
+    inline uint8_t bitmask() const {
         return pgm_read_byte(&_bitmask);
     }
 };
@@ -35,12 +33,12 @@ extern const PinInfo PROGMEM pinInfos[];
 class Pin {
     const PinInfo * const info;
 
-    inline volatile uint8_t * const port() const { return info->port(); }
-    inline volatile uint8_t * const ddr() const { return info->ddr(); }
-    inline uint8_t const bitmask() const { return info->bitmask(); }
+    inline volatile uint8_t * port() const { return info->port(); }
+    inline volatile uint8_t * ddr() const { return info->ddr(); }
+    inline uint8_t bitmask() const { return info->bitmask(); }
 
 protected:
-    inline uint8_t const pinNumber() const { return info - pinInfos; }
+    inline uint8_t pinNumber() const { return info - pinInfos; }
 
     void configureAsGPIO() const {
         switch(pinNumber()) {
@@ -129,7 +127,7 @@ public:
         usart->configure(_fifo, baud);
     }
 
-    const SerialTxPin &operator << (char *string) const {
+    const SerialTxPin &operator << (const char *string) const {
         if (string != nullptr) {
             char c = *string;
             while (c) {
@@ -142,7 +140,7 @@ public:
         return *this;
     }
 
-    const SerialTxPin &operator << (char ch) const {
+    const SerialTxPin &operator << (const char ch) const {
         usart->write(ch);
         return *this;
     }

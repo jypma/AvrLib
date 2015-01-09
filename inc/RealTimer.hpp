@@ -20,7 +20,7 @@ private:
        _ticks++;
     }
 
-    static volatile void doTick(volatile void *ctx) {
+    static void doTick(volatile void *ctx) {
         ((RealTimer*)(ctx))->tick();
     }
 
