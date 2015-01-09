@@ -12,12 +12,11 @@
 #include <avr/io.h>
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
-#include "Arduino.h"
 
 struct TimerInfo {
     volatile uint8_t * const _regA;
     volatile uint8_t * const _regB;
-    volatile uint8_t * const _counter;
+    volatile void * const _counter;
     volatile uint8_t * const _intFlag;
     volatile uint8_t * const _intMask;
     uint8_t const _prescalerPowers[8];
@@ -49,9 +48,9 @@ struct TimerInfo {
 
 extern const TimerInfo PROGMEM timerInfos[];
 
-//SIGNAL(TIMER0_OVF_vect);
-SIGNAL(TIMER1_OVF_vect);
-SIGNAL(TIMER2_OVF_vect);
+//ISR(TIMER0_OVF_vect);
+ISR(TIMER1_OVF_vect);
+ISR(TIMER2_OVF_vect);
 
 class TimerInterruptHandler: public InterruptHandler {
     //friend void TIMER0_OVF_vect();
@@ -76,6 +75,10 @@ enum class IntPrescaler: uint8_t {
     _256 = _BV(CS02) | _BV(CS01),
     _1024 = _BV(CS02) | _BV(CS01) | _BV(CS00)
 };
+
+#if F_CPU == 16000000
+#define int61Hz IntPrescaler::_1024;
+#endif
 
 enum class TimerMode: uint8_t {
     fastPWM

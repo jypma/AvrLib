@@ -1,4 +1,4 @@
-#include "Timers.hpp"
+#include "Timer.hpp"
 
 const TimerInfo PROGMEM timerInfos[] = {
     { &TCCR0A, &TCCR0B, &TCNT0, &TIFR0, &TIMSK0, { 0, 0, 3, 6, 8, 10, 0, 0 } },
@@ -11,22 +11,23 @@ Timer<uint16_t,ExtPrescaler> timer1(timerInfos + 1);
 Timer<uint8_t,IntPrescaler> timer2(timerInfos + 2);
 
 /*
-SIGNAL(TIMER0_OVF_vect)
+ISR(TIMER0_OVF_vect)
 {
     timer0.onOverflow().invoke();
 }
 */
-SIGNAL(TIMER1_OVF_vect)
+ISR(TIMER1_OVF_vect)
 {
     timer1.interruptOnOverflow().invoke();
 }
 
-SIGNAL(TIMER2_OVF_vect)
+ISR(TIMER2_OVF_vect)
 {
     timer2.interruptOnOverflow().invoke();
 }
 
 void AbstractTimer::configureFastPWM (const uint8_t prescalerBits) const {
+    sei();
     ScopedNoInterrupts cli;
 
     *regA() |= (_BV(WGM00) | _BV(WGM01));

@@ -9,6 +9,7 @@
 #define INTERRUPT_H_
 
 #include "Interrupt.hpp"
+#include "Usart.hpp"
 #include <avr/pgmspace.h>
 
 typedef volatile void (*Callback)();
@@ -68,8 +69,8 @@ public:
     bool isHigh() const;
 };
 
-SIGNAL(INT0_vect);
-SIGNAL(INT1_vect);
+ISR(INT0_vect);
+ISR(INT1_vect);
 
 class HwInterruptPin: public Pin, public InterruptHandler {
     void externalInterruptOn(uint8_t mode);
@@ -119,8 +120,37 @@ public:
     void externalInterruptOff();
 };
 
+class SerialTxPin: public Pin {
+    Usart * const usart;
+public:
+    SerialTxPin(const PinInfo * const _info, Usart &_usart): Pin(_info), usart(&_usart) {}
+
+    void configureAsSerialTx(AbstractFifo &_fifo, uint32_t baud) const {
+        usart->configure(_fifo, baud);
+    }
+
+    const SerialTxPin &operator << (char *string) const {
+        if (string != nullptr) {
+            char c = *string;
+            while (c) {
+                usart->write(c);
+                string++;
+                c = *string;
+            }
+        }
+
+        return *this;
+    }
+
+    const SerialTxPin &operator << (char ch) const {
+        usart->write(ch);
+        return *this;
+    }
+};
+
+
 const Pin pinD0(pinInfos + 0);
-const Pin pinD1(pinInfos + 1);
+const SerialTxPin pinD1(pinInfos + 1, usart0);
 extern HwInterruptPin pinD2;
 extern HwInterruptPin pinD3;
 const Pin pinD4(pinInfos + 4);

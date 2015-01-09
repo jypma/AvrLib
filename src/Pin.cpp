@@ -1,14 +1,14 @@
-#include "Pins.hpp"
+#include "Pin.hpp"
 #include <avr/interrupt.h>
 
 HwInterruptPin pinD2(pinInfos + 2);
 HwInterruptPin pinD3(pinInfos + 3);
 
-SIGNAL(INT0_vect) {
+ISR(INT0_vect) {
     pinD2.invoke();
 }
 
-SIGNAL(INT1_vect) {
+ISR(INT1_vect) {
     pinD3.invoke();
 }
 

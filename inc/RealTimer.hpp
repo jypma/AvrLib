@@ -8,6 +8,8 @@
 #ifndef REALTIMER_HPP_
 #define REALTIMER_HPP_
 
+#include "Timer.hpp"
+
 template<typename prescaler_t>
 class RealTimer {
 private:
@@ -35,6 +37,11 @@ public:
         timer->interruptOnOverflowOn();
     }
 
+    uint32_t ticks() const {
+        ScopedNoInterrupts cli;
+        return _ticks;
+    }
+
     uint64_t micros() const {
         ScopedNoInterrupts cli;
 
@@ -45,7 +52,7 @@ public:
         // divide by 16 ( >> 4) to go from clock ticks to microseconds
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
 
-        return (((uint64_t)_ticks) << timer->getPrescalerPower2()) / 16 * 256 / 1000;
+        return (((uint64_t)_ticks) << timer->getPrescalerPower2()) / 16 * 256;
     }
 
     uint64_t millis() const {
@@ -60,6 +67,16 @@ public:
         // divide by 1000 to get milliseconds
 
         return (((uint64_t)_ticks) << timer->getPrescalerPower2()) / 16 * 256 / 1000;
+    }
+
+    void delayTicks(uint32_t ticksDelay) {
+        uint32_t end = _ticks + ticksDelay;
+        while (ticks() < end) ;
+    }
+
+    void delayMillis(uint16_t millisDelay) {
+        uint32_t ticksDelay = (((uint32_t)millisDelay) * 1000 / 256 * 16) >> timer->getPrescalerPower2();
+        delayTicks(ticksDelay);
     }
 };
 

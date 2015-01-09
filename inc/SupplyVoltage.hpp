@@ -8,7 +8,7 @@
 #ifndef SUPPLYVOLTAGE_HPP_
 #define SUPPLYVOLTAGE_HPP_
 
-#include "Pins.hpp"
+#include "Pin.hpp"
 /*
 class SupplyVoltage {
     uint8_t const pin;
