@@ -10,13 +10,18 @@
 
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
-
-extern volatile uint8_t sfr_io[256];
+typedef unsigned int uint32_t;
+typedef unsigned long uint64_t;
 
 #define _AVR_IO_H_
-#define _SFR_IO8(addr) (*(sfr_io + addr + 0x20))
-#define _SFR_MEM8(addr) (*(sfr_io + addr))
-#define _SFR_MEM16(addr) (*(sfr_io + addr))
+
+extern uint8_t sfr_mem[256];
+
+#define _SFR_IO8(addr) sfr_mem[addr +  + 0x20]
+#define _SFR_MEM8(addr) sfr_mem[addr]
+#define _SFR_MEM16(addr) *((uint16_t*)(&sfr_mem[addr]))
+
+#define F_CPU 16000000
 
 #    define SREG _SFR_IO8(0x3F)
 
@@ -34,8 +39,9 @@ extern volatile uint8_t sfr_io[256];
 #define _BV(bit) (1 << (bit))
 
 void cli();
+void sei();
 
 #define _VECTOR(idx) vector_##idx
-#define SIGNAL(name) void name()
+#define ISR(name) void name()
 
 #endif /* COMMON_H_ */

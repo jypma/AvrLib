@@ -10,43 +10,7 @@
 
 #include "Interrupt.hpp"
 #include <avr/io.h>
-#include <avr/pgmspace.h>
 #include <avr/interrupt.h>
-
-struct TimerInfo {
-    volatile uint8_t * const _regA;
-    volatile uint8_t * const _regB;
-    volatile void * const _counter;
-    volatile uint8_t * const _intFlag;
-    volatile uint8_t * const _intMask;
-    uint8_t const _prescalerPowers[8];
-
-    inline volatile uint8_t *regA() const {
-        return (volatile uint8_t *)pgm_read_ptr(&_regA);
-    }
-
-    inline volatile uint8_t *regB() const {
-        return (volatile uint8_t *)pgm_read_ptr(&_regB);
-    }
-
-    inline volatile void * counter() const {
-        return (volatile void *)pgm_read_ptr(&_counter);
-    }
-
-    inline volatile uint8_t * interruptFlag() const {
-        return (volatile uint8_t *)pgm_read_ptr(&_intFlag);
-    }
-
-    inline volatile uint8_t * interruptMask() const {
-        return (volatile uint8_t *)pgm_read_ptr(&_intMask);
-    }
-
-    inline uint8_t prescalerPower(uint8_t bits) const {
-        return pgm_read_byte(_prescalerPowers + bits);
-    }
-};
-
-extern const TimerInfo PROGMEM timerInfos[];
 
 ISR(TIMER0_OVF_vect);
 ISR(TIMER1_OVF_vect);
@@ -92,65 +56,86 @@ constexpr auto ExtPrescaler244Hz = ExtPrescaler::_256;
 constexpr auto ExtPrescaler61Hz = ExtPrescaler::_1024;
 #endif
 
-enum class TimerMode: uint8_t {
-    fastPWM
-};
+extern TimerInterruptHandler tm0int;
+extern TimerInterruptHandler tm1int;
+extern TimerInterruptHandler tm2int;
 
-class AbstractTimer {
-private:
-    TimerInterruptHandler _overflow;
-
-    inline volatile uint8_t * regA() const { return info->regA(); }
-    inline volatile uint8_t * regB() const { return info->regB(); }
-
+template <typename info>
+class Timer {
 protected:
-    const TimerInfo * const info;
-    void configureFastPWM(const uint8_t prescalerBits) const;
+    void configureFastPWM(const typename info::prescaler_t prescaler) const {
+        AtomicScope::SEI _;
 
+        *info::tccra |= (_BV(WGM00) | _BV(WGM01));
+        *info::tccrb = (*info::tccrb & ~_BV(WGM02) & ~_BV(CS00) & ~_BV(CS01) & ~_BV(CS02)) | static_cast<uint8_t>(prescaler);
+    }
 public:
-    constexpr AbstractTimer(const TimerInfo * const info_): info(info_) {}
-
-    TimerInterruptHandler &interruptOnOverflow() { return _overflow; }
-
-    void interruptOnOverflowOn() {
-        *info->interruptMask() |= _BV(TOIE0);
+    InterruptHandler &interruptOnOverflow() const {
+        return *info::intHandler;
     }
-
-    void interruptOnOverflowOff() {
-        *info->interruptMask() &= ~_BV(TOIE0);
+    void interruptOnOverflowOn() const {
+        *info::timsk |= _BV(TOIE0);
     }
-
-    /** Returns the timer prescaler as 2^N, so prescaler 1 would return 0, prescaler 256 would return 8, etc. */
-    uint8_t getPrescalerPower2() const {
-        uint8_t prescaler = *regB() & (_BV(CS00) | _BV(CS01) | _BV(CS02));
-        return info->prescalerPower(prescaler);
+    void interruptOnOverflowOff() const {
+        *info::timsk &= ~_BV(TOIE0);
     }
-
+    typename info::value_t getValue() const {
+        return *info::tcnt;
+    }
     bool isOverflow() const {
-        return *info->interruptFlag() & _BV(TOV0);
+        return *info::tifr & _BV(TOV0);
     }
+
 };
 
-template<typename size_t, typename prescaler_t>
-class Timer: public AbstractTimer {
+template<typename prescaler_t, prescaler_t prescaler>
+struct PrescalerMeta {};
+
+template<> struct PrescalerMeta<ExtPrescaler,ExtPrescaler::_1> {
+    constexpr static uint8_t power2 = 0;
+};
+
+template<> struct PrescalerMeta<ExtPrescaler,ExtPrescaler::_8> {
+    constexpr static uint8_t power2 = 3;
+};
+
+template<> struct PrescalerMeta<ExtPrescaler,ExtPrescaler::_64> {
+    constexpr static uint8_t power2 = 6;
+};
+
+template<> struct PrescalerMeta<ExtPrescaler,ExtPrescaler::_256> {
+    constexpr static uint8_t power2 = 8;
+};
+
+template<> struct PrescalerMeta<ExtPrescaler,ExtPrescaler::_1024> {
+    constexpr static uint8_t power2 = 10;
+};
+
+template <typename info, typename info::prescaler_t _prescaler>
+class PrescaledTimer : public Timer<info> {
+    typedef PrescalerMeta<typename info::prescaler_t,_prescaler> Meta;
 public:
-    constexpr Timer(const TimerInfo * const info_): AbstractTimer(info_) {}
-
-    size_t getValue() const {
-        return *((volatile size_t *)info->counter());
+    PrescaledTimer() {
+        Timer<info>::configureFastPWM(prescaler);
     }
 
-    void configure(const TimerMode mode, const prescaler_t prescaler) const {
-        switch (mode) {
-            case TimerMode::fastPWM:
-                configureFastPWM(static_cast<uint8_t>(prescaler));
-                break;
-        }
-    }
+    static constexpr typename info::prescaler_t prescaler = _prescaler;
+    static constexpr uint8_t prescalerPower2 = Meta::power2;
 };
 
-extern Timer<uint8_t,ExtPrescaler> timer0;
-extern Timer<uint16_t,ExtPrescaler> timer1;
-extern Timer<uint8_t,IntPrescaler> timer2;
+struct Timer0Info {
+    static constexpr volatile uint8_t *tccra = &TCCR0A;
+    static constexpr volatile uint8_t *tccrb = &TCCR0B;
+    static constexpr volatile uint8_t *tcnt = &TCNT0;
+    static constexpr volatile uint8_t *timsk = &TIMSK0;
+    static constexpr volatile uint8_t *tifr = &TIFR0;
+
+    static constexpr TimerInterruptHandler* intHandler = &tm0int;
+
+    typedef uint8_t value_t;
+    typedef ExtPrescaler prescaler_t;
+};
+
+template <ExtPrescaler prescaler> using Timer0 = PrescaledTimer<Timer0Info,prescaler>;
 
 #endif /* TIMERS_HPP_ */

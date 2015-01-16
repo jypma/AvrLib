@@ -11,13 +11,33 @@
 #include <avr/common.h>
 #include <avr/interrupt.h>
 
-class ScopedNoInterrupts {
+/**
+ * Executes the scope in which the instance is declared atomically, i.e. with
+ * the interrupt flag cleared, restoring the interrupt flag at the end of the scope
+ * to its previous state.
+ */
+class AtomicScope {
     uint8_t const oldSREG;
 public:
-    ScopedNoInterrupts(): oldSREG(SREG) {
+    /**
+     * Executes the scope in which the instance is declared atomically, i.e. with
+     * the interrupt flag cleared, enabling the interrupt flag at the end of the scope
+     * (regardless what the interrupt flag was beforehand).
+     */
+    class SEI {
+    public:
+        SEI() {
+            cli();
+        }
+        ~SEI() {
+            sei();
+        }
+    };
+
+    AtomicScope(): oldSREG(SREG) {
         cli();
     }
-    ~ScopedNoInterrupts() {
+    ~AtomicScope() {
         SREG = oldSREG;
     }
 };

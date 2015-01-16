@@ -10,51 +10,27 @@
 
 #include "Interrupt.hpp"
 #include "Usart.hpp"
-#include <avr/pgmspace.h>
+#include "Stream.hpp"
 
-struct PinInfo {
-    volatile uint8_t * const _port;
-    volatile uint8_t * const _ddr;
-    uint8_t const _bitmask;
-
-    inline volatile uint8_t *port() const {
-        return (volatile uint8_t *)pgm_read_ptr(&_port);
-    }
-    inline volatile uint8_t *ddr() const {
-        return (volatile uint8_t *)pgm_read_ptr(&_ddr);
-    }
-    inline uint8_t bitmask() const {
-        return pgm_read_byte(&_bitmask);
-    }
-};
-
-extern const PinInfo PROGMEM pinInfos[];
-
+template <typename info>
 class Pin {
-    const PinInfo * const info;
-
-    inline volatile uint8_t * port() const { return info->port(); }
-    inline volatile uint8_t * ddr() const { return info->ddr(); }
-    inline uint8_t bitmask() const { return info->bitmask(); }
-
-protected:
-    inline uint8_t pinNumber() const { return info - pinInfos; }
-
-    void configureAsGPIO() const {
-        switch(pinNumber()) {
-          case 0: UCSR0B &= ~_BV(TXEN0); break;
-          case 1: UCSR0B &= ~_BV(RXEN0); break;
-        }
+public:
+    void configureAsOutput() const {
+        info::configureAsGPIO();
+        *info::ddr |= info::bitmask;
     }
 
-public:
-    constexpr Pin(const PinInfo * const _info): info(_info) {}
+    void configureAsInputWithoutPullup() const {
+        info::configureAsGPIO();
+        *info::ddr &= ~info::bitmask;
+        *info::port &= ~info::bitmask;
+    }
+    void configureAsInputWithPullup() const {
+        *info::ddr &= ~info::bitmask;
+        *info::port |= info::bitmask;
+    }
 
-    void configureAsOutput() const;
-    void configureAsInputWithoutPullup() const;
-    void configureAsInputWithPullup() const;
-
-    inline void setHigh (bool on) const {
+    void setHigh (bool on) const {
         if (on) {
             setHigh();
         } else {
@@ -62,104 +38,82 @@ public:
         }
     }
 
-    void setHigh() const;
-    void setLow() const;
-    bool isHigh() const;
+    void setHigh() const {
+        *info::port |= info::bitmask;
+    }
+
+    void setLow() const {
+        *info::port &= ~info::bitmask;
+    }
+
+    bool isHigh() const {
+        return (*info::port()) & info::bitmask;
+    }
 };
 
-ISR(INT0_vect);
-ISR(INT1_vect);
-
-class HwInterruptPin: public Pin, public InterruptHandler {
-    void externalInterruptOn(uint8_t mode);
-
-    friend void INT0_vect();
-    friend void INT1_vect();
-
+template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
+class UsartTxPin: public Pin<pinInfo>, public UsartTx<usartInfo, writeFifoCapacity>, public Stream {
 public:
-    constexpr HwInterruptPin(const PinInfo * const _info): Pin(_info) {}
-
-    /**
-     * Invokes an attached interrupt handler whenever the pin is low. Works in all sleep modes.
-     * You should call externalInterruptOff() from your handler, otherwise it will be
-     * repeatedly invoked.
-     */
-    void externalInterruptOnLow() {
-        externalInterruptOn(0);
-    }
-
-    /**
-     * Invokes an attached interrupt handler whenever the pin changes value. Only works when
-     * the I/O clock is running.
-     */
-    void externalInterruptOnChange() {
-        externalInterruptOn(1);
-    }
-
-    /**
-     * Invokes an attached interrupt handler whenever the pin goes from low to high. Only works when
-     * the I/O clock is running.
-     */
-    void externalInterruptOnRising() {
-        externalInterruptOn(2);
-    }
-
-    /**
-     * Invokes an attached interrupt handler whenever the pin goes from high to low. Only works when
-     * the I/O clock is running.
-     */
-    void externalInterruptOnFalling() {
-        externalInterruptOn(3);
-    }
-
-    /**
-     * Disables raising any interrupts for this pin (but does not remove any registered interrupt handler).
-     */
-    void externalInterruptOff();
+    UsartTxPin(): UsartTx<usartInfo, writeFifoCapacity>(), Stream(&UsartTx<usartInfo, writeFifoCapacity>::write) {}
 };
 
-class SerialTxPin: public Pin {
-    Usart * const usart;
-public:
-    SerialTxPin(const PinInfo * const _info, Usart &_usart): Pin(_info), usart(&_usart) {}
+template <uint8_t bit>
+struct PinOnPortD {
+    static constexpr volatile uint8_t *ddr = &DDRD;
+    static constexpr volatile uint8_t *port = &PORTD;
+    static constexpr uint8_t bitmask = _BV(bit);
+};
 
-    void configureAsSerialTx(AbstractFifo &_fifo, uint32_t baud) const {
-        usart->configure(_fifo, baud);
-    }
+template <uint8_t bit>
+struct PinOnPortB {
+    static constexpr volatile uint8_t *ddr = &DDRB;
+    static constexpr volatile uint8_t *port = &PORTB;
+    static constexpr uint8_t bitmask = _BV(bit);
+};
 
-    const SerialTxPin &operator << (const char *string) const {
-        if (string != nullptr) {
-            char c = *string;
-            while (c) {
-                usart->write(c);
-                string++;
-                c = *string;
-            }
-        }
+struct GPIOPin {
+    static inline void configureAsGPIO() {}
+};
 
-        return *this;
-    }
-
-    const SerialTxPin &operator << (const char ch) const {
-        usart->write(ch);
-        return *this;
+struct PinD0Info: public PinOnPortD<0> {
+    static inline void configureAsGPIO() {
+        UCSR0B &= ~_BV(RXEN0);
     }
 };
 
+struct PinD1Info: public PinOnPortD<1> {
+    static inline void configureAsGPIO() {
+        UCSR0B &= ~_BV(TXEN0);
+    }
+};
 
-const Pin pinD0(pinInfos + 0);
-const SerialTxPin pinD1(pinInfos + 1, usart0);
-extern HwInterruptPin pinD2;
-extern HwInterruptPin pinD3;
-const Pin pinD4(pinInfos + 4);
-const Pin pinD5(pinInfos + 5);
-const Pin pinD6(pinInfos + 6);
-const Pin pinD7(pinInfos + 7);
-const Pin pinD8(pinInfos + 8);
-const Pin pinD9(pinInfos + 9);
-const Pin pinD10(pinInfos + 10);
-const Pin pinD11(pinInfos + 11);
-const Pin pinD12(pinInfos + 12);
-const Pin pinD13(pinInfos + 13);
+struct PinD2Info: public PinOnPortD<2>, public GPIOPin {};
+struct PinD3Info: public PinOnPortD<3>, public GPIOPin {};
+struct PinD4Info: public PinOnPortD<4>, public GPIOPin {};
+struct PinD5Info: public PinOnPortD<5>, public GPIOPin {};
+struct PinD6Info: public PinOnPortD<6>, public GPIOPin {};
+struct PinD7Info: public PinOnPortD<7>, public GPIOPin {};
+struct PinD8Info: public PinOnPortB<0>, public GPIOPin {};
+struct PinD9Info: public PinOnPortB<1>, public GPIOPin {};
+struct PinD10Info: public PinOnPortB<2>, public GPIOPin {};
+struct PinD11Info: public PinOnPortB<3>, public GPIOPin {};
+struct PinD12Info: public PinOnPortB<4>, public GPIOPin {};
+struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
+
+typedef Pin<PinD0Info> PinD0;
+template <uint8_t writeFifoCapacity = 16> using PinD1 = UsartTxPin<PinD1Info,Usart0Info,writeFifoCapacity>;
+typedef Pin<PinD2Info> PinD2;
+typedef Pin<PinD3Info> PinD3;
+typedef Pin<PinD4Info> PinD4;
+typedef Pin<PinD5Info> PinD5;
+typedef Pin<PinD6Info> PinD6;
+typedef Pin<PinD7Info> PinD7;
+typedef Pin<PinD8Info> PinD8;
+typedef Pin<PinD9Info> PinD9;
+typedef Pin<PinD10Info> PinD10;
+typedef Pin<PinD11Info> PinD11;
+typedef Pin<PinD12Info> PinD12;
+typedef Pin<PinD13Info> PinD13;
+
 
 #endif /* INTERRUPT_H_ */

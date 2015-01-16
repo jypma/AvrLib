@@ -10,10 +10,10 @@
 
 #include "Timer.hpp"
 
-template<typename prescaler_t>
+//template <typename info, typename info::prescaler_t _prescaler, const PrescaledTimer<info, _prescaler> &timer>
+template<typename prescaled, prescaled *timer>
 class RealTimer {
 private:
-    Timer<uint8_t,prescaler_t> *timer ;
     volatile uint32_t _ticks = 0;
 
     void tick() {
@@ -25,25 +25,18 @@ private:
     }
 
 public:
-    RealTimer(Timer<uint8_t,prescaler_t> &_timer): timer(&_timer) {
-        timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
-        timer->interruptOnOverflowOn();
-    }
-
-    RealTimer(Timer<uint8_t,prescaler_t> &_timer, TimerMode mode, prescaler_t prescaler): timer(&_timer) {
-        timer->configure(mode, prescaler);
-
+    RealTimer() {
         timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
         timer->interruptOnOverflowOn();
     }
 
     uint32_t ticks() const {
-        ScopedNoInterrupts cli;
+        AtomicScope _;
         return _ticks;
     }
 
     uint64_t micros() const {
-        ScopedNoInterrupts cli;
+        AtomicScope _;
 
 #if F_CPU != 16000000
 #error This function assumes 16MHz clock. Please make the function smarter if running with different clock.
@@ -52,11 +45,11 @@ public:
         // divide by 16 ( >> 4) to go from clock ticks to microseconds
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
 
-        return (((uint64_t)_ticks) << timer->getPrescalerPower2()) / 16 * 256;
+        return (((uint64_t)_ticks) << prescaled::prescalerPower2) / 16 * 256;
     }
 
     uint64_t millis() const {
-        ScopedNoInterrupts cli;
+        AtomicScope _;
 
 #if F_CPU != 16000000
 #error This function assumes 16MHz clock. Please make the function smarter if running with different clock.
@@ -66,16 +59,16 @@ public:
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
         // divide by 1000 to get milliseconds
 
-        return (((uint64_t)_ticks) << timer->getPrescalerPower2()) / 16 * 256 / 1000;
+        return (((uint64_t)_ticks) << prescaled::prescalerPower2) / 16 * 256 / 1000;
     }
 
-    void delayTicks(uint32_t ticksDelay) {
+    void delayTicks(uint32_t ticksDelay) const {
         uint32_t end = _ticks + ticksDelay;
         while (ticks() < end) ;
     }
 
-    void delayMillis(uint16_t millisDelay) {
-        uint32_t ticksDelay = (((uint32_t)millisDelay) * 1000 / 256 * 16) >> timer->getPrescalerPower2();
+    void delayMillis(uint16_t millisDelay) const {
+        uint32_t ticksDelay = (((uint32_t)millisDelay) * 1000 / 256 * 16) >> prescaled::prescalerPower2;
         delayTicks(ticksDelay);
     }
 };

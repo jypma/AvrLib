@@ -1,7 +1,7 @@
 #include "Interrupt.hpp"
 
 void InterruptHandler::attach(void (*_func)(volatile void *), volatile void *_ctx) {
-    ScopedNoInterrupts cli;
+    AtomicScope _;
     func = _func;
     ctx = _ctx;
 }
@@ -11,7 +11,7 @@ void InterruptHandler::attach(void (*_func)(volatile void *)) {
 }
 
 void InterruptHandler::detach() {
-    ScopedNoInterrupts cli;
+    AtomicScope _;
     func = nullptr;
     ctx = nullptr;
 }
@@ -20,7 +20,7 @@ void InterruptHandler::invoke() {
     void (*f)(volatile void *);
     volatile void *c;
     {
-        ScopedNoInterrupts cli;
+        AtomicScope _;
         f = func;
         c = ctx;
     }
