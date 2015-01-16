@@ -43,11 +43,11 @@ public:
 };
 
 class InterruptHandler {
+    void (*func)(volatile void *) = nullptr;
 protected:
     /** Invokes any registered handler */
     void invoke();
 public:
-    void (*func)(volatile void *) = nullptr;
     volatile void *ctx = nullptr;
     void attach(void (*_func)(volatile void *), volatile void *_ctx);
     void attach(void (*_func)(volatile void *));

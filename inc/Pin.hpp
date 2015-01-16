@@ -11,6 +11,7 @@
 #include "Interrupt.hpp"
 #include "Usart.hpp"
 #include "Stream.hpp"
+#include "ExternalInterrupt.hpp"
 
 template <typename info>
 class Pin {
@@ -55,6 +56,11 @@ template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
 class UsartTxPin: public Pin<pinInfo>, public UsartTx<usartInfo, writeFifoCapacity>, public Stream {
 public:
     UsartTxPin(): UsartTx<usartInfo, writeFifoCapacity>(), Stream(&UsartTx<usartInfo, writeFifoCapacity>::write) {}
+};
+
+template <typename pinInfo, typename extInterruptInfo, ExtInterruptHandler &_interrupt>
+class ExtInterruptPin: public Pin<pinInfo>, public ExtInterrupt<extInterruptInfo, _interrupt> {
+
 };
 
 template <uint8_t bit>
@@ -102,8 +108,8 @@ struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
 
 typedef Pin<PinD0Info> PinD0;
 template <uint8_t writeFifoCapacity = 16> using PinD1 = UsartTxPin<PinD1Info,Usart0Info,writeFifoCapacity>;
-typedef Pin<PinD2Info> PinD2;
-typedef Pin<PinD3Info> PinD3;
+typedef ExtInterruptPin<PinD2Info,Int0Info,extInt0> PinD2;
+typedef ExtInterruptPin<PinD3Info,Int1Info,extInt1> PinD3;
 typedef Pin<PinD4Info> PinD4;
 typedef Pin<PinD5Info> PinD5;
 typedef Pin<PinD6Info> PinD6;
