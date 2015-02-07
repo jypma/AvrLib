@@ -39,8 +39,8 @@ public:
 
     /**
      * Invokes an attached interrupt handler whenever the pin is low. Works in all sleep modes.
-     * You should call externalInterruptOff() from your handler, otherwise it will be
-     * repeatedly invoked.
+     * You should call externalInterruptOff() from your handler, otherwise it might be
+     * repeatedly invoked if the pin is still low when the interrupt handler returns.
      */
     void interruptOnExternalLow() {
         info::on(0);

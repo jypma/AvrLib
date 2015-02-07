@@ -83,13 +83,19 @@ struct GPIOPin {
 
 struct PinD0Info: public PinOnPortD<0> {
     static inline void configureAsGPIO() {
-        UCSR0B &= ~_BV(RXEN0);
+        UCSR0B &= ~_BV(RXEN0); // disable hardware USART receiver
     }
 };
 
 struct PinD1Info: public PinOnPortD<1> {
     static inline void configureAsGPIO() {
-        UCSR0B &= ~_BV(TXEN0);
+        UCSR0B &= ~_BV(TXEN0); // disable hardware USART transmitter
+    }
+};
+
+struct SPIPin {
+    static inline void configureAsGPIO() {
+        SPCR &= ~_BV(SPE);     // disable hardware SPI
     }
 };
 
