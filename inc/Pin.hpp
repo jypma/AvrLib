@@ -48,7 +48,11 @@ public:
     }
 
     bool isHigh() const {
-        return (*info::port()) & info::bitmask;
+        return *info::port & info::bitmask;
+    }
+
+    bool isLow() const {
+        return (*info::port & info::bitmask) == 0;
     }
 };
 

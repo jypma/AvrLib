@@ -237,3 +237,45 @@ TEST(ChunkedFifoTest, anonymous_writer_applies_after_leaving_scope) {
     EXPECT_EQ(3, data.getSize());
     EXPECT_EQ(1, lengths.getSize());
 }
+
+TEST(ChunkedFifoTest, early_ended_read_skips_over_remaining_data) {
+    Fifo<16> data;
+    Fifo<4> lengths;
+    ChunkedFifo fifo(&data, &lengths);
+    fifo.writeStart();
+    fifo.write(42);
+    fifo.write(84);
+    fifo.writeEnd();
+
+    EXPECT_EQ(2, data.getSize());
+    EXPECT_EQ(1, lengths.getSize());
+
+    fifo.readStart();
+    fifo.readEnd();
+
+    EXPECT_FALSE(fifo.hasContent());
+    EXPECT_TRUE(data.isEmpty());
+    EXPECT_TRUE(lengths.isEmpty());
+}
+
+TEST(ChunkedFifoTest, early_ended_reader_skips_over_remaining_data) {
+    Fifo<16> data;
+    Fifo<4> lengths;
+    ChunkedFifo fifo(&data, &lengths);
+    fifo.writeStart();
+    fifo.write(42);
+    fifo.write(84);
+    fifo.writeEnd();
+
+    EXPECT_EQ(2, data.getSize());
+    EXPECT_EQ(1, lengths.getSize());
+
+    {
+        uint8_t length;
+        fifo.in() >> length;
+    }
+
+    EXPECT_FALSE(fifo.hasContent());
+    EXPECT_TRUE(data.isEmpty());
+    EXPECT_TRUE(lengths.isEmpty());
+}

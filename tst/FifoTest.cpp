@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <iostream>
 #include "Fifo.hpp"
 
 TEST(FifoTest, empty_fifo_reports_as_empty) {
@@ -204,16 +205,18 @@ TEST(FifoTest, remove_during_marked_read_does_not_free_up_space_until_committed)
     fifo.append(84);
     fifo.markRead();
 
+    EXPECT_TRUE(fifo.isFull());
     uint8_t b;
     EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.isFull());
     EXPECT_EQ(42, b);
     EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.isFull());
     EXPECT_EQ(84, b);
 
-    EXPECT_TRUE(fifo.isFull());
     EXPECT_FALSE(fifo.hasSpace());
     EXPECT_FALSE(fifo.hasContent());
-    EXPECT_EQ(0, fifo.getSize());
+    EXPECT_EQ(2, fifo.getSize());
     EXPECT_TRUE(fifo.isEmpty());
 
     fifo.commitRead();
@@ -264,4 +267,51 @@ TEST(FifoTest, anonymous_unconverted_writer_applies_after_leaving_scope) {
     Fifo<16> fifo;
     fifo.out() << uint16_t(4200) << uint8_t(84);
     EXPECT_EQ(3, fifo.getSize());
+}
+
+TEST(FifoTest, fifo_operates_rotating) {
+    Fifo<3> fifo;
+
+    for (int loop = 0; loop < 3; loop++) {
+        std::cout << "loop " << loop << std::endl;
+
+        uint8_t out;
+        int in = 1;
+
+        fifo.append(in++);
+        fifo.append(in++);
+        fifo.append(in++);
+
+        EXPECT_TRUE(fifo.isFull());
+        EXPECT_EQ(3, fifo.getSize());
+
+        EXPECT_TRUE(fifo.remove(out));
+
+        EXPECT_EQ(1, out);
+        EXPECT_FALSE(fifo.isFull());
+        EXPECT_EQ(2, fifo.getSize());
+
+        EXPECT_TRUE(fifo.append(in++));
+
+        EXPECT_TRUE(fifo.isFull());
+        EXPECT_EQ(3, fifo.getSize());
+        fifo.remove(out);
+        EXPECT_EQ(2, out);
+
+        EXPECT_FALSE(fifo.isFull());
+        EXPECT_EQ(2, fifo.getSize());
+        fifo.remove(out);
+        EXPECT_EQ(3, out);
+
+        EXPECT_FALSE(fifo.isFull());
+        EXPECT_EQ(1, fifo.getSize());
+        fifo.remove(out);
+        EXPECT_EQ(4, out);
+
+        EXPECT_FALSE(fifo.isFull());
+        EXPECT_EQ(0, fifo.getSize());
+        EXPECT_TRUE(fifo.isEmpty());
+
+    }
+
 }

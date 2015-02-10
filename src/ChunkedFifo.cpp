@@ -123,6 +123,10 @@ void ChunkedFifo::readEnd() {
     if (isReading()) {
         if (readValid) {
             uint8_t dummy;
+            while (readLength > 0) {
+                data->remove(dummy);
+                readLength--;
+            }
             lengths->remove(dummy);
             data->commitRead();
         } else {

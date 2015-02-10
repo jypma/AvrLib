@@ -28,13 +28,8 @@ bool AbstractFifo::append(uint8_t b) {
     AtomicScope _;
 
     if (hasSpace()) {
-        if (end < capacity) {
-            buffer[end] = b;
-            end++;
-        } else {
-            buffer[0] = b;
-            end = 1;
-        }
+        buffer[end] = b;
+        end = (end + 1) % capacity;
         return true;
     } else {
         return false;
@@ -46,18 +41,7 @@ bool AbstractFifo::remove(uint8_t &b) {
 
     if (hasContent()) {
         b = buffer[head];
-        if (head < capacity - 1) {
-            head++;
-        } else {
-            head = 0;
-            if (end == capacity) {
-                if (readMark == NO_MARK) {
-                    end = 0;
-                } else {
-                    endAfterReadReset = true;
-                }
-            }
-        }
+        head = (head + 1) % capacity;
         return true;
     } else {
         return false;
@@ -69,7 +53,6 @@ void AbstractFifo::clear() {
     end = 0;
     writeMark = NO_MARK;
     readMark = NO_MARK;
-    endAfterReadReset = false;
 }
 
 Writer AbstractFifo::out() {

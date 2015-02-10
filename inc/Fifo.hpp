@@ -28,10 +28,9 @@ class AbstractFifo {
     volatile uint8_t end = 0;
     uint8_t writeMark = NO_MARK;
     uint8_t readMark = NO_MARK;
-    bool endAfterReadReset = false;
 
     uint8_t markedEnd() const {
-        return (endAfterReadReset) ? 0 : (writeMark == NO_MARK) ? end : writeMark;
+        return (writeMark == NO_MARK) ? end : writeMark;
     }
     uint8_t markedHead() const {
         return (readMark == NO_MARK) ? head : readMark;
@@ -41,28 +40,28 @@ public:
 
     bool isEmpty() const {
         AtomicScope _;
-        return markedEnd() == markedHead();
+        return markedEnd() == head;
     }
 
     bool hasContent() const {
         AtomicScope _;
-        return markedEnd() != markedHead();
+        return markedEnd() != head;
     }
 
     bool isFull() const {
         AtomicScope _;
-        return (head == 0) ? end == capacity : end == head - 1;
+        return end == (( markedHead() - 1 + capacity) % capacity); // TODO rewrite to fit in uint8_t
     }
 
     bool hasSpace() const {
         AtomicScope _;
-        return (head == 0) ? end != capacity : end != head - 1;
+        return !isFull(); // TODO rewrite directly once isFull is rewritten
     }
 
     uint8_t getSize() const;
 
     uint8_t getCapacity() const {
-        return capacity;
+        return capacity - 1;
     }
 
     uint8_t peek() const {
@@ -104,10 +103,6 @@ public:
 
     void commitRead() {
         readMark = NO_MARK;
-        if (endAfterReadReset) {
-            end = 0;
-        }
-        endAfterReadReset = false;
     }
 
     void resetRead() {
@@ -115,7 +110,6 @@ public:
 
         head = readMark;
         readMark = NO_MARK;
-        endAfterReadReset = false;
     }
 
     /** Returns whether the value was appended (true), or false if the Fifo was full. */
@@ -134,8 +128,8 @@ public:
  */
 template<uint8_t Capacity>
 class Fifo: public AbstractFifo {
-    uint8_t buffer[Capacity];
+    uint8_t buffer[Capacity + 1];
 public:
-    Fifo(): AbstractFifo(buffer, Capacity) {}
+    Fifo(): AbstractFifo(buffer, Capacity + 1) {}
 };
 #endif /* FIFO_HPP_ */

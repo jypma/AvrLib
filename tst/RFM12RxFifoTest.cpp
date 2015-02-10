@@ -76,3 +76,20 @@ TEST(RFM12RxFifoTest, rx_receives_1_byte_packet_with_correct_crc) {
 
     EXPECT_FALSE(fifo.hasContent());
 }
+
+TEST(RFM12RxFifoTest, ridiculous_long_packet_does_not_upset_fifo_and_is_rejected) {
+    Fifo<32> data;
+    Fifo<4> lengths;
+    ChunkedFifo f(&data, &lengths);
+    RFM12RxFifo fifo(&f);
+
+    fifo.writeStart(254);
+    for (int i = 0; i < 63; i++) {
+        fifo.write(i);
+    }
+    fifo.writeAbort();
+
+    EXPECT_FALSE(fifo.isWriting());
+    EXPECT_TRUE(data.isEmpty());
+    EXPECT_TRUE(lengths.isEmpty());
+}

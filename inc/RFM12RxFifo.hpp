@@ -16,11 +16,15 @@ class RFM12RxFifo {
     ChunkedFifo *fifo; // TODO THIS should be template, since there'll only be 1 RFM12TxFifo instance anyways.
     CRC16 crc;
     uint8_t length = 0;
+    const bool checkCrc;
 
 public:
-    RFM12RxFifo(ChunkedFifo *_fifo): fifo(_fifo) {}
+    RFM12RxFifo(ChunkedFifo *_fifo, bool _checkCrc = true): fifo(_fifo), checkCrc(_checkCrc) {}
 
     void writeStart(uint8_t _length) {
+        if (_length > 63) {
+            _length = 63; // RFM12 doesn't do packets longer than this, so the current "packet" probably is gonna fail.
+        }
         length = _length + 2;
         crc.reset();
         crc.append(_length);
@@ -35,7 +39,7 @@ public:
             crc.append(b);
             length--;
             if (length == 0) {
-                if (crc.isValid()) {
+                if (crc.isValid() || !checkCrc) {
                     fifo->writeEnd();
                 } else {
                     fifo->writeAbort();

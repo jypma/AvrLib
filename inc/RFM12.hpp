@@ -53,7 +53,6 @@ class RFM12 {
 
     enum class State {
        TXCRC1, TXCRC2, TXTAIL, TXDONE, TXIDLE,
-       UNINITIALIZED, POR_RECEIVED, // indicates uninitialized RFM12b and Power-On-Reset
        TXRECV,
        TXPRE1, TXPRE2, TXPRE3, TXSYN1, TXSYN2,
     };
@@ -89,7 +88,8 @@ class RFM12 {
         }
     };
 
-    volatile State state = State::UNINITIALIZED;
+public:
+    volatile State state = State::TXIDLE;
     DRSSI drssi;
     RFM12TxFifo txFifo; // maybe just expose the Reader and Writer interfaces?
     RFM12RxFifo rxFifo; // maybe just expose the Reader and Writer interfaces?
@@ -113,19 +113,26 @@ class RFM12 {
         ss_pin.setHigh();
         return res;
     }
+    volatile uint8_t ints = 0;
+    volatile uint8_t lastLen = 0;
+    volatile uint8_t recvCount = 0;
+    volatile uint8_t underruns = 0;
 
     void interrupt() {
+        ints++;
         uint8_t in = 0;
         auto status = getStatus(in);
         if (status[Status::READY_FOR_NEXT_BYTE]) {
             if (state == State::TXRECV) {
                 //TODO consider moving the spi read block in here, to not have the double if.
+                recvCount++;
 
                 drssi.apply(status);
 
                 if (rxFifo.isWriting()) {
                     rxFifo.write(in);
                 } else {
+                    lastLen = in;
                     rxFifo.writeStart(in);
                 }
 
@@ -152,11 +159,12 @@ class RFM12 {
 
         // power-on reset
         if (status[Status::POWER_ON_RESET]) {
-            state = State::POR_RECEIVED;
+            // TODO make this actually work...
         }
 
         // fifo overflow or buffer underrun - abort reception/sending
         if (status[Status::UNDERRUN_OVERFLOW]) {
+            underruns++;
             rxFifo.writeAbort();
             txFifo.readAbort();
             RFM12::commandIdle();
@@ -169,7 +177,7 @@ class RFM12 {
     }
 
 public:
-    RFM12(RFM12Band band): txFifo(&_txFifo), rxFifo(&_rxFifo) {
+    RFM12(RFM12Band band): txFifo(&_txFifo), rxFifo(&_rxFifo, false) {
         enable(band); // make this optional by template maybe?
     }
 
@@ -180,16 +188,17 @@ public:
         int_pin.configureAsInputWithPullup();
         int_pin.interruptOnExternal().attach(&RFM12::onInterrupt, this);
         int_pin.interruptOnExternalLow();
-        state = State::UNINITIALIZED;
-        command(0xCA82); // enable software reset
-        command(0xFE00); // do software reset
 
-        sei();
+
+        command(0x0000); // initial SPI transfer added to avoid power-up problem
+        command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
+
         // wait until RFM12B is out of power-up reset, this takes several *seconds*
-        while (state == State::UNINITIALIZED) ;
+        command(0xB800); // RF_TXREG_WRITE in case we're still in OOK mode
+        while (int_pin.isLow()) {
+            command(0x0000);
+        }
 
-        cli();
-        command(0x8205); // RF_SLEEP_MODE, DC (disable clk pin), enable lbd
         command(0x80C7 | (static_cast<uint8_t>(band) << 4)); // EL (ena TX), EF (ena RX FIFO), 12.0pF
         command(0xA640); // 868MHz
         command(0xC606); // approx 49.2 Kbps, i.e. 10000/29/(1+6) Kbps
@@ -228,6 +237,10 @@ public:
 
     inline Reader in() {
         return rxFifo.in();
+    }
+
+    inline bool hasContent() const {
+        return rxFifo.hasContent();
     }
 
     class OOK {
