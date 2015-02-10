@@ -23,94 +23,62 @@ class AbstractFifo {
     static bool write(void *delegate, uint8_t b);
 
     volatile uint8_t * const buffer;
-    const uint8_t capacity;
-    volatile uint8_t head = 0;
-    volatile uint8_t end = 0;
+    const uint8_t bufferSize;
+    volatile uint8_t readPos = 0;
+    volatile uint8_t writePos = 0;
     uint8_t writeMark = NO_MARK;
     uint8_t readMark = NO_MARK;
 
-    uint8_t markedEnd() const {
-        return (writeMark == NO_MARK) ? end : writeMark;
-    }
-    uint8_t markedHead() const {
-        return (readMark == NO_MARK) ? head : readMark;
-    }
+    uint8_t markedOrWritePos() const;
+    uint8_t markedOrReadPos() const;
 public:
-    AbstractFifo(uint8_t * const _buffer, const uint8_t _capacity): buffer(_buffer), capacity(_capacity) {}
+    AbstractFifo(uint8_t * const _buffer, const uint8_t _bufferSize): buffer(_buffer), bufferSize(_bufferSize) {}
 
-    bool isEmpty() const {
-        AtomicScope _;
-        return markedEnd() == head;
-    }
+    bool isEmpty() const;
 
-    bool hasContent() const {
-        AtomicScope _;
-        return markedEnd() != head;
-    }
+    bool hasContent() const;
 
-    bool isFull() const {
-        AtomicScope _;
-        return end == (( markedHead() - 1 + capacity) % capacity); // TODO rewrite to fit in uint8_t
-    }
+    bool isFull() const;
 
-    bool hasSpace() const {
-        AtomicScope _;
-        return !isFull(); // TODO rewrite directly once isFull is rewritten
+    inline bool hasSpace() const {
+        return !isFull();
     }
 
     uint8_t getSize() const;
 
-    uint8_t getCapacity() const {
-        return capacity - 1;
+    inline uint8_t getCapacity() const {
+        return bufferSize - 1;
     }
 
-    uint8_t peek() const {
-        if (hasContent()) {
-            return buffer[head];
-        } else {
-            return 0;
-        }
+    uint8_t peek() const;
+
+    inline void markWrite() {
+        writeMark = writePos;
     }
 
-    void markWrite() {
-        writeMark = end;
-    }
-
-    bool isWriteMarked() {
+    inline bool isWriteMarked() {
         return writeMark != NO_MARK;
     }
 
-    void commitWrite() {
+    inline void commitWrite() {
         writeMark = NO_MARK;
     }
 
-    void resetWrite() {
-        AtomicScope _;
+    void resetWrite();
 
-        end = writeMark;
-        writeMark = NO_MARK;
+    inline void markRead() {
+        readMark = readPos;
     }
 
-    void markRead() {
-        AtomicScope _;
-
-        readMark = head;
-    }
-
-    bool isReadMarked() {
+    inline bool isReadMarked() {
         return readMark != NO_MARK;
     }
 
-    void commitRead() {
+    inline void commitRead() {
         readMark = NO_MARK;
     }
 
-    void resetRead() {
-        AtomicScope _;
-
-        head = readMark;
-        readMark = NO_MARK;
-    }
+    void resetRead();
 
     /** Returns whether the value was appended (true), or false if the Fifo was full. */
     bool append(uint8_t b);

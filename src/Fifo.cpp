@@ -17,10 +17,18 @@ bool AbstractFifo::write(void *delegate, uint8_t b) {
     return ((AbstractFifo*)delegate)->append(b);
 }
 
+uint8_t AbstractFifo::markedOrWritePos() const {
+    return (writeMark == NO_MARK) ? writePos : writeMark;
+}
+
+uint8_t AbstractFifo::markedOrReadPos() const {
+    return (readMark == NO_MARK) ? readPos : readMark;
+}
+
 uint8_t AbstractFifo::getSize() const {
     AtomicScope _;
-    return (markedEnd() > markedHead()) ? markedEnd() - markedHead() :
-           (markedEnd() < markedHead()) ? capacity - markedHead() + markedEnd() :
+    return (markedOrWritePos() > markedOrReadPos()) ? markedOrWritePos() - markedOrReadPos() :
+           (markedOrWritePos() < markedOrReadPos()) ? bufferSize - markedOrReadPos() + markedOrWritePos() :
            0;
 }
 
@@ -28,8 +36,8 @@ bool AbstractFifo::append(uint8_t b) {
     AtomicScope _;
 
     if (hasSpace()) {
-        buffer[end] = b;
-        end = (end + 1) % capacity;
+        buffer[writePos] = b;
+        writePos = (writePos + 1) % bufferSize;
         return true;
     } else {
         return false;
@@ -40,8 +48,8 @@ bool AbstractFifo::remove(uint8_t &b) {
     AtomicScope _;
 
     if (hasContent()) {
-        b = buffer[head];
-        head = (head + 1) % capacity;
+        b = buffer[readPos];
+        readPos = (readPos + 1) % bufferSize;
         return true;
     } else {
         return false;
@@ -49,8 +57,8 @@ bool AbstractFifo::remove(uint8_t &b) {
 }
 
 void AbstractFifo::clear() {
-    head = 0;
-    end = 0;
+    readPos = 0;
+    writePos = 0;
     writeMark = NO_MARK;
     readMark = NO_MARK;
 }
@@ -58,3 +66,43 @@ void AbstractFifo::clear() {
 Writer AbstractFifo::out() {
     return Writer(&writerVTable, this);
 }
+
+bool AbstractFifo::isEmpty() const {
+    AtomicScope _;
+    return markedOrWritePos() == readPos;
+}
+
+bool AbstractFifo::hasContent() const {
+    AtomicScope _;
+    return markedOrWritePos() != readPos;
+}
+
+bool AbstractFifo::isFull() const {
+    AtomicScope _;
+    return writePos == (( markedOrReadPos() - 1 + bufferSize) % bufferSize);
+}
+
+uint8_t AbstractFifo::peek() const {
+    AtomicScope _;
+    if (hasContent()) {
+        return buffer[readPos];
+    } else {
+        return 0;
+    }
+}
+
+void AbstractFifo::resetWrite() {
+    AtomicScope _;
+
+    writePos = writeMark;
+    writeMark = NO_MARK;
+}
+
+void AbstractFifo::resetRead() {
+    AtomicScope _;
+
+    readPos = readMark;
+    readMark = NO_MARK;
+}
+
+
