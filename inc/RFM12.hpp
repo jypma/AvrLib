@@ -52,6 +52,7 @@ class RFM12 {
     }
 
     enum class State {
+       TXRESETTING, TXRESET,
        TXCRC1, TXCRC2, TXTAIL, TXDONE, TXIDLE,
        TXRECV,
        TXPRE1, TXPRE2, TXPRE3, TXSYN1, TXSYN2,
@@ -159,7 +160,7 @@ public:
 
         // power-on reset
         if (status[Status::POWER_ON_RESET]) {
-            // TODO make this actually work...
+            state == State::TXRESET;
         }
 
         // fifo overflow or buffer underrun - abort reception/sending
@@ -189,16 +190,18 @@ public:
         int_pin.interruptOnExternal().attach(&RFM12::onInterrupt, this);
         int_pin.interruptOnExternalLow();
 
-
+        state = State::TXRESETTING;
+        sei();
         command(0x0000); // initial SPI transfer added to avoid power-up problem
         command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
+        command(0xB800); // RF_TXREG_WRITE in case we're still in OOK mode
+        command(0xCA82); // enable software reset
+        command(0xFE00); // do software reset
 
         // wait until RFM12B is out of power-up reset, this takes several *seconds*
-        command(0xB800); // RF_TXREG_WRITE in case we're still in OOK mode
-        while (int_pin.isLow()) {
-            command(0x0000);
-        }
+        while (state == State::TXRESETTING) ;
 
+        cli();
         command(0x80C7 | (static_cast<uint8_t>(band) << 4)); // EL (ena TX), EF (ena RX FIFO), 12.0pF
         command(0xA640); // 868MHz
         command(0xC606); // approx 49.2 Kbps, i.e. 10000/29/(1+6) Kbps
