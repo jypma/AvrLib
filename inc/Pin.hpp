@@ -10,7 +10,7 @@
 
 #include "Interrupt.hpp"
 #include "Usart.hpp"
-#include "Stream.hpp"
+#include "Writer.hpp"
 #include "ExternalInterrupt.hpp"
 
 template <typename info>
@@ -57,10 +57,28 @@ public:
 };
 
 template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
-class UsartTxPin: public Pin<pinInfo>, public UsartTx<usartInfo, writeFifoCapacity>, public Stream {
+class UsartTxPin: public Pin<pinInfo>, public UsartTx<usartInfo, writeFifoCapacity> {
+    const static Writer::VTable writerVTable;
+    static void writeStart(void *delegate) {}
+    static void writeEnd(void *delegate) {}
+    static bool write(void *delegate, uint8_t b) {
+        // TODO move blocking behavior into Writer constructor
+        UsartTx<usartInfo,writeFifoCapacity>::write(b);
+        return true;
+    }
 public:
-    UsartTxPin(): UsartTx<usartInfo, writeFifoCapacity>(), Stream(&UsartTx<usartInfo, writeFifoCapacity>::write) {}
+    UsartTxPin(): UsartTx<usartInfo, writeFifoCapacity>() {}
+    Writer out() {
+        return Writer(&writerVTable, this);
+    }
 };
+
+template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
+const Writer::VTable UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writerVTable = {
+        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writeStart,
+        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writeEnd,
+        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::write };
+
 
 template <typename pinInfo, typename extInterruptInfo, ExtInterruptHandler &_interrupt>
 class ExtInterruptPin: public Pin<pinInfo>, public ExtInterrupt<extInterruptInfo, _interrupt> {
