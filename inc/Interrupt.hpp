@@ -26,18 +26,18 @@ public:
      */
     class SEI {
     public:
-        SEI() {
+        inline SEI() {
             cli();
         }
-        ~SEI() {
+        inline ~SEI() {
             sei();
         }
     };
 
-    AtomicScope(): oldSREG(SREG) {
+    inline AtomicScope(): oldSREG(SREG) {
         cli();
     }
-    ~AtomicScope() {
+    inline ~AtomicScope() {
         SREG = oldSREG;
     }
 };
