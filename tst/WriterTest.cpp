@@ -88,16 +88,20 @@ TEST(WriterTest, decimal_uint8_is_handled) {
     {
         Writer w(&vtable, &out);
         w << dec(uint8_t(0));
+        w << dec(uint8_t(106));
         w << dec(uint8_t(10));
         w << dec(uint8_t(255));
     }
     EXPECT_EQ('0', out.buffer[0]);
     EXPECT_EQ('1', out.buffer[1]);
     EXPECT_EQ('0', out.buffer[2]);
-    EXPECT_EQ('2', out.buffer[3]);
-    EXPECT_EQ('5', out.buffer[4]);
-    EXPECT_EQ('5', out.buffer[5]);
-    EXPECT_EQ(6, out.length);
+    EXPECT_EQ('6', out.buffer[3]);
+    EXPECT_EQ('1', out.buffer[4]);
+    EXPECT_EQ('0', out.buffer[5]);
+    EXPECT_EQ('2', out.buffer[6]);
+    EXPECT_EQ('5', out.buffer[7]);
+    EXPECT_EQ('5', out.buffer[8]);
+    EXPECT_EQ(9, out.length);
 }
 
 TEST(WriterTest, decimal_int8_is_handled) {

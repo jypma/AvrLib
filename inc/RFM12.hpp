@@ -23,20 +23,22 @@ enum class RFM12Band: uint8_t {
 };
 
 struct drssi_dec_t {
-    uint8_t up;
-    uint8_t down;
-    uint8_t threshold;
+    uint8_t next_if_below_threshold;
+    uint8_t next_if_over_threshold;
 };
 
+// TODO make this progmen
 static constexpr drssi_dec_t drssi_dec_tree[6] = {
-    /* up down thres*/
-    /* 0 */ { 0b1001, 0b1000, 0b000 }, /* B1xxx show final values, B0xxx are intermediate */
-    /* 1 */ { 0b0010, 0b0000, 0b001 }, /* values where next threshold has to be set. */
-    /* 2 */ { 0b1011, 0b1010, 0b010 }, /* Traversing of this three is in rf_12interrupt() */
-    /* 3 */ { 0b0101, 0b0001, 0b011 }, // <- start value
-    /* 4 */ { 0b1101, 0b1100, 0b100 },
-    /* 5 */ { 0b1110, 0b0100, 0b101 }
+        {0, 0},
+    /* 1 */ {0 | 0xF0, 2},
+    /* 2 */ {1 | 0xF0, 2 | 0xF0},
+    /* 3 */ {1, 5},
+    /* 4 */ {3 | 0xF0, 4 | 0xF0},
+    /* 5 */ {4, 5 | 0xF0}
 };
+
+// TODO make this progmem
+static constexpr int8_t drssi_strength_table[] = {-106, -100, -94, -88, -82, -76, -70};
 
 template <const SPIMaster &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
 class RFM12 {
@@ -47,54 +49,57 @@ class RFM12 {
         ss_pin.setHigh();
     }
 
-    static void commandIdle() {
-        command(0x820D);  // RF_IDLE_MODE
-    }
+    static const Writer::VTable writerVTable;
 
-    enum class State {
-       TXRESETTING, TXRESET,
-       TXCRC1, TXCRC2, TXTAIL, TXDONE, TXIDLE,
-       TXRECV,
-       TXPRE1, TXPRE2, TXPRE3, TXSYN1, TXSYN2,
-    };
+public:
+    enum class Mode { IDLE, LISTENING, RECEIVING, SENDING };
 
+private:
     enum class Status: uint16_t {
         // Note that the bit values are in reverse w.r.t. the datasheet, since we
         // read the status word with RGIT/FFIT as MSB.
         READY_FOR_NEXT_BYTE = uint16_t(1) << 15,  // RGIT (when sending) or FFIT (when receiving)
-        POWER_ON_RESET      = 1 << 14,  // POR
-        UNDERRUN_OVERFLOW   = 1 << 13,  // RGUR (when sending) or FFOv (when receiving)
-        RSSI_OVER_THRESHOLD = 1 << 8    // ATG (when sending) or RSSI (when receiving)
+        POWER_ON_RESET      = uint16_t(1) << 14,  // POR
+        UNDERRUN_OVERFLOW   = uint16_t(1) << 13,  // RGUR (when sending) or FFOv (when receiving)
+        RSSI_OVER_THRESHOLD = uint16_t(1) << 8    // ATG (when sending) or RSSI (when receiving)
     };
 
     class DRSSI {
+    public:
         volatile uint8_t position = 3;
 
     public:
-        void apply(BitSet<Status> status) {
+        void apply(const BitSet<Status> status) {
             if (position < 6) { // not yet final value
                 if (status[Status::RSSI_OVER_THRESHOLD])
-                    position = drssi_dec_tree[position].up;
+                    position = drssi_dec_tree[position].next_if_over_threshold;
                 else
-                    position = drssi_dec_tree[position].down;
-                if (position < 6) { // not yet final destination
-                    RFM12::command(0x94A0 | drssi_dec_tree[position].threshold);
+                    position = drssi_dec_tree[position].next_if_below_threshold;
+                if (position < 6) { // not yet final value
+                    RFM12::command(0x94A0 | position);
                 }
             }
         }
 
         void reset() {
             position = 3;
-            RFM12::command(0x94A0 | drssi_dec_tree[position].threshold);
+            RFM12::command(0x94A0 | position);
+        }
+
+        int8_t getStrength() {
+            if (position < 6) { // signal strength not (yet) known
+                return 0;
+            } else {
+                return drssi_strength_table[position & 0b111];
+            }
         }
     };
 
 public:
-    volatile State state = State::TXIDLE;
+    volatile Mode mode = Mode::IDLE;
     DRSSI drssi;
-    RFM12TxFifo txFifo; // maybe just expose the Reader and Writer interfaces?
-    RFM12RxFifo rxFifo; // maybe just expose the Reader and Writer interfaces?
-    CRC16 crc;
+    RFM12TxFifo txFifo;
+    RFM12RxFifo rxFifo;
 
     BitSet<Status> getStatus(uint8_t &in) {
         ss_pin.setLow();
@@ -103,7 +108,7 @@ public:
         statusBits |= spi.transceive(0x00);
         auto res = BitSet<Status>(statusBits);
 
-        if (res[Status::READY_FOR_NEXT_BYTE] && state == State::TXRECV) {
+        if (res[Status::READY_FOR_NEXT_BYTE] && (mode == Mode::RECEIVING || mode == Mode::LISTENING)) {
             // RFM12's FIFO has a byte for us
             // slow down to under 2.5 MHz
             spi.setClockPrescaler(SPI2MHz);
@@ -116,35 +121,39 @@ public:
     }
     volatile uint8_t ints = 0;
     volatile uint8_t lastLen = 0;
+    volatile int8_t lastStrength = 0;
     volatile uint8_t recvCount = 0;
     volatile uint8_t underruns = 0;
+    volatile uint8_t idx = 0;
+
+    void commandIdle() {
+        command(0x820D);  // RF_IDLE_MODE
+        mode = Mode::IDLE;
+    }
+
+    void sendOrListen() { // rf12_recvStart
+        AtomicScope _;
+
+        if (mode == Mode::IDLE) {
+            drssi.reset();
+            rxFifo.writeAbort();
+            if (txFifo.hasContent()) {
+                mode = Mode::SENDING;
+                txFifo.readStart();
+                command(0x823D); // RF_XMITTER_ON
+            } else {
+                mode = Mode::LISTENING;
+                command(0x82DD); // RF_RECEIVER_ON
+            }
+        }
+    }
 
     void interrupt() {
         ints++;
         uint8_t in = 0;
         auto status = getStatus(in);
         if (status[Status::READY_FOR_NEXT_BYTE]) {
-            if (state == State::TXRECV) {
-                //TODO consider moving the spi read block in here, to not have the double if.
-                recvCount++;
-
-                drssi.apply(status);
-
-                if (rxFifo.isWriting()) {
-                    rxFifo.write(in);
-                } else {
-                    lastLen = in;
-                    rxFifo.writeStart(in);
-                }
-
-                if (!rxFifo.isWriting()) {
-                    // fifo expects no further bytes -> either we just received the last byte, or length was 0
-                    commandIdle();
-
-                    // TODO decide to go to sending mode here instead, if txfifo has stuff in it.
-                    listen();
-                }
-            } else {
+            if (mode == Mode::SENDING) {
                 // we are sending
                 if (txFifo.isReading()) {
                     uint8_t b;
@@ -154,13 +163,44 @@ public:
                     txFifo.readEnd();
                     commandIdle();
                     command(0xB8AA);     // RF_TXREG_WRITE 0xAA (postfix)
+                    sendOrListen();
+                }
+            } else {
+                //TODO consider moving the spi read block in here, to not have the double if.
+                recvCount++;
+
+                drssi.apply(status);
+                lastStrength = drssi.getStrength();
+
+                //if (status[Status::RSSI_OVER_THRESHOLD]) {
+                //    lastStrength++;
+               // }
+
+                if (rxFifo.isWriting()) {
+                    rxFifo.write(in);
+                    idx++;
+                    if (idx >= 5) idx = 5;
+                    RFM12::command(0x94A0 | idx);
+                } else {
+                    lastLen = in;
+                    idx = 0;
+                    rxFifo.writeStart(in);
+                    mode = Mode::RECEIVING;
+                    RFM12::command(0x94A0 | idx);
+                }
+
+                if (!rxFifo.isWriting()) {
+                    // fifo expects no further bytes -> either we just received the last byte, or length was 0
+                    commandIdle();
+                    sendOrListen();
                 }
             }
         }
 
         // power-on reset
         if (status[Status::POWER_ON_RESET]) {
-            state = State::TXRESET;
+            commandIdle();
+            sendOrListen();
         }
 
         // fifo overflow or buffer underrun - abort reception/sending
@@ -168,8 +208,8 @@ public:
             underruns++;
             rxFifo.writeAbort();
             txFifo.readAbort();
-            RFM12::commandIdle();
-            state = State::TXIDLE;
+            commandIdle();
+            sendOrListen();
         }
     }
 
@@ -177,9 +217,25 @@ public:
         ((RFM12*)rfm)->interrupt();
     }
 
+    static void writeStart(void *ctx) {
+        ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->txFifo.writeStart();
+    }
+    static void writeEnd(void *ctx) {
+        ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->txFifo.writeEnd();
+        ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->sendOrReceive();
+    }
+    static bool write(void *ctx, uint8_t b) {
+        return ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->txFifo.write(b);
+    }
+
+
 public:
     RFM12(RFM12Band band): txFifo(&_txFifo), rxFifo(&_rxFifo, false) {
-        enable(band); // make this optional by template maybe?
+        enable(band);
+    }
+
+    Mode getMode() {
+        return mode;
     }
 
     void enable(RFM12Band band) {
@@ -190,7 +246,6 @@ public:
         int_pin.interruptOnExternal().attach(&RFM12::onInterrupt, this);
         int_pin.interruptOnExternalLow();
 
-        state = State::TXRESETTING;
         command(0x0000); // initial SPI transfer added to avoid power-up problem
         command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
 
@@ -213,31 +268,18 @@ public:
         command(0xE000); // NOT USE
         command(0xC800); // NOT USE
         command(0xC049); // 1.66MHz,3.1V
-        state = State::TXIDLE;
+        mode = Mode::IDLE;
 
         sei();
-    }
-
-    /**
-     * Aborts any transmission (or receive) in progress, and starts listening for packets.
-     */
-    void listen() { // rf12_recvStart
-        AtomicScope _;
-
-        crc.reset();
-        drssi.reset();
-        state = State::TXRECV;
-        command(0x82DD); // RF_RECEIVER_ON
-    }
-
-    void onTxFifoWriteComplete() {
-        state = State::TXPRE1;
-        txFifo.readStart();
-        command(0x823D); // RF_XMITTER_ON
+        sendOrListen();
     }
 
     inline Reader in() {
         return rxFifo.in();
+    }
+
+    inline Writer out() {
+        return txFifo.out();
     }
 
     inline bool hasContent() const {
@@ -256,7 +298,9 @@ public:
             RFM12::command(0x823D); // RF_XMITTER_ON
         }
         void off() {
-            RFM12::commandIdle();
+            // TODO
+            //RFM12::commandIdle();
+            //RFM12::sendOrReceive();
         }
     };
 
@@ -267,6 +311,12 @@ public:
 
 };
 
+template <const SPIMaster &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
+const Writer::VTable RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writerVTable = {
+    &RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeStart,
+    &RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeEnd,
+    &RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::write
+};
 
 
 #endif /* RFM12_HPP_ */

@@ -15,7 +15,7 @@
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
 
-constexpr char endl = '\n';
+constexpr const char *endl = "\n\r";
 
 extern AbstractFifo *usart0writeFifo;
 

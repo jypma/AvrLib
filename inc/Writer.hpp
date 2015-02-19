@@ -19,15 +19,7 @@ template <typename T>
 inline Decimal<T> dec(T v) {
     return Decimal<T> { v };
 }
-/*
-inline Decimal<uint8_t> dec(uint8_t v) {
-    return Decimal<uint8_t> { v };
-}
 
-inline Decimal<int8_t> dec(int8_t v) {
-    return Decimal<int8_t> { v };
-}
-*/
 class Writer {
 public:
     struct VTable {

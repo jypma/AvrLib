@@ -72,6 +72,11 @@ public:
     void readEnd() {
         fifo->readEnd();
     }
+
+    inline bool hasContent() const {
+        return fifo->hasContent();
+    }
+
 };
 
 #endif /* RFM12TXFIFO_HPP_ */

@@ -94,15 +94,19 @@ uint8_t AbstractFifo::peek() const {
 void AbstractFifo::resetWrite() {
     AtomicScope _;
 
-    writePos = writeMark;
-    writeMark = NO_MARK;
+    if (writeMark != NO_MARK) {
+        writePos = writeMark;
+        writeMark = NO_MARK;
+    }
 }
 
 void AbstractFifo::resetRead() {
     AtomicScope _;
 
-    readPos = readMark;
-    readMark = NO_MARK;
+    if (readMark != NO_MARK) {
+        readPos = readMark;
+        readMark = NO_MARK;
+    }
 }
 
 

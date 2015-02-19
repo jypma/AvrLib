@@ -36,8 +36,9 @@ Writer &Writer::operator << (Decimal<uint8_t> v) {
     if (v.value > 99) {
         write('0' + (v.value / 100));
         v.value %= 100;
-    }
-    if (v.value > 9) {
+        write('0' + (v.value / 10));
+        v.value %= 10;
+    } else if (v.value > 9) {
         write('0' + (v.value / 10));
         v.value %= 10;
     }

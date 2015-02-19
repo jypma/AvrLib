@@ -313,5 +313,18 @@ TEST(FifoTest, fifo_operates_rotating) {
         EXPECT_TRUE(fifo.isEmpty());
 
     }
+}
 
+TEST(FifoTest, resetWrite_on_unmarked_fifo_has_no_effect) {
+    Fifo<3> fifo;
+    fifo.resetWrite();
+    EXPECT_FALSE(fifo.hasContent());
+    EXPECT_EQ(0, fifo.getSize());
+}
+
+TEST(FifoTest, resetRead_on_unmarked_fifo_has_no_effect) {
+    Fifo<3> fifo;
+    fifo.resetRead();
+    EXPECT_FALSE(fifo.hasContent());
+    EXPECT_EQ(0, fifo.getSize());
 }

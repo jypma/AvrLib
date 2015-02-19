@@ -21,6 +21,9 @@ class RFM12RxFifo {
 public:
     RFM12RxFifo(ChunkedFifo *_fifo, bool _checkCrc = true): fifo(_fifo), checkCrc(_checkCrc) {}
 
+    /**
+     * @param _length Number of data bytes in the packet. Excludes the 2 CRC bytes that follow after data.
+     */
     void writeStart(uint8_t _length) {
         if (_length > 63) {
             _length = 63; // RFM12 doesn't do packets longer than this, so the current "packet" probably is gonna fail.
