@@ -1,12 +1,12 @@
 /*
- * Interrupt.hpp
+ * AtomicScope.hpp
  *
- *  Created on: Dec 26, 2014
+ *  Created on: Mar 3, 2015
  *      Author: jan
  */
 
-#ifndef INTERRUPT_HPP_
-#define INTERRUPT_HPP_
+#ifndef ATOMICSCOPE_HPP_
+#define ATOMICSCOPE_HPP_
 
 #include <avr/common.h>
 #include <avr/interrupt.h>
@@ -42,16 +42,4 @@ public:
     }
 };
 
-class InterruptHandler {
-    void (*func)(volatile void *) = nullptr;
-protected:
-    /** Invokes any registered handler */
-    void invoke();
-public:
-    volatile void *ctx = nullptr;
-    void attach(void (*_func)(volatile void *), volatile void *_ctx);
-    void attach(void (*_func)(volatile void *));
-    void detach();
-};
-
-#endif /* INTERRUPT_HPP_ */
+#endif /* ATOMICSCOPE_HPP_ */

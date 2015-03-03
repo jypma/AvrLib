@@ -8,7 +8,8 @@
 #ifndef TIMERS_HPP_
 #define TIMERS_HPP_
 
-#include "Interrupt.hpp"
+#include "InterruptHandler.hpp"
+#include "AtomicScope.hpp"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 

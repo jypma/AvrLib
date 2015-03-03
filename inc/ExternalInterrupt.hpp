@@ -8,7 +8,8 @@
 #ifndef EXTERNALINTERRUPT_HPP_
 #define EXTERNALINTERRUPT_HPP_
 
-#include "Interrupt.hpp"
+#include "InterruptHandler.hpp"
+#include <avr/interrupt.h>
 
 ISR(INT0_vect);
 ISR(INT1_vect);

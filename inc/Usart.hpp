@@ -9,7 +9,7 @@
 #define USART_HPP_
 
 #include "Fifo.hpp"
-#include "Interrupt.hpp"
+#include "InterruptHandler.hpp"
 
 #include <avr/io.h>
 #include <avr/pgmspace.h>

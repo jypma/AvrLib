@@ -1,4 +1,5 @@
-#include "Interrupt.hpp"
+#include "InterruptHandler.hpp"
+#include "AtomicScope.hpp"
 
 void InterruptHandler::attach(void (*_func)(volatile void *), volatile void *_ctx) {
     AtomicScope _;

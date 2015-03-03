@@ -10,7 +10,7 @@
 
 #include "Pin.hpp"
 #include "SPI.hpp"
-#include "Interrupt.hpp"
+#include "InterruptHandler.hpp"
 #include "BitSet.hpp"
 #include "Fifo.hpp"
 #include "CRC.hpp"

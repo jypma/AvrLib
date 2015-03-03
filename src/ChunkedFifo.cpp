@@ -1,5 +1,4 @@
 #include "ChunkedFifo.hpp"
-#include "Interrupt.hpp"
 
 const Writer::VTable ChunkedFifo::writerVTable = {
         &ChunkedFifo::writeStart,

@@ -8,7 +8,7 @@
 #ifndef INTERRUPT_H_
 #define INTERRUPT_H_
 
-#include "Interrupt.hpp"
+#include "InterruptHandler.hpp"
 #include "Usart.hpp"
 #include "Writer.hpp"
 #include "ExternalInterrupt.hpp"

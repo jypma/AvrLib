@@ -8,7 +8,7 @@
 #ifndef FIFO_HPP_
 #define FIFO_HPP_
 
-#include "Interrupt.hpp"
+#include "AtomicScope.hpp"
 #include "Writer.hpp"
 
 /**
