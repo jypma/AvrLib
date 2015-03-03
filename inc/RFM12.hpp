@@ -243,8 +243,8 @@ public:
         ss_pin.configureAsOutput();
         ss_pin.setHigh();
         int_pin.configureAsInputWithPullup();
-        int_pin.interruptOnExternal().attach(&RFM12::onInterrupt, this);
-        int_pin.interruptOnExternalLow();
+        int_pin.interrupt().attach(&RFM12::onInterrupt, this);
+        int_pin.interruptOnLow();
 
         command(0x0000); // initial SPI transfer added to avoid power-up problem
         command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd

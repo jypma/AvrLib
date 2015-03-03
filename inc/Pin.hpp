@@ -48,11 +48,11 @@ public:
     }
 
     bool isHigh() const {
-        return *info::port & info::bitmask;
+        return (*info::pin & info::bitmask) != 0;
     }
 
     bool isLow() const {
-        return (*info::port & info::bitmask) == 0;
+        return (*info::pin & info::bitmask) == 0;
     }
 };
 
@@ -85,10 +85,63 @@ class ExtInterruptPin: public Pin<pinInfo>, public ExtInterrupt<extInterruptInfo
 
 };
 
+
+ISR(PCINT1_vect);
+class ChangeInterruptHandler: public InterruptHandler {
+    friend void PCINT1_vect();
+public:
+
+};
+
+void _enablePCIE1();
+void _disablePCIE1IfNeeded();
+extern ChangeInterruptHandler _pcint8_handler;
+extern ChangeInterruptHandler _pcint9_handler;
+extern ChangeInterruptHandler _pcint10_handler;
+extern ChangeInterruptHandler _pcint11_handler;
+extern ChangeInterruptHandler _pcint12_handler;
+extern ChangeInterruptHandler _pcint13_handler;
+extern uint8_t pci1_directional;
+extern uint8_t pci1_rising;
+
+template <typename pinInfo>
+class ChangeInterruptPin: public Pin<pinInfo> {
+public:
+    InterruptHandler &interrupt() {
+        return *pinInfo::pinChange;
+    }
+
+    void interruptOnChange() {
+        pci1_directional &= ~pinInfo::bitmask;
+        _enablePCIE1();
+        *pinInfo::pcmsk |= pinInfo::bitmask;
+    }
+
+    void interruptOnRising() {
+        pci1_rising |= pinInfo::bitmask;
+        pci1_directional |= pinInfo::bitmask;
+        _enablePCIE1();
+        *pinInfo::pcmsk |= pinInfo::bitmask;
+    }
+
+    void interruptOnFalling() {
+        pci1_rising &= ~pinInfo::bitmask;
+        pci1_directional |= pinInfo::bitmask;
+        _enablePCIE1();
+        *pinInfo::pcmsk |= pinInfo::bitmask;
+    }
+
+    void interruptOff() {
+        *pinInfo::pcmsk &= ~pinInfo::bitmask;
+        _disablePCIE1IfNeeded();
+    }
+};
+
 template <uint8_t bit>
 struct PinOnPortD {
     static constexpr volatile uint8_t *ddr = &DDRD;
     static constexpr volatile uint8_t *port = &PORTD;
+    static constexpr volatile uint8_t *pin = &PIND;
     static constexpr uint8_t bitmask = _BV(bit);
 };
 
@@ -96,6 +149,16 @@ template <uint8_t bit>
 struct PinOnPortB {
     static constexpr volatile uint8_t *ddr = &DDRB;
     static constexpr volatile uint8_t *port = &PORTB;
+    static constexpr volatile uint8_t *pin = &PINB;
+    static constexpr uint8_t bitmask = _BV(bit);
+};
+
+template <uint8_t bit>
+struct PinOnPortC {
+    static constexpr volatile uint8_t *ddr = &DDRC;
+    static constexpr volatile uint8_t *port = &PORTC;
+    static constexpr volatile uint8_t *pin = &PINC;
+    static constexpr volatile uint8_t *pcmsk = &PCMSK1;
     static constexpr uint8_t bitmask = _BV(bit);
 };
 
@@ -133,6 +196,24 @@ struct PinD10Info: public PinOnPortB<2>, public GPIOPin {};
 struct PinD11Info: public PinOnPortB<3>, public GPIOPin {};
 struct PinD12Info: public PinOnPortB<4>, public GPIOPin {};
 struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
+struct PinA0Info: public PinOnPortC<0>, public GPIOPin {
+    static constexpr ChangeInterruptHandler* pinChange = &_pcint8_handler;
+};
+struct PinA1Info: public PinOnPortC<1>, public GPIOPin {
+    static constexpr ChangeInterruptHandler* pinChange = &_pcint9_handler;
+};
+struct PinA2Info: public PinOnPortC<2>, public GPIOPin {
+    static constexpr ChangeInterruptHandler* pinChange = &_pcint10_handler;
+};
+struct PinA3Info: public PinOnPortC<3>, public GPIOPin {
+    static constexpr ChangeInterruptHandler* pinChange = &_pcint11_handler;
+};
+struct PinA4Info: public PinOnPortC<4>, public GPIOPin {
+    static constexpr ChangeInterruptHandler* pinChange = &_pcint12_handler;
+};
+struct PinA5Info: public PinOnPortC<5>, public GPIOPin {
+    static constexpr ChangeInterruptHandler* pinChange = &_pcint13_handler;
+};
 
 typedef Pin<PinD0Info> PinD0;
 template <uint8_t writeFifoCapacity = 16> using PinD1 = UsartTxPin<PinD1Info,Usart0Info,writeFifoCapacity>;
@@ -148,6 +229,6 @@ typedef Pin<PinD10Info> PinD10;
 typedef Pin<PinD11Info> PinD11;
 typedef Pin<PinD12Info> PinD12;
 typedef Pin<PinD13Info> PinD13;
-
+typedef ChangeInterruptPin<PinA0Info> PinA0;
 
 #endif /* INTERRUPT_H_ */

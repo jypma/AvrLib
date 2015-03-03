@@ -27,14 +27,14 @@ extern ExtInterruptHandler extInt1;
 template <typename info, ExtInterruptHandler &_interrupt>
 class ExtInterrupt {
 public:
-    InterruptHandler &interruptOnExternal() {
+    InterruptHandler &interrupt() {
         return _interrupt;
     }
 
     /**
      * Disables raising any interrupts for this pin (but does not remove any registered interrupt handler).
      */
-    void interruptOnExternalOff() {
+    void interruptOff() {
         info::off();
     }
 
@@ -43,7 +43,7 @@ public:
      * You should call externalInterruptOff() from your handler, otherwise it might be
      * repeatedly invoked if the pin is still low when the interrupt handler returns.
      */
-    void interruptOnExternalLow() {
+    void interruptOnLow() {
         info::on(0);
     }
 
@@ -51,7 +51,7 @@ public:
      * Invokes an attached interrupt handler whenever the pin changes value. Only works when
      * the I/O clock is running.
      */
-    void interruptOnExternalChange() {
+    void interruptOnChange() {
         info::on(1);
     }
 
@@ -59,7 +59,7 @@ public:
      * Invokes an attached interrupt handler whenever the pin goes from low to high. Only works when
      * the I/O clock is running.
      */
-    void interruptOnExternalRising() {
+    void interruptOnRising() {
         info::on(2);
     }
 
@@ -67,7 +67,7 @@ public:
      * Invokes an attached interrupt handler whenever the pin goes from high to low. Only works when
      * the I/O clock is running.
      */
-    void interruptOnExternalFalling() {
+    void interruptOnFalling() {
         info::on(3);
     }
 };
