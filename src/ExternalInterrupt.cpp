@@ -1,7 +1,7 @@
 #include "ExternalInterrupt.hpp"
 
-ExtInterruptHandler extInt0;
-ExtInterruptHandler extInt1;
+InterruptHandler extInt0;
+InterruptHandler extInt1;
 
 ISR(INT0_vect) {
   extInt0.invoke();

@@ -14,17 +14,10 @@
 ISR(INT0_vect);
 ISR(INT1_vect);
 
-class ExtInterruptHandler: public InterruptHandler {
-    friend void INT0_vect();
-    friend void INT1_vect();
-public:
+extern InterruptHandler extInt0;
+extern InterruptHandler extInt1;
 
-};
-
-extern ExtInterruptHandler extInt0;
-extern ExtInterruptHandler extInt1;
-
-template <typename info, ExtInterruptHandler &_interrupt>
+template <typename info, InterruptHandler &_interrupt>
 class ExtInterrupt {
 public:
     InterruptHandler &interrupt() {

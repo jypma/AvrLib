@@ -1,8 +1,8 @@
 #include "Timer.hpp"
 
-TimerInterruptHandler tm0int;
-TimerInterruptHandler tm1int;
-TimerInterruptHandler tm2int;
+InterruptHandler tm0int;
+InterruptHandler tm1int;
+InterruptHandler tm2int;
 
 ISR(TIMER0_OVF_vect)
 {

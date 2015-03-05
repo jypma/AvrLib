@@ -1,20 +1,16 @@
 #include "InterruptHandler.hpp"
 #include "AtomicScope.hpp"
 
-void InterruptHandler::attach(void (*_func)(volatile void *), volatile void *_ctx) {
+InterruptHandler InterruptHandler::attach(void (*_func)(volatile void *), volatile void *_ctx) {
     AtomicScope _;
+    InterruptHandler result = *this;
     func = _func;
     ctx = _ctx;
+    return result;
 }
 
-void InterruptHandler::attach(void (*_func)(volatile void *)) {
-    attach (_func, nullptr);
-}
-
-void InterruptHandler::detach() {
-    AtomicScope _;
-    func = nullptr;
-    ctx = nullptr;
+InterruptHandler InterruptHandler::attach(void (*_func)(volatile void *)) {
+    return attach (_func, nullptr);
 }
 
 void InterruptHandler::invoke() {

@@ -100,6 +100,7 @@ public:
     DRSSI drssi;
     RFM12TxFifo txFifo;
     RFM12RxFifo rxFifo;
+    InterruptHandler chain;
 
     BitSet<Status> getStatus(uint8_t &in) {
         ss_pin.setLow();
@@ -211,6 +212,8 @@ public:
             commandIdle();
             sendOrListen();
         }
+
+        chain.invoke();
     }
 
     static void onInterrupt(volatile void *rfm) {
@@ -243,7 +246,7 @@ public:
         ss_pin.configureAsOutput();
         ss_pin.setHigh();
         int_pin.configureAsInputWithPullup();
-        int_pin.interrupt().attach(&RFM12::onInterrupt, this);
+        chain = int_pin.interrupt().attach(&RFM12::onInterrupt, this);
         int_pin.interruptOnLow();
 
         command(0x0000); // initial SPI transfer added to avoid power-up problem

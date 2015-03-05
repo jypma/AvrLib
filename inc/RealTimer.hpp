@@ -10,14 +10,15 @@
 
 #include "Timer.hpp"
 
-//template <typename info, typename info::prescaler_t _prescaler, const PrescaledTimer<info, _prescaler> &timer>
 template<typename prescaled, prescaled *timer>
 class RealTimer {
 private:
     volatile uint32_t _ticks = 0;
+    InterruptHandler chain;
 
     void tick() {
        _ticks++;
+       chain.invoke();
     }
 
     static void doTick(volatile void *ctx) {
@@ -26,13 +27,24 @@ private:
 
 public:
     RealTimer() {
-        timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
+        chain = timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
         timer->interruptOnOverflowOn();
     }
 
+    /**
+     * Returns a 32-bit value that increments with every timer overflow.
+     */
     uint32_t ticks() const {
         AtomicScope _;
         return _ticks;
+    }
+
+    /**
+     * Returns a 32-bit value that increments with every timer increment.
+     */
+    uint32_t counts() const {
+        AtomicScope _;
+        return (_ticks << prescaled::maximumPower2) + timer->getValue();
     }
 
     uint64_t micros() const {
@@ -45,7 +57,7 @@ public:
         // divide by 16 ( >> 4) to go from clock ticks to microseconds
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
 
-        return (((uint64_t)_ticks) << prescaled::prescalerPower2) / 16 * 256;
+        return ((((uint64_t)_ticks) << prescaled::prescalerPower2) / 16) << prescaled::maximumPower2;
     }
 
     uint64_t millis() const {
@@ -59,7 +71,7 @@ public:
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
         // divide by 1000 to get milliseconds
 
-        return (((uint64_t)_ticks) << prescaled::prescalerPower2) / 16 * 256 / 1000;
+        return (((((uint64_t)_ticks) << prescaled::prescalerPower2) / 16) << prescaled::maximumPower2) / 1000;
     }
 
     void delayTicks(uint32_t ticksDelay) const {
@@ -68,7 +80,7 @@ public:
     }
 
     void delayMillis(uint16_t millisDelay) const {
-        uint32_t ticksDelay = (((uint32_t)millisDelay) * 1000 / 256 * 16) >> prescaled::prescalerPower2;
+        uint32_t ticksDelay = (((((uint32_t)millisDelay) * 1000) >> prescaled::maximumPower2) * 16) >> prescaled::prescalerPower2;
         delayTicks(ticksDelay);
     }
 };

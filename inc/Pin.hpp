@@ -80,27 +80,22 @@ const Writer::VTable UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writerVTab
         &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::write };
 
 
-template <typename pinInfo, typename extInterruptInfo, ExtInterruptHandler &_interrupt>
+template <typename pinInfo, typename extInterruptInfo, InterruptHandler &_interrupt>
 class ExtInterruptPin: public Pin<pinInfo>, public ExtInterrupt<extInterruptInfo, _interrupt> {
 
 };
 
 
 ISR(PCINT1_vect);
-class ChangeInterruptHandler: public InterruptHandler {
-    friend void PCINT1_vect();
-public:
-
-};
-
 void _enablePCIE1();
 void _disablePCIE1IfNeeded();
-extern ChangeInterruptHandler _pcint8_handler;
-extern ChangeInterruptHandler _pcint9_handler;
-extern ChangeInterruptHandler _pcint10_handler;
-extern ChangeInterruptHandler _pcint11_handler;
-extern ChangeInterruptHandler _pcint12_handler;
-extern ChangeInterruptHandler _pcint13_handler;
+
+extern InterruptHandler _pcint8_handler;
+extern InterruptHandler _pcint9_handler;
+extern InterruptHandler _pcint10_handler;
+extern InterruptHandler _pcint11_handler;
+extern InterruptHandler _pcint12_handler;
+extern InterruptHandler _pcint13_handler;
 extern uint8_t pci1_directional;
 extern uint8_t pci1_rising;
 
@@ -197,22 +192,22 @@ struct PinD11Info: public PinOnPortB<3>, public GPIOPin {};
 struct PinD12Info: public PinOnPortB<4>, public GPIOPin {};
 struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
 struct PinA0Info: public PinOnPortC<0>, public GPIOPin {
-    static constexpr ChangeInterruptHandler* pinChange = &_pcint8_handler;
+    static constexpr InterruptHandler* pinChange = &_pcint8_handler;
 };
 struct PinA1Info: public PinOnPortC<1>, public GPIOPin {
-    static constexpr ChangeInterruptHandler* pinChange = &_pcint9_handler;
+    static constexpr InterruptHandler* pinChange = &_pcint9_handler;
 };
 struct PinA2Info: public PinOnPortC<2>, public GPIOPin {
-    static constexpr ChangeInterruptHandler* pinChange = &_pcint10_handler;
+    static constexpr InterruptHandler* pinChange = &_pcint10_handler;
 };
 struct PinA3Info: public PinOnPortC<3>, public GPIOPin {
-    static constexpr ChangeInterruptHandler* pinChange = &_pcint11_handler;
+    static constexpr InterruptHandler* pinChange = &_pcint11_handler;
 };
 struct PinA4Info: public PinOnPortC<4>, public GPIOPin {
-    static constexpr ChangeInterruptHandler* pinChange = &_pcint12_handler;
+    static constexpr InterruptHandler* pinChange = &_pcint12_handler;
 };
 struct PinA5Info: public PinOnPortC<5>, public GPIOPin {
-    static constexpr ChangeInterruptHandler* pinChange = &_pcint13_handler;
+    static constexpr InterruptHandler* pinChange = &_pcint13_handler;
 };
 
 typedef Pin<PinD0Info> PinD0;
