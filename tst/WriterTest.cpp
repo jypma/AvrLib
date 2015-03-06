@@ -168,3 +168,29 @@ TEST(WriterTest, decimal_int16_t_is_handled) {
     EXPECT_EQ('8', out.buffer[11]);
     EXPECT_EQ(12, out.length);
 }
+
+TEST(WriterTest, decimal_uint32_t_is_handled) {
+    MockOut out;
+    {
+        Writer w(&vtable, &out);
+        w << dec(uint32_t(0));
+        w << dec(uint32_t(4002));
+        w << dec(uint32_t(4294967295));
+    }
+    EXPECT_EQ('0', out.buffer[0]);
+    EXPECT_EQ('4', out.buffer[1]);
+    EXPECT_EQ('0', out.buffer[2]);
+    EXPECT_EQ('0', out.buffer[3]);
+    EXPECT_EQ('2', out.buffer[4]);
+    EXPECT_EQ('4', out.buffer[5]);
+    EXPECT_EQ('2', out.buffer[6]);
+    EXPECT_EQ('9', out.buffer[7]);
+    EXPECT_EQ('4', out.buffer[8]);
+    EXPECT_EQ('9', out.buffer[9]);
+    EXPECT_EQ('6', out.buffer[10]);
+    EXPECT_EQ('7', out.buffer[11]);
+    EXPECT_EQ('2', out.buffer[12]);
+    EXPECT_EQ('9', out.buffer[13]);
+    EXPECT_EQ('5', out.buffer[14]);
+    EXPECT_EQ(15, out.length);
+}

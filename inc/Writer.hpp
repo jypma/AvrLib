@@ -68,6 +68,10 @@ public:
     Writer &operator << (Decimal<uint16_t> v);
     /** Writes the given value as decimal */
     Writer &operator << (Decimal<int16_t> v);
+    /** Writes the given value as decimal */
+    Writer &operator << (Decimal<uint32_t> v);
+    /** Writes the given value as decimal */
+    Writer &operator << (Decimal<int32_t> v);
 
     inline operator bool() const {
         return valid;

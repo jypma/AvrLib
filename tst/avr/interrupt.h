@@ -8,8 +8,6 @@
 #ifndef INTERRUPT_H_
 #define INTERRUPT_H_
 
-
-
-
+#include "avr/common.h"
 
 #endif /* INTERRUPT_H_ */

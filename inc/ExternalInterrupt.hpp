@@ -9,6 +9,7 @@
 #define EXTERNALINTERRUPT_HPP_
 
 #include "InterruptHandler.hpp"
+#include <avr/common.h>
 #include <avr/interrupt.h>
 
 ISR(INT0_vect);

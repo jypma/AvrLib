@@ -8,11 +8,7 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long uint64_t;
+#include <stdint.h>
 
 #define _AVR_IO_H_
 
@@ -35,14 +31,14 @@ extern uint8_t sfr_mem[256];
 #  define SREG_T  (6)
 #  define SREG_I  (7)
 
+#define _VECTOR(idx) vector_##idx
+#define ISR(name) void name()
+
 #include "avr/iom328p.h"
 
 #define _BV(bit) (1 << (bit))
 
 void cli();
 void sei();
-
-#define _VECTOR(idx) vector_##idx
-#define ISR(name) void name()
 
 #endif /* COMMON_H_ */
