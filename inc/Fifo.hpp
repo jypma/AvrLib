@@ -10,6 +10,7 @@
 
 #include "AtomicScope.hpp"
 #include "Writer.hpp"
+#include "Reader.hpp"
 
 /**
  * A FIFO queue of bytes, with a maximum size of 254.
@@ -21,6 +22,12 @@ class AbstractFifo {
     static void writeStart(void *delegate);
     static void writeEnd(void *delegate);
     static bool write(void *delegate, uint8_t b);
+
+    const static Reader::VTable readerVTable;
+    static void readStart(void *delegate);
+    static void readEnd(void *delegate);
+    static bool read(void *delegate, uint8_t &target);
+    static uint8_t getRemaining(void *delegate);
 
     volatile uint8_t * const buffer;
     const uint8_t bufferSize;
@@ -89,6 +96,8 @@ public:
     void clear();
 
     Writer out();
+
+    Reader in();
 };
 
 /**

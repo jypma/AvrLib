@@ -5,6 +5,13 @@ const Writer::VTable AbstractFifo::writerVTable = {
         &AbstractFifo::writeEnd,
         &AbstractFifo::write };
 
+const Reader::VTable AbstractFifo::readerVTable = {
+        &AbstractFifo::readStart,
+        &AbstractFifo::readEnd,
+        &AbstractFifo::read,
+        &AbstractFifo::getRemaining
+};
+
 void AbstractFifo::writeStart(void *delegate) {
     ((AbstractFifo*)delegate)->markWrite();
 }
@@ -15,6 +22,22 @@ void AbstractFifo::writeEnd(void *delegate) {
 
 bool AbstractFifo::write(void *delegate, uint8_t b) {
     return ((AbstractFifo*)delegate)->append(b);
+}
+
+void AbstractFifo::readStart(void *delegate) {
+    ((AbstractFifo*)delegate)->markRead();
+}
+
+void AbstractFifo::readEnd(void *delegate) {
+    ((AbstractFifo*)delegate)->commitRead();
+}
+
+bool AbstractFifo::read(void *delegate, uint8_t &target) {
+    return ((AbstractFifo*)delegate)->remove(target);
+}
+
+uint8_t AbstractFifo::getRemaining(void *delegate) {
+    return ((AbstractFifo*)delegate)->getSize();
 }
 
 uint8_t AbstractFifo::markedOrWritePos() const {
@@ -65,6 +88,10 @@ void AbstractFifo::clear() {
 
 Writer AbstractFifo::out() {
     return Writer(&writerVTable, this);
+}
+
+Reader AbstractFifo::in() {
+    return Reader(&readerVTable, this);
 }
 
 bool AbstractFifo::isEmpty() const {
