@@ -21,6 +21,7 @@ template <typename timer_t, timer_t *timer,
           int fifo_length = 16>
 class PulseCounter {
     typedef typename timer_t::value_t count_t;
+    typedef PulseCounter<timer_t,timer,comparator_t,comparator,pin_t,pin,fifo_length> This;
 
     Fifo<fifo_length> fifo;
     count_t start = timer->getValue();
@@ -34,6 +35,7 @@ class PulseCounter {
         wasEmptyPeriod = false;
         comparator->interruptOn();
     }
+
     void onComparator() {
         if (wasEmptyPeriod) {
             fifo.append(2);
@@ -43,21 +45,17 @@ class PulseCounter {
         }
     }
 
-    static void doOnComparator(volatile void *ctx) {
-        ((PulseCounter<timer_t,timer,comparator_t,comparator,pin_t,pin,fifo_length>*)ctx)->onComparator();
-    }
-    static void doOnChange(volatile void *ctx) {
-        ((PulseCounter<timer_t,timer,comparator_t,comparator,pin_t,pin,fifo_length>*)ctx)->onPinChanged();
-    }
-
+    InterruptHandler comp = { this, &This::onComparator };
+    InterruptHandler chng = { this, &This::onPinChanged };
 
 public:
     PulseCounter() {
         comparator->interruptOff();
-        comparator->interrupt().attach(&doOnComparator, this);
+        //comparator->interrupt().attach(InterruptHandler(&doOnComparator, this));
+        comparator->interrupt().attach(comp);
         comparator->setTarget(0);
 
-        pin->interrupt().attach(&doOnChange, this);
+        pin->interrupt().attach(chng);
         pin->interruptOnChange();
     }
     ~PulseCounter() {

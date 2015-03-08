@@ -35,15 +35,15 @@ enum class IntPrescaler: uint8_t {
     _1024 = _BV(CS02) | _BV(CS01) | _BV(CS00)
 };
 
-extern InterruptHandler tm0int;
-extern InterruptHandler tm0ocra;
-extern InterruptHandler tm0ocrb;
-extern InterruptHandler tm1int;
-extern InterruptHandler tm1ocra;
-extern InterruptHandler tm1ocrb;
-extern InterruptHandler tm2int;
-extern InterruptHandler tm2ocra;
-extern InterruptHandler tm2ocrb;
+extern InterruptChain tm0int;
+extern InterruptChain tm0ocra;
+extern InterruptChain tm0ocrb;
+extern InterruptChain tm1int;
+extern InterruptChain tm1ocra;
+extern InterruptChain tm1ocrb;
+extern InterruptChain tm2int;
+extern InterruptChain tm2ocra;
+extern InterruptChain tm2ocrb;
 
 template <typename info>
 class TimerComparator {
@@ -51,7 +51,7 @@ public:
     inline void setTarget(typename info::value_t value) {
         *info::ocr = value;
     }
-    inline InterruptHandler &interrupt() const {
+    inline InterruptChain &interrupt() const {
         return *info::handler;
     }
     inline void interruptOn() const {
@@ -73,7 +73,7 @@ protected:
         info::configureFastPWM(prescaler);
     }
 public:
-    inline InterruptHandler &interruptOnOverflow() const {
+    inline InterruptChain &interruptOnOverflow() const {
         return *info::intHandler;
     }
     inline void interruptOnOverflowOn() const {
@@ -171,7 +171,7 @@ struct Timer0Info {
     static constexpr volatile uint8_t *timsk = &TIMSK0;
     static constexpr volatile uint8_t *tifr = &TIFR0;
 
-    static constexpr InterruptHandler* intHandler = &tm0int;
+    static constexpr InterruptChain* intHandler = &tm0int;
 
     static constexpr uint8_t maximum = 255;
     static constexpr uint8_t maximumPower2 = 8;
@@ -196,13 +196,13 @@ struct Timer0Info {
         static constexpr volatile uint8_t *ocr = &OCR0A;
         static constexpr uint8_t timsk_bit = OCIE0A;
         static constexpr uint8_t tifr_bit = OCF0A;
-        static constexpr InterruptHandler* handler = &tm0ocra;
+        static constexpr InterruptChain* handler = &tm0ocra;
     };
     struct ComparatorB: public Comparator {
         static constexpr volatile uint8_t *ocr = &OCR0B;
         static constexpr uint8_t timsk_bit = OCIE0B;
         static constexpr uint8_t tifr_bit = OCF0B;
-        static constexpr InterruptHandler* handler = &tm0ocrb;
+        static constexpr InterruptChain* handler = &tm0ocrb;
     };
 };
 
@@ -213,7 +213,7 @@ struct Timer1Info {
     static constexpr volatile uint8_t *timsk = &TIMSK1;
     static constexpr volatile uint8_t *tifr = &TIFR1;
 
-    static constexpr InterruptHandler* intHandler = &tm1int;
+    static constexpr InterruptChain* intHandler = &tm1int;
 
     static constexpr uint16_t maximum = 65535;
     static constexpr uint8_t maximumPower2 = 16;
@@ -239,13 +239,13 @@ struct Timer1Info {
         static constexpr volatile uint16_t *ocr = &OCR1A;
         static constexpr uint8_t timsk_bit = OCIE1A;
         static constexpr uint8_t tifr_bit = OCF1A;
-        static constexpr InterruptHandler* handler = &tm1ocra;
+        static constexpr InterruptChain* handler = &tm1ocra;
     };
     struct ComparatorB: public Comparator {
         static constexpr volatile uint16_t *ocr = &OCR1B;
         static constexpr uint8_t timsk_bit = OCIE1B;
         static constexpr uint8_t tifr_bit = OCF1B;
-        static constexpr InterruptHandler* handler = &tm1ocrb;
+        static constexpr InterruptChain* handler = &tm1ocrb;
     };
 };
 
@@ -256,7 +256,7 @@ struct Timer2Info {
     static constexpr volatile uint8_t *timsk = &TIMSK2;
     static constexpr volatile uint8_t *tifr = &TIFR2;
 
-    static constexpr InterruptHandler* intHandler = &tm2int;
+    static constexpr InterruptChain* intHandler = &tm2int;
 
     static constexpr uint8_t maximumPower2 = 8;
 
@@ -280,13 +280,13 @@ struct Timer2Info {
         static constexpr volatile uint8_t *ocr = &OCR2A;
         static constexpr uint8_t timsk_bit = OCIE2A;
         static constexpr uint8_t tifr_bit = OCF2A;
-        static constexpr InterruptHandler* handler = &tm2ocra;
+        static constexpr InterruptChain* handler = &tm2ocra;
     };
     struct ComparatorB: public Comparator {
         static constexpr volatile uint8_t *ocr = &OCR2B;
         static constexpr uint8_t timsk_bit = OCIE2B;
         static constexpr uint8_t tifr_bit = OCF2B;
-        static constexpr InterruptHandler* handler = &tm2ocrb;
+        static constexpr InterruptChain* handler = &tm2ocrb;
     };
 };
 

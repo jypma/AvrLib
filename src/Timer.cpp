@@ -1,14 +1,14 @@
 #include "Timer.hpp"
 
-InterruptHandler tm0int;
-InterruptHandler tm0ocra;
-InterruptHandler tm0ocrb;
-InterruptHandler tm1int;
-InterruptHandler tm1ocra;
-InterruptHandler tm1ocrb;
-InterruptHandler tm2int;
-InterruptHandler tm2ocra;
-InterruptHandler tm2ocrb;
+InterruptChain tm0int;
+InterruptChain tm0ocra;
+InterruptChain tm0ocrb;
+InterruptChain tm1int;
+InterruptChain tm1ocra;
+InterruptChain tm1ocrb;
+InterruptChain tm2int;
+InterruptChain tm2ocra;
+InterruptChain tm2ocrb;
 
 ISR(TIMER0_OVF_vect)
 {

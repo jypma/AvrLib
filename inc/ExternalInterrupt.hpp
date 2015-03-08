@@ -15,13 +15,13 @@
 ISR(INT0_vect);
 ISR(INT1_vect);
 
-extern InterruptHandler extInt0;
-extern InterruptHandler extInt1;
+extern InterruptChain extInt0;
+extern InterruptChain extInt1;
 
-template <typename info, InterruptHandler &_interrupt>
+template <typename info, InterruptChain &_interrupt>
 class ExtInterrupt {
 public:
-    InterruptHandler &interrupt() {
+    InterruptChain &interrupt() {
         return _interrupt;
     }
 

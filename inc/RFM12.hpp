@@ -42,6 +42,8 @@ static constexpr int8_t drssi_strength_table[] = {-106, -100, -94, -88, -82, -76
 
 template <const SPIMaster &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
 class RFM12 {
+    typedef RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin> This;
+
     static void command(uint16_t cmd) {
         ss_pin.setLow();
         spi.send(cmd >> 8);
@@ -100,7 +102,6 @@ public:
     DRSSI drssi;
     RFM12TxFifo txFifo;
     RFM12RxFifo rxFifo;
-    InterruptHandler chain;
 
     BitSet<Status> getStatus(uint8_t &in) {
         ss_pin.setLow();
@@ -213,12 +214,9 @@ public:
             sendOrListen();
         }
 
-        chain.invoke();
     }
 
-    static void onInterrupt(volatile void *rfm) {
-        ((RFM12*)rfm)->interrupt();
-    }
+    InterruptHandler handler = { this, &This::interrupt };
 
     static void writeStart(void *ctx) {
         ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->txFifo.writeStart();
@@ -246,7 +244,7 @@ public:
         ss_pin.configureAsOutput();
         ss_pin.setHigh();
         int_pin.configureAsInputWithPullup();
-        chain = int_pin.interrupt().attach(&RFM12::onInterrupt, this);
+        int_pin.interrupt().attach(handler);
         int_pin.interruptOnLow();
 
         command(0x0000); // initial SPI transfer added to avoid power-up problem

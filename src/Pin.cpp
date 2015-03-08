@@ -1,11 +1,11 @@
 #include "Pin.hpp"
 
-InterruptHandler _pcint8_handler;
-InterruptHandler _pcint9_handler;
-InterruptHandler _pcint10_handler;
-InterruptHandler _pcint11_handler;
-InterruptHandler _pcint12_handler;
-InterruptHandler _pcint13_handler;
+InterruptChain _pcint8_handler;
+InterruptChain _pcint9_handler;
+InterruptChain _pcint10_handler;
+InterruptChain _pcint11_handler;
+InterruptChain _pcint12_handler;
+InterruptChain _pcint13_handler;
 
 uint8_t lastPortC;
 

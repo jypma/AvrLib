@@ -12,22 +12,19 @@
 
 template<typename prescaled, prescaled *timer>
 class RealTimer {
-private:
+    typedef RealTimer<prescaled,timer> This;
+
     volatile uint32_t _ticks = 0;
-    InterruptHandler chain;
 
     void tick() {
        _ticks++;
-       chain.invoke();
     }
 
-    static void doTick(volatile void *ctx) {
-        ((RealTimer*)(ctx))->tick();
-    }
+    InterruptHandler tickH = { this, &This::tick };
 
 public:
     RealTimer() {
-        chain = timer->interruptOnOverflow().attach(&RealTimer::doTick, this);
+        timer->interruptOnOverflow().attach(tickH);
         timer->interruptOnOverflowOn();
     }
 
