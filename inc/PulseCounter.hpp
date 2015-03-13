@@ -13,7 +13,7 @@
 #include "Reader.hpp"
 #include "Writer.hpp"
 
-enum class PulseType: uint8_t { HIGH, LOW, TIMEOUT };
+enum class PulseType: uint8_t { HIGH = 1, LOW = 2, TIMEOUT = 3 };
 
 /**
  * Counts up/down pulse lengths on a pin by using a timer. The longest reported length is
@@ -22,7 +22,7 @@ enum class PulseType: uint8_t { HIGH, LOW, TIMEOUT };
 template <typename timer_t, timer_t *timer,
           typename comparator_t, comparator_t *comparator,
           typename pin_t, pin_t *pin,
-          int fifo_length = 16>
+          int fifo_length = 254>
 class PulseCounter {
     typedef typename timer_t::value_t count_t;
     typedef PulseCounter<timer_t,timer,comparator_t,comparator,pin_t,pin,fifo_length> This;
@@ -51,8 +51,8 @@ public:
             return length;
         }
         uint16_t getLengthAs16384thSeconds() {
-            constexpr uint16_t scale_denom = (F_CPU >> Timer1<ExtPrescaler::_1024>::prescalerPower2) / 4;
-            uint32_t l = length * 4096 / scale_denom;
+            constexpr uint16_t scale_denom = (uint32_t(F_CPU) >> Timer1<ExtPrescaler::_1024>::prescalerPower2) / 4;
+            uint32_t l = uint32_t(length) * 4096 / scale_denom;
             if (l > 0xffff) {
                 l = 0xffff;
             }
@@ -68,7 +68,11 @@ public:
             if (in >> evt.type) {
                 if (evt.type != PulseType::TIMEOUT) {
                     in >> evt.length;
+                } else {
+                    evt.length = 42;
                 }
+            } else {
+                evt.type = PulseType::TIMEOUT;
             }
         }
     };
@@ -83,11 +87,12 @@ private:
         fifo.out() << evt;
         wasEmptyPeriod = false;
         comparator->interruptOn();
+        start = timer->getValue();
     }
 
     void onComparator() {
         if (wasEmptyPeriod) {
-            fifo.append(2);
+            fifo.out() << PulseType::TIMEOUT;
             comparator->interruptOff();
         } else {
             wasEmptyPeriod = true;
