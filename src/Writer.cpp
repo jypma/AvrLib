@@ -19,7 +19,7 @@ Writer &Writer::operator << (const uint32_t i) {
     return *this;
 }
 
-Writer &Writer::operator << (const char *string) {
+void Writer::doWrite (const char *string) {
     if (string != nullptr) {
         uint8_t c = *string;
         while (c) {
@@ -28,8 +28,6 @@ Writer &Writer::operator << (const char *string) {
             c = *string;
         }
     }
-
-    return *this;
 }
 
 Writer &Writer::operator << (Decimal<uint8_t> v) {

@@ -9,6 +9,7 @@
 #define WRITER_HPP_
 
 #include <stdint.h>
+#include "gcc_type_traits.h"
 
 template <typename T>
 struct Decimal {
@@ -37,6 +38,21 @@ private:
             valid = vtable->write(delegate, b);
         }
     }
+
+    template<typename T>
+    inline void doWrite(const T& t, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
+    {
+        *this << static_cast<typename std::underlying_type<T>::type>(t);
+    }
+
+    template<typename T>
+    inline void doWrite(const T& t, typename std::enable_if<std::is_class<T>::value>::type* = 0)
+    {
+       T::write(*this, t);
+    }
+
+    void doWrite(const char *string);
+
     Writer(): vtable(nullptr), delegate(nullptr), valid(false) {}
 public:
     inline Writer(const VTable *_vtable, void *_delegate): vtable(_vtable), delegate(_delegate), valid(true) {
@@ -52,8 +68,6 @@ public:
     Writer &operator << (const uint16_t i);
     /** Writes a 32-bit word as MSB first */
     Writer &operator << (const uint32_t i);
-    /** Writes the bytes in the given null-terminated string */
-    Writer &operator << (const char *string);
 
     /** Writes a 16-bit word as MSB first. Only use this for integer literals */
     inline Writer &operator << (int b) {
@@ -76,8 +90,12 @@ public:
     inline operator bool() const {
         return valid;
     }
+
+    template<typename T>
+    inline Writer &operator << (const T &t) {
+        doWrite(t);
+        return *this;
+    }
 };
-
-
 
 #endif /* WRITER_HPP_ */

@@ -24,18 +24,24 @@ struct MockOut {
 
 const Writer::VTable vtable = { &MockOut::writeStart, &MockOut::writeEnd, &MockOut::write };
 
-TEST(WriterTest, raw_bytes_are_output_correctly) {
+enum class TestEnum: uint8_t {ONE, TWO};
+
+TEST(WriterTest, raw_bytes_and_enums_are_output_correctly) {
     MockOut out;
     {
         Writer w(&vtable, &out);
         EXPECT_TRUE(out.hasStarted);
         w << uint8_t(42);
         w << uint8_t(84);
+        w << TestEnum::ONE;
+        w << TestEnum::TWO;
         EXPECT_FALSE(out.hasEnded);
     }
     EXPECT_EQ(42, out.buffer[0]);
     EXPECT_EQ(84, out.buffer[1]);
-    EXPECT_EQ(2, out.length);
+    EXPECT_EQ(0, out.buffer[2]);
+    EXPECT_EQ(1, out.buffer[3]);
+    EXPECT_EQ(4, out.length);
     EXPECT_TRUE(out.hasEnded);
 }
 

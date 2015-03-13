@@ -9,6 +9,7 @@
 #define READER_HPP_
 
 #include <avr/common.h>
+#include "gcc_type_traits.h"
 
 class Reader {
 public:
@@ -28,6 +29,20 @@ private:
             valid = vtable->read(delegate, b);
         }
     }
+
+    template<typename T>
+    inline void doRead(T& t, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
+    {
+        *this >> *((typename std::underlying_type<T>::type *) &t);
+    }
+
+    template<typename T>
+    inline void doRead(T& t, typename std::enable_if<std::is_class<T>::value>::type* = 0)
+    {
+        T::read(*this, t);
+    }
+
+
     Reader(): vtable(nullptr), delegate(nullptr), valid(false) {}
 public:
     inline Reader(const VTable *_vtable, void *_delegate): vtable(_vtable), delegate(_delegate), valid(true) {
@@ -48,8 +63,13 @@ public:
     inline uint8_t getRemaining() const {
         return vtable->getRemaining(delegate);
     }
+
+    template<typename T>
+    inline Reader &operator >> (T &t) {
+        doRead(t);
+        return *this;
+    }
+
 };
-
-
 
 #endif /* READER_HPP_ */
