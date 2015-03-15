@@ -20,12 +20,14 @@ class AbstractFifo {
 
     const static Writer::VTable writerVTable;
     static void writeStart(void *delegate);
-    static void writeEnd(void *delegate);
+    static void writeCommit(void *delegate);
+    static void writeRollback(void *delegate);
     static bool write(void *delegate, uint8_t b);
 
     const static Reader::VTable readerVTable;
     static void readStart(void *delegate);
-    static void readEnd(void *delegate);
+    static void readCommit(void *delegate);
+    static void readRollback(void *delegate);
     static bool read(void *delegate, uint8_t &target);
     static uint8_t getRemaining(void *delegate);
 

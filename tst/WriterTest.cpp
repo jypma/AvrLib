@@ -6,13 +6,17 @@ struct MockOut {
     uint8_t buffer[200];
     uint8_t length = 0;
     bool hasStarted = false;
-    bool hasEnded = false;
+    bool hasCommit = false;
+    bool hasRollback = false;
 
     static void writeStart(void *ctx) {
         ((MockOut*)(ctx))->hasStarted = true;
     }
-    static void writeEnd(void *ctx) {
-        ((MockOut*)(ctx))->hasEnded = true;
+    static void writeCommit(void *ctx) {
+        ((MockOut*)(ctx))->hasCommit = true;
+    }
+    static void writeRollback(void *ctx) {
+        ((MockOut*)(ctx))->hasRollback = true;
     }
     static bool write(void *ctx, uint8_t b) {
         auto out = ((MockOut*)(ctx));
@@ -22,7 +26,7 @@ struct MockOut {
     }
 };
 
-const Writer::VTable vtable = { &MockOut::writeStart, &MockOut::writeEnd, &MockOut::write };
+const Writer::VTable vtable = { &MockOut::writeStart, &MockOut::writeCommit, &MockOut::writeRollback, &MockOut::write };
 
 enum class TestEnum: uint8_t {ONE, TWO};
 
@@ -35,14 +39,14 @@ TEST(WriterTest, raw_bytes_and_enums_are_output_correctly) {
         w << uint8_t(84);
         w << TestEnum::ONE;
         w << TestEnum::TWO;
-        EXPECT_FALSE(out.hasEnded);
+        EXPECT_FALSE(out.hasCommit);
     }
     EXPECT_EQ(42, out.buffer[0]);
     EXPECT_EQ(84, out.buffer[1]);
     EXPECT_EQ(0, out.buffer[2]);
     EXPECT_EQ(1, out.buffer[3]);
     EXPECT_EQ(4, out.length);
-    EXPECT_TRUE(out.hasEnded);
+    EXPECT_TRUE(out.hasCommit);
 }
 
 TEST(WriterTest, uint16_is_output_msb_first) {

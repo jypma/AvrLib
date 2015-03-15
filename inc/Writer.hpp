@@ -25,7 +25,8 @@ class Writer {
 public:
     struct VTable {
         void (*writeStart)(void *);
-        void (*writeEnd)(void *);
+        void (*writeCommit)(void *);
+        void (*writeRollback)(void *);
         bool (*write)(void *, uint8_t);
     };
 private:
@@ -33,11 +34,7 @@ private:
     void * const delegate;
     bool valid;
 
-    void write(const uint8_t b) {
-        if (valid) {
-            valid = vtable->write(delegate, b);
-        }
-    }
+    void write(const uint8_t b);
 
     template<typename T>
     inline void doWrite(const T& t, typename std::enable_if<std::is_enum<T>::value>::type* = 0)
@@ -58,9 +55,7 @@ public:
     inline Writer(const VTable *_vtable, void *_delegate): vtable(_vtable), delegate(_delegate), valid(true) {
         vtable->writeStart(delegate);
     }
-    inline ~Writer() {
-        vtable->writeEnd(delegate);
-    }
+    ~Writer();
 
     /** Writes a single byte */
     Writer &operator << (const uint8_t b);

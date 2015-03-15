@@ -328,3 +328,42 @@ TEST(FifoTest, resetRead_on_unmarked_fifo_has_no_effect) {
     EXPECT_FALSE(fifo.hasContent());
     EXPECT_EQ(0, fifo.getSize());
 }
+
+enum class TestEnum: uint8_t { RED, GREEN, YELLOW };
+
+struct TestItem {
+    TestEnum color;
+    uint16_t amount;
+    static void write(Writer &out, const TestItem &evt) {
+        out << evt.color;
+        out << evt.amount;
+    }
+    static void read(Reader &in, TestItem &evt) {
+        if (in >> evt.color) {
+            in >> evt.amount;
+        }
+    }
+};
+
+TEST(FifoTest, writer_rolls_back_on_full_fifo) {
+    Fifo<16> fifo;
+    TestItem item;
+    item.color = TestEnum::GREEN;
+    item.amount = 0;
+    for (int i = 0; i < 5; i++) {
+        item.amount++;
+        fifo.out() << item;
+    }
+    EXPECT_EQ(15, fifo.getSize());
+    fifo.out() << item;
+    EXPECT_EQ(15, fifo.getSize());
+}
+
+TEST(FifoTest, reader_rolls_back_on_incomplete_fifo) {
+    Fifo<16> fifo;
+    fifo.out() << TestEnum::RED;
+    TestItem item;
+    EXPECT_EQ(1, fifo.getSize());
+    EXPECT_FALSE(fifo.in() >> item);
+    EXPECT_EQ(1, fifo.getSize());
+}

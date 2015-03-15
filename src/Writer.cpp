@@ -1,5 +1,19 @@
 #include "Writer.hpp"
 
+Writer::~Writer() {
+    if (valid) {
+        vtable->writeCommit(delegate);
+    } else {
+        vtable->writeRollback(delegate);
+    }
+}
+
+void Writer::write(const uint8_t b) {
+    if (valid) {
+        valid = vtable->write(delegate, b);
+    }
+}
+
 Writer &Writer::operator << (const uint8_t b) {
     write(b);
     return *this;

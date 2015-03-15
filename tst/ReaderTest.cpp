@@ -6,13 +6,17 @@ struct MockIn {
     uint8_t remaining;
     uint8_t pos = 0;
     bool hasStarted = false;
-    bool hasEnded = false;
+    bool hasCommit = false;
+    bool hasRollback = false;
 
     static void readStart(void * ctx) {
         ((MockIn*)ctx)->hasStarted = true;
     }
-    static void readEnd(void *ctx) {
-        ((MockIn*)ctx)->hasEnded = true;
+    static void readCommit(void *ctx) {
+        ((MockIn*)ctx)->hasCommit = true;
+    }
+    static void readRollback(void *ctx) {
+        ((MockIn*)ctx)->hasRollback = true;
     }
     static bool read(void *ctx, uint8_t &target) {
         MockIn *in = ((MockIn*)ctx);
@@ -26,7 +30,7 @@ struct MockIn {
     }
 };
 
-const Reader::VTable vtable = { &MockIn::readStart, &MockIn::readEnd, &MockIn::read, &MockIn::getRemaining };
+const Reader::VTable vtable = { &MockIn::readStart, &MockIn::readCommit, &MockIn::readRollback, &MockIn::read, &MockIn::getRemaining };
 
 enum class ReaderTestEnum: uint8_t {ONE, TWO};
 
@@ -45,7 +49,7 @@ TEST(ReaderTest, raw_bytes_and_enums_are_read_correctly) {
         ReaderTestEnum inenum;
         r >> inenum;
         EXPECT_EQ(ReaderTestEnum::TWO, inenum);
-        EXPECT_FALSE(in.hasEnded);
+        EXPECT_FALSE(in.hasCommit);
     }
-    EXPECT_TRUE(in.hasEnded);
+    EXPECT_TRUE(in.hasCommit);
 }

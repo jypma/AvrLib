@@ -51,7 +51,7 @@ public:
             return length;
         }
         uint16_t getLengthAs16384thSeconds() {
-            constexpr uint16_t scale_denom = (uint32_t(F_CPU) >> Timer1<ExtPrescaler::_1024>::prescalerPower2) / 4;
+            constexpr uint16_t scale_denom = (uint32_t(F_CPU) >> timer_t::prescalerPower2) / 4;
             uint32_t l = uint32_t(length) * 4096 / scale_denom;
             if (l > 0xffff) {
                 l = 0xffff;

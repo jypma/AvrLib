@@ -2,15 +2,20 @@
 
 const Writer::VTable ChunkedFifo::writerVTable = {
         &ChunkedFifo::writeStart,
-        &ChunkedFifo::writeEnd,
+        &ChunkedFifo::writeCommit,
+        &ChunkedFifo::writeRollback,
         &ChunkedFifo::write };
 
 void ChunkedFifo::writeStart(void *delegate) {
     ((ChunkedFifo*)delegate)->writeStart();
 }
 
-void ChunkedFifo::writeEnd(void *delegate) {
+void ChunkedFifo::writeCommit(void *delegate) {
     ((ChunkedFifo*)delegate)->writeEnd();
+}
+
+void ChunkedFifo::writeRollback(void *delegate) {
+    ((ChunkedFifo*)delegate)->writeAbort();
 }
 
 bool ChunkedFifo::write(void *delegate, uint8_t b) {
@@ -19,7 +24,8 @@ bool ChunkedFifo::write(void *delegate, uint8_t b) {
 
 const Reader::VTable ChunkedFifo::readerVTable = {
         &ChunkedFifo::readStart,
-        &ChunkedFifo::readEnd,
+        &ChunkedFifo::readCommit,
+        &ChunkedFifo::readRollback,
         &ChunkedFifo::read,
         &ChunkedFifo::getAvailable };
 
@@ -27,8 +33,12 @@ void ChunkedFifo::readStart(void *delegate) {
     ((ChunkedFifo*)delegate)->readStart();
 }
 
-void ChunkedFifo::readEnd(void *delegate) {
+void ChunkedFifo::readCommit(void *delegate) {
     ((ChunkedFifo*)delegate)->readEnd();
+}
+
+void ChunkedFifo::readRollback(void *delegate) {
+    ((ChunkedFifo*)delegate)->readAbort();
 }
 
 bool ChunkedFifo::read(void *delegate, uint8_t &b) {

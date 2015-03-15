@@ -2,12 +2,14 @@
 
 const Writer::VTable AbstractFifo::writerVTable = {
         &AbstractFifo::writeStart,
-        &AbstractFifo::writeEnd,
+        &AbstractFifo::writeCommit,
+        &AbstractFifo::writeRollback,
         &AbstractFifo::write };
 
 const Reader::VTable AbstractFifo::readerVTable = {
         &AbstractFifo::readStart,
-        &AbstractFifo::readEnd,
+        &AbstractFifo::readCommit,
+        &AbstractFifo::readRollback,
         &AbstractFifo::read,
         &AbstractFifo::getRemaining
 };
@@ -16,8 +18,12 @@ void AbstractFifo::writeStart(void *delegate) {
     ((AbstractFifo*)delegate)->markWrite();
 }
 
-void AbstractFifo::writeEnd(void *delegate) {
+void AbstractFifo::writeCommit(void *delegate) {
     ((AbstractFifo*)delegate)->commitWrite();
+}
+
+void AbstractFifo::writeRollback(void *delegate) {
+    ((AbstractFifo*)delegate)->resetWrite();
 }
 
 bool AbstractFifo::write(void *delegate, uint8_t b) {
@@ -28,8 +34,12 @@ void AbstractFifo::readStart(void *delegate) {
     ((AbstractFifo*)delegate)->markRead();
 }
 
-void AbstractFifo::readEnd(void *delegate) {
+void AbstractFifo::readCommit(void *delegate) {
     ((AbstractFifo*)delegate)->commitRead();
+}
+
+void AbstractFifo::readRollback(void *delegate) {
+    ((AbstractFifo*)delegate)->resetRead();
 }
 
 bool AbstractFifo::read(void *delegate, uint8_t &target) {

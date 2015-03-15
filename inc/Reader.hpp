@@ -15,7 +15,8 @@ class Reader {
 public:
     struct VTable {
         void (*readStart)(void *);
-        void (*readEnd)(void *);
+        void (*readCommit)(void *);
+        void (*readRollback)(void *);
         bool (*read)(void *, uint8_t &);
         uint8_t (*getRemaining)(void*);
     };
@@ -42,19 +43,16 @@ private:
         T::read(*this, t);
     }
 
+    void doRead(uint8_t &b);
+    void doRead(uint16_t &i);
+    void doRead(uint32_t &i);
 
     Reader(): vtable(nullptr), delegate(nullptr), valid(false) {}
 public:
     inline Reader(const VTable *_vtable, void *_delegate): vtable(_vtable), delegate(_delegate), valid(true) {
         vtable->readStart(delegate);
     }
-    inline ~Reader() {
-        vtable->readEnd(delegate);
-    }
-
-    Reader &operator >> (uint8_t &b);
-    Reader &operator >> (uint16_t &i);
-    Reader &operator >> (uint32_t &i);
+    ~Reader();
 
     inline operator bool() const {
         return valid;

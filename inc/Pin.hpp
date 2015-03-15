@@ -59,8 +59,7 @@ public:
 template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
 class UsartTxPin: public Pin<pinInfo>, public UsartTx<usartInfo, writeFifoCapacity> {
     const static Writer::VTable writerVTable;
-    static void writeStart(void *delegate) {}
-    static void writeEnd(void *delegate) {}
+    static void noop(void *delegate) {}
     static bool write(void *delegate, uint8_t b) {
         // TODO move blocking behavior into Writer constructor
         UsartTx<usartInfo,writeFifoCapacity>::write(b);
@@ -75,8 +74,9 @@ public:
 
 template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
 const Writer::VTable UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writerVTable = {
-        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writeStart,
-        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writeEnd,
+        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::noop,
+        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::noop,
+        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::noop,
         &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::write };
 
 
