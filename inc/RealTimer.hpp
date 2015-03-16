@@ -10,11 +10,15 @@
 
 #include "Timer.hpp"
 
-template<typename prescaled, prescaled *timer>
-class RealTimer {
-    typedef RealTimer<prescaled,timer> This;
+inline void noop() {
 
-    volatile uint32_t _ticks = 0;
+}
+
+template<typename prescaled, prescaled *timer, uint32_t initialTicks = 0, void (*wait)() = noop>
+class RealTimer {
+    typedef RealTimer<prescaled,timer,initialTicks,wait> This;
+
+    volatile uint32_t _ticks = initialTicks;
 
     void tick() {
        _ticks++;
@@ -72,8 +76,18 @@ public:
     }
 
     void delayTicks(uint32_t ticksDelay) const {
-        uint32_t end = _ticks + ticksDelay;
-        while (ticks() < end) ;
+        auto startTime = ticks();
+        if (uint32_t(0xFFFFFFFF) - startTime < ticksDelay) {
+            // we expect a integer wraparound.
+            // first, wait for the int to overflow (with some margin)
+            while (ticks() > 1) {
+                wait();
+            }
+        }
+        uint32_t end = startTime + ticksDelay;
+        while (ticks() < end) {
+            wait();
+        }
     }
 
     void delayMillis(uint16_t millisDelay) const {
