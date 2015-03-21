@@ -77,6 +77,17 @@ bool AbstractFifo::append(uint8_t b) {
     }
 }
 
+bool AbstractFifo::reserve(volatile uint8_t * &ptr) {
+    AtomicScope _;
+    if (isWriteMarked() && hasSpace()) {
+        ptr = buffer + writePos;
+        writePos = (writePos + 1) % bufferSize;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool AbstractFifo::remove(uint8_t &b) {
     AtomicScope _;
 

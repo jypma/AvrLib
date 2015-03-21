@@ -367,3 +367,32 @@ TEST(FifoTest, reader_rolls_back_on_incomplete_fifo) {
     EXPECT_FALSE(fifo.in() >> item);
     EXPECT_EQ(1, fifo.getSize());
 }
+
+TEST(FifoTest, reservation_can_be_written_to) {
+    Fifo<16> fifo;
+    fifo.markWrite();
+    volatile uint8_t *ptr = nullptr;
+    EXPECT_TRUE(fifo.reserve(ptr));
+    *ptr = 42;
+    fifo.commitWrite();
+
+    EXPECT_EQ(1, fifo.getSize());
+    uint8_t out;
+    fifo.remove(out);
+    EXPECT_EQ(42, out);
+}
+
+TEST(FifoTest, reserve_outside_markWrite_returns_false) {
+    Fifo<16> fifo;
+    volatile uint8_t *ptr = nullptr;
+    EXPECT_FALSE(fifo.reserve(ptr));
+}
+
+TEST(FifoTest, reserve_on_full_fifo_returns_false) {
+    Fifo<2> fifo;
+    fifo.append(1);
+    fifo.append(1);
+    fifo.markWrite();
+    volatile uint8_t *ptr = nullptr;
+    EXPECT_FALSE(fifo.reserve(ptr));
+}

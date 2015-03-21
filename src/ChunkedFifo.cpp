@@ -52,11 +52,10 @@ uint8_t ChunkedFifo::getAvailable(void *delegate) {
 void ChunkedFifo::clear() {
     AtomicScope _;
     data->clear();
-    lengths->clear();
 }
 
 bool ChunkedFifo::isFull() const {
-    return data->isFull() || lengths->isFull();
+    return data->isFull();
 }
 
 void ChunkedFifo::writeStart() {
@@ -67,8 +66,10 @@ void ChunkedFifo::writeStart() {
     }
 
     data->markWrite();
-    writeLength = 0;
-    writeValid = true;
+    writeValid = data->reserve(writeLengthPtr);
+    if (writeValid) {
+        *writeLengthPtr = 0;
+    }
 }
 
 bool ChunkedFifo::write (uint8_t b) {
@@ -76,7 +77,7 @@ bool ChunkedFifo::write (uint8_t b) {
 
     if (writeValid && data->hasSpace()) {
         data->append(b);
-        writeLength++;
+        (*writeLengthPtr)++;
         return true;
     } else {
         writeValid = false;
@@ -88,9 +89,8 @@ void ChunkedFifo::writeEnd() {
     AtomicScope _;
 
     if (isWriting()) {
-        if (writeValid && lengths->hasSpace()) {
+        if (writeValid) {
             data->commitWrite();
-            lengths->append(writeLength);
         } else {
             data->resetWrite();
         }
@@ -104,11 +104,12 @@ void ChunkedFifo::readStart() {
         data->resetRead();
     }
 
-    readValid = lengths->hasContent();
+    readValid = data->hasContent();
     if (readValid) {
-        readLength = lengths->peek();
         data->markRead();
-    } else {
+        readValid = data->remove(readLength);
+    }
+    if (!readValid) {
         readLength = 0;
     }
 }
@@ -136,7 +137,6 @@ void ChunkedFifo::readEnd() {
                 data->remove(dummy);
                 readLength--;
             }
-            lengths->remove(dummy);
             data->commitRead();
         } else {
             data->resetRead();

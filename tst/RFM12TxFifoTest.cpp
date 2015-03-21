@@ -3,8 +3,7 @@
 
 TEST(RFM12TxFifoTest, tx_fifo_wraps_empty_packet_correctly) {
     Fifo<16> data;
-    Fifo<4> lengths;
-    ChunkedFifo f(&data, &lengths);
+    ChunkedFifo f(&data);
     RFM12TxFifo fifo(&f);
 
     { EXPECT_TRUE((bool) fifo.out()); }
@@ -32,8 +31,7 @@ TEST(RFM12TxFifoTest, tx_fifo_wraps_empty_packet_correctly) {
 
 TEST(RFM12TxFifoTest, tx_fifo_wraps_1_byte_packet_correctly) {
     Fifo<16> data;
-    Fifo<4> lengths;
-    ChunkedFifo f(&data, &lengths);
+    ChunkedFifo f(&data);
     RFM12TxFifo fifo(&f);
 
     const uint8_t byte1 = 0x42;

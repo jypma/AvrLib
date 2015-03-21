@@ -27,23 +27,22 @@ class ChunkedFifo {
     static uint8_t getAvailable(void *delegate);
 
     AbstractFifo *data;
-    AbstractFifo *lengths;
 
-    uint8_t writeLength = 0;
+    volatile uint8_t *writeLengthPtr = nullptr;
     bool writeValid = false;
 
     uint8_t readLength = 0;
     bool readValid = false;
 
 public:
-    ChunkedFifo(AbstractFifo *_data, AbstractFifo *_lengths): data(_data), lengths(_lengths) {}
+    ChunkedFifo(AbstractFifo *_data): data(_data) {}
 
     void clear();
 
     bool isFull() const;
 
     inline bool hasContent() const {
-        return lengths->hasContent();
+        return data->hasContent();
     }
 
     void writeStart();

@@ -26,32 +26,15 @@ constexpr auto SPI125KHz = SPIPrescaler::_128;
 
 class SPIMaster {
 public:
-    SPIMaster() {
+    inline SPIMaster() {
         enable();
     }
 
-    ~SPIMaster() {
+    inline ~SPIMaster() {
         disable();
     }
 
-    void setClockPrescaler(SPIPrescaler p) const {
-        uint8_t bits = static_cast<uint8_t>(p);
-        if (bits & 1) {
-            SPCR |= _BV(SPR0);
-        } else {
-            SPCR &= ~_BV(SPR0);
-        }
-        if (bits & 2) {
-            SPCR |= _BV(SPR1);
-        } else {
-            SPCR &= ~_BV(SPR1);
-        }
-        if (bits & 4) {
-            SPSR |= _BV(SPI2X);
-        } else {
-            SPSR &= ~_BV(SPI2X);
-        }
-    }
+    void setClockPrescaler(SPIPrescaler p) const;
 
     /**
      * Enables SPI master by configuring the MOSI(11), MISO(12) and SCK(13) pins for
@@ -69,19 +52,12 @@ public:
      *
      * The SPI SCK clock speed is set to clock/2.
      */
-    void enable() const {
-        DDRB |= (1 << 2);  // SS   is output
-        DDRB |= (1 << 3);  // MOSI is output
-        DDRB &= ~(1 << 4); // MISO is input
-        DDRB |= (1 << 5);  // SCK  is output
-        SPCR = _BV(SPE) | _BV(MSTR); // enable SPI, in master mode
-        setClockPrescaler(SPIPrescaler::_2);
-    }
+    void enable() const;
 
     /**
      * Disables SPI mode, releasing pins 10-13 to be used as general purpose I/O.
      */
-    void disable() const {
+    inline void disable() const {
         SPCR &= ~_BV(SPE);
     }
 
@@ -89,20 +65,13 @@ public:
      * Sends the given byte on MOSI, while reading a byte on MISO and returning that.
      * Blocks until the transfer is complete.
      */
-    uint8_t transceive(uint8_t out) const {
-        SPDR = out;
-        while (!(SPSR & _BV(SPIF))) ;
-        return SPDR;
-    }
+    uint8_t transceive(uint8_t out) const;
 
     /**
      * Sends the given byte on MOSI, ignoring anything on MISO. Blocks until the transfer
      * is complete.
      */
-    void send(uint8_t out) const {
-        SPDR = out;
-        while (!(SPSR & _BV(SPIF))) ;
-    }
+    void send(uint8_t out) const;
 };
 
 

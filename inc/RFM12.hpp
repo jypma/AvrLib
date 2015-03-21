@@ -40,9 +40,10 @@ static constexpr drssi_dec_t drssi_dec_tree[6] = {
 // TODO make this progmem
 static constexpr int8_t drssi_strength_table[] = {-106, -100, -94, -88, -82, -76, -70};
 
-template <const SPIMaster &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
+/** TODO embed the chunked fifos, make fifo lengths template params instead, with defaults */
+template <typename spi_t, spi_t &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
 class RFM12 {
-    typedef RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin> This;
+    typedef RFM12<spi_t,spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin> This;
 
     static void command(uint16_t cmd) {
         ss_pin.setLow();
@@ -219,14 +220,14 @@ public:
     InterruptHandler handler = { this, &This::interrupt };
 
     static void writeStart(void *ctx) {
-        ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->txFifo.writeStart();
+        ((This*)(ctx))->txFifo.writeStart();
     }
     static void writeEnd(void *ctx) {
-        ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->txFifo.writeEnd();
-        ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->sendOrReceive();
+        ((This*)(ctx))->txFifo.writeEnd();
+        ((This*)(ctx))->sendOrReceive();
     }
     static bool write(void *ctx, uint8_t b) {
-        return ((RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>*)(ctx))->txFifo.write(b);
+        return ((This*)(ctx))->txFifo.write(b);
     }
 
 
@@ -312,11 +313,11 @@ public:
 
 };
 
-template <const SPIMaster &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
-const Writer::VTable RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writerVTable = {
-    &RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeStart,
-    &RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeEnd,
-    &RFM12<spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::write
+template <typename spi_t, spi_t &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
+const Writer::VTable RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writerVTable = {
+    &RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeStart,
+    &RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeEnd,
+    &RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::write
 };
 
 

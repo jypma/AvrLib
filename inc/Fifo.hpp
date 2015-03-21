@@ -92,6 +92,15 @@ public:
     /** Returns whether the value was appended (true), or false if the Fifo was full. */
     bool append(uint8_t b);
 
+    /** Valid to call between markWrite() and commitWrite(), to reserve a spot in the queue,
+     * with the actual value being set later. The caller must NOT write to [ptr] after
+     * markWrite() has been called.
+     *
+     * Returns whether the ptr was reserved (true), or false if the Fifo was full,
+     * or no write mark was set.
+     */
+    bool reserve(volatile uint8_t * &ptr);
+
     /** Returns whether a value was removed and updated in b (true), or false if the Fifo was empty */
     bool remove(uint8_t &b);
 
