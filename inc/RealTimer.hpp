@@ -45,7 +45,7 @@ public:
      */
     uint32_t counts() const {
         AtomicScope _;
-        return (_ticks << prescaled::maximumPower2) + timer->getValue();
+        return (_ticks << prescaled::maximumPower2) | timer->getValue();
     }
 
     uint64_t micros() const {

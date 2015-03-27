@@ -203,6 +203,9 @@ protected:
 public:
     static constexpr typename info::prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;
+    static constexpr uint16_t microseconds2counts(uint16_t usecs) {
+        return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
+    }
 };
 
 /**
