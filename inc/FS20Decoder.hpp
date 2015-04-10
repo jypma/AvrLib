@@ -152,7 +152,7 @@ public:
             }
         }
         switch(evt.getType()) {
-        case PulseType::HIGH:
+        case PulseType::LOW:
             if (isZero(evt.getLength())) {
                 if (isZero(lastLength)) {
                     applyBit(0);
@@ -170,7 +170,7 @@ public:
             }
             break;
 
-        case PulseType::LOW:
+        case PulseType::HIGH:
             lastLength = evt.getLength();
             break;
 

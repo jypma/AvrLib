@@ -20,11 +20,11 @@ struct FS20MockPulseCounter {
 
 template <typename T>
 void sendData(T &decoder, const uint8_t *seq, uint16_t length) {
-    PulseType type = PulseType::LOW;
+    PulseType type = PulseType::HIGH;
     for (uint8_t i = 0; i < length; i++) {
         FS20MockPulseCounter::PulseEvent event = { type, seq[i] };
         decoder.apply(event);
-        type = (type == PulseType::LOW) ? PulseType::HIGH : PulseType::LOW;
+        type = (type == PulseType::HIGH) ? PulseType::LOW : PulseType::HIGH;
     }
     FS20MockPulseCounter::PulseEvent event = { PulseType::TIMEOUT, 0 };
     decoder.apply(event);

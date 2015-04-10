@@ -41,7 +41,7 @@ public:
             length = 0;
         }
         PulseEvent(count_t start, count_t end) {
-            type = pin->isHigh() ? PulseType::HIGH : PulseType::LOW;
+            type = pin->isHigh() ? PulseType::LOW : PulseType::HIGH;
             length = (end > start) ? end - start : timer_t::maximum - (start - end);
             if (length == 0) {
                 length = 1;

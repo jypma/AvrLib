@@ -19,11 +19,11 @@ struct MockPulseCounter {
 
 template <typename T>
 void sendData(T &decoder, const uint16_t *seq, uint16_t length) {
-    PulseType type = PulseType::LOW;
+    PulseType type = PulseType::HIGH;
     for (uint16_t i = 0; i < length; i++) {
         MockPulseCounter::PulseEvent event = { type, seq[i] };
         decoder.apply(event);
-        type = (type == PulseType::LOW) ? PulseType::HIGH : PulseType::LOW;
+        type = (type == PulseType::HIGH) ? PulseType::LOW : PulseType::HIGH;
     }
     MockPulseCounter::PulseEvent event = { PulseType::TIMEOUT, 0 };
     decoder.apply(event);

@@ -56,11 +56,11 @@ public:
     }
 
     static inline bool isHigh(const Event &event, const uint16_t expectedLength) {
-        return isMatch(event, PulseType::HIGH, min(expectedLength), max(expectedLength));
+        return isMatch(event, PulseType::LOW, min(expectedLength), max(expectedLength));
     }
 
     static inline bool isLow(const Event &event, const uint16_t expectedLength) {
-        return isMatch(event, PulseType::LOW, min(expectedLength), max(expectedLength));
+        return isMatch(event, PulseType::HIGH, min(expectedLength), max(expectedLength));
     }
 
     void reset() {
@@ -95,7 +95,7 @@ public:
         count++;
 
         if (count == 0) {
-            if (event.getType() == PulseType::LOW) {
+            if (event.getType() == PulseType::HIGH) {
                 return;
             } else {
                 count = -1;
@@ -188,7 +188,7 @@ public:
     void onReceiving(const Event &event) {
         count++;
         if (count == 0) {
-            if (event.getType() == PulseType::LOW) {
+            if (event.getType() == PulseType::HIGH) {
                 return;
             } else {
                 count = -1;
