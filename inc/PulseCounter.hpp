@@ -15,6 +15,8 @@
 
 enum class PulseType: uint8_t { TIMEOUT = 0, HIGH = 1, LOW = 2 };
 
+// TODO flip the pulse types, right now HIGH is "transition from low to high", while it should be the actual pulse.
+
 /**
  * Counts up/down pulse lengths on a pin by using a timer. The longest reported length is
  * the timer's maximum value - 1.
@@ -22,7 +24,8 @@ enum class PulseType: uint8_t { TIMEOUT = 0, HIGH = 1, LOW = 2 };
 template <typename timer_t, timer_t *timer,
           typename comparator_t, comparator_t *comparator,
           typename pin_t, pin_t *pin,
-          int fifo_length = 32>
+          int fifo_length = 32,
+          int minimumLength = 15>
 class PulseCounter {
     typedef typename timer_t::value_t count_t;
     typedef PulseCounter<timer_t,timer,comparator_t,comparator,pin_t,pin,fifo_length> This;
@@ -37,9 +40,8 @@ public:
             type = PulseType::TIMEOUT;
             length = 0;
         }
-        PulseEvent(count_t start) {
+        PulseEvent(count_t start, count_t end) {
             type = pin->isHigh() ? PulseType::HIGH : PulseType::LOW;
-            count_t end = timer->getValue();
             length = (end > start) ? end - start : timer_t::maximum - (start - end);
             if (length == 0) {
                 length = 1;
@@ -99,11 +101,17 @@ private:
     bool wasEmptyPeriod = true;
 
     void onPinChanged() {
-        PulseEvent evt(start);
-        fifo.out() << evt;
+        const count_t end = timer->getValue();
+        const PulseEvent evt(start, end);
+        if (evt.getLength() > minimumLength) {
+           fifo.out() << evt;
+        } /*else {
+           TODO consider fifo.clear() here? or what?
+           fifo.out() << PulseType::TIMEOUT;
+        }*/
         wasEmptyPeriod = false;
         comparator->interruptOn();
-        start = timer->getValue();
+        start = end;
     }
 
     void onComparator() {
