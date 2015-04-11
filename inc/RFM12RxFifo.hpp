@@ -12,59 +12,58 @@
 #include "CRC.hpp"
 #include "Reader.hpp"
 
+template <int fifoSize = 32, bool checkCrc = true>
 class RFM12RxFifo {
-    ChunkedFifo *fifo; // TODO THIS should be template, since there'll only be 1 RFM12TxFifo instance anyways.
+    Fifo<fifoSize> data;
+    ChunkedFifo fifo = { &data };
     CRC16 crc;
-    uint8_t length = 0;
-    const bool checkCrc;
+    uint8_t remaining = 0;
 
 public:
-    RFM12RxFifo(ChunkedFifo *_fifo, bool _checkCrc = true): fifo(_fifo), checkCrc(_checkCrc) {}
-
     /**
      * @param _length Number of data bytes in the packet. Excludes the 2 CRC bytes that follow after data.
      */
-    void writeStart(uint8_t _length) {
-        if (_length > 63) {
-            _length = 63; // RFM12 doesn't do packets longer than this, so the current "packet" probably is gonna fail.
+    void writeStart(uint8_t length) {
+        if (length > 63) {
+            length = 63; // RFM12 doesn't do packets longer than this, so the current "packet" probably is gonna fail.
         }
-        length = _length + 2;
+        remaining = length + 2; // remaining are [length] data bytes and 2 CRC bytes.
         crc.reset();
-        crc.append(_length);
-        fifo->writeStart();
+        crc.append(length);
+        fifo.writeStart();
     }
 
     void write(uint8_t b) {
-        if (length > 0) {
-            if (length > 2) {
-                fifo->write(b);
+        if (remaining > 0) {
+            if (remaining > 2) {
+                fifo.write(b);
             }
             crc.append(b);
-            length--;
-            if (length == 0) {
+            remaining--;
+            if (remaining == 0) {
                 if (crc.isValid() || !checkCrc) {
-                    fifo->writeEnd();
+                    fifo.writeEnd();
                 } else {
-                    fifo->writeAbort();
+                    fifo.writeAbort();
                 }
             }
         }
     }
 
     inline bool isWriting() const {
-        return fifo->isWriting();
+        return fifo.isWriting();
     }
 
     inline void writeAbort() {
-        fifo->writeAbort();
+        fifo.writeAbort();
     }
 
     inline Reader in() {
-        return fifo->in();
+        return fifo.in();
     }
 
     inline bool hasContent() const {
-        return fifo->hasContent();
+        return fifo.hasContent();
     }
 };
 

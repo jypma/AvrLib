@@ -1,3 +1,7 @@
+#ifndef __AVR__
+#include <type_traits>
+#else
+
 #ifndef _GLIBCXX_TYPE_TRAITS
 #define _GLIBCXX_TYPE_TRAITS 1
 
@@ -65,3 +69,5 @@ template<typename _Tp>
 }
 
 #endif
+#endif
+

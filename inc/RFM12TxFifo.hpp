@@ -11,31 +11,31 @@
 #include "ChunkedFifo.hpp"
 #include "CRC.hpp"
 
+template <int fifoSize = 32>
 class RFM12TxFifo {
     enum PacketIndex {
-        PREAMBLE1, PREAMBLE2, SYNC, LENGTH, DATA, CRCLSB, CRCMSB, POSTFIX
+        PREAMBLE1, PREAMBLE2, SYNC, LENGTH, DATA, CRCLSB, CRCMSB, POSTFIX, DONE
     };
 
-    ChunkedFifo *fifo; // TODO THIS could be template, since there'll only be 1 RFM12TxFifo instance anyways.
+    Fifo<fifoSize> data;
+    ChunkedFifo fifo = { &data };
     CRC16 crc;
 
     PacketIndex packetIndex = PacketIndex::PREAMBLE1;
 
 public:
-    RFM12TxFifo(ChunkedFifo *_fifo): fifo(_fifo) {}
-
     inline Writer out() {
-        return fifo->out();
+        return fifo.out();
     }
 
     void readStart() {
-        fifo->readStart();
+        fifo.readStart();
         crc.reset();
         packetIndex = PacketIndex::PREAMBLE1;
     }
 
     inline uint8_t isReading() const {
-        return fifo->isReading() && packetIndex != POSTFIX;
+        return fifo.isReading() && (packetIndex != DONE);
     }
 
     void read(uint8_t &b) {
@@ -47,34 +47,36 @@ public:
             case SYNC:
                 b = 0x2D; packetIndex = LENGTH; break;
             case LENGTH:
-                b = fifo->getReadAvailable();
+                b = fifo.getReadAvailable();
                 crc.append(b);
                 packetIndex = (b > 0) ? DATA : CRCLSB;
                 break;
             case DATA:
-                fifo->read(b);
+                fifo.read(b);
                 crc.append(b);
-                if (fifo->getReadAvailable() == 0) packetIndex = CRCLSB;
+                if (fifo.getReadAvailable() == 0) packetIndex = CRCLSB;
                 break;
             case CRCLSB:
                 b = (uint8_t)(crc.get()); packetIndex = CRCMSB; break;
             case CRCMSB:
                 b = (uint8_t)(crc.get() >> 8); packetIndex = POSTFIX; break;
             case POSTFIX:
+                b = 0xAA; packetIndex = DONE; break;
+            case DONE:
                 b = 0xAA; break;
         }
     }
 
     void readAbort() {
-        fifo->readAbort();
+        fifo.readAbort();
     }
 
     void readEnd() {
-        fifo->readEnd();
+        fifo.readEnd();
     }
 
     inline bool hasContent() const {
-        return fifo->hasContent();
+        return fifo.hasContent();
     }
 
 };

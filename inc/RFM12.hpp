@@ -40,10 +40,9 @@ static constexpr drssi_dec_t drssi_dec_tree[6] = {
 // TODO make this progmem
 static constexpr int8_t drssi_strength_table[] = {-106, -100, -94, -88, -82, -76, -70};
 
-/** TODO embed the chunked fifos, make fifo lengths template params instead, with defaults */
-template <typename spi_t, spi_t &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
+template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin, int rxFifoSize = 32, int txFifoSize = 32>
 class RFM12 {
-    typedef RFM12<spi_t,spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin> This;
+    typedef RFM12<spi_t,spi,ss_pin_t, ss_pin,int_pin_t,int_pin, rxFifoSize, txFifoSize> This;
 
     static void command(uint16_t cmd) {
         ss_pin.setLow();
@@ -101,8 +100,8 @@ private:
 public:
     volatile Mode mode = Mode::IDLE;
     DRSSI drssi;
-    RFM12TxFifo txFifo;
-    RFM12RxFifo rxFifo;
+    RFM12TxFifo<txFifoSize> txFifo;
+    RFM12RxFifo<rxFifoSize> rxFifo;
 
     BitSet<Status> getStatus(uint8_t &in) {
         ss_pin.setLow();
@@ -127,7 +126,6 @@ public:
     volatile int8_t lastStrength = 0;
     volatile uint8_t recvCount = 0;
     volatile uint8_t underruns = 0;
-    volatile uint8_t idx = 0;
 
     void commandIdle() {
         command(0x820D);  // RF_IDLE_MODE
@@ -175,21 +173,12 @@ public:
                 drssi.apply(status);
                 lastStrength = drssi.getStrength();
 
-                //if (status[Status::RSSI_OVER_THRESHOLD]) {
-                //    lastStrength++;
-               // }
-
                 if (rxFifo.isWriting()) {
                     rxFifo.write(in);
-                    idx++;
-                    if (idx >= 5) idx = 5;
-                    RFM12::command(0x94A0 | idx);
                 } else {
                     lastLen = in;
-                    idx = 0;
                     rxFifo.writeStart(in);
                     mode = Mode::RECEIVING;
-                    RFM12::command(0x94A0 | idx);
                 }
 
                 if (!rxFifo.isWriting()) {
@@ -232,7 +221,7 @@ public:
 
 
 public:
-    RFM12(RFM12Band band): txFifo(&_txFifo), rxFifo(&_rxFifo, false) {
+    RFM12(RFM12Band band) {
         enable(band);
     }
 
@@ -313,11 +302,11 @@ public:
 
 };
 
-template <typename spi_t, spi_t &spi, ChunkedFifo &_txFifo, ChunkedFifo &_rxFifo, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin>
-const Writer::VTable RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writerVTable = {
-    &RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeStart,
-    &RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::writeEnd,
-    &RFM12<spi_t, spi,_txFifo,_rxFifo,ss_pin_t,ss_pin,int_pin_t,int_pin>::write
+template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin, int rxFifoSize, int txFifoSize>
+const Writer::VTable RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::writerVTable = {
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::writeStart,
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::writeEnd,
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::write
 };
 
 

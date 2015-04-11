@@ -2,9 +2,7 @@
 #include "RFM12RxFifo.hpp"
 
 TEST(RFM12RxFifoTest, rx_receives_empty_packet_with_correct_crc) {
-    Fifo<16> data;
-    ChunkedFifo f(&data);
-    RFM12RxFifo fifo(&f);
+    RFM12RxFifo<32,true> fifo;
 
     EXPECT_FALSE(fifo.isWriting());
 
@@ -25,9 +23,7 @@ TEST(RFM12RxFifoTest, rx_receives_empty_packet_with_correct_crc) {
 }
 
 TEST(RFM12RxFifoTest, rx_ignores_empty_packet_with_incorrect_crc) {
-    Fifo<16> data;
-    ChunkedFifo f(&data);
-    RFM12RxFifo fifo(&f);
+    RFM12RxFifo<32,true> fifo;
 
     EXPECT_FALSE(fifo.isWriting());
 
@@ -43,9 +39,7 @@ TEST(RFM12RxFifoTest, rx_ignores_empty_packet_with_incorrect_crc) {
 }
 
 TEST(RFM12RxFifoTest, rx_receives_1_byte_packet_with_correct_crc) {
-    Fifo<16> data;
-    ChunkedFifo f(&data);
-    RFM12RxFifo fifo(&f);
+    RFM12RxFifo<32,true> fifo;
 
     EXPECT_FALSE(fifo.isWriting());
 
@@ -75,9 +69,7 @@ TEST(RFM12RxFifoTest, rx_receives_1_byte_packet_with_correct_crc) {
 }
 
 TEST(RFM12RxFifoTest, ridiculous_long_packet_does_not_upset_fifo_and_is_rejected) {
-    Fifo<32> data;
-    ChunkedFifo f(&data);
-    RFM12RxFifo fifo(&f);
+    RFM12RxFifo<32,true> fifo;
 
     fifo.writeStart(254);
     for (int i = 0; i < 63; i++) {
@@ -86,5 +78,5 @@ TEST(RFM12RxFifoTest, ridiculous_long_packet_does_not_upset_fifo_and_is_rejected
     fifo.writeAbort();
 
     EXPECT_FALSE(fifo.isWriting());
-    EXPECT_TRUE(data.isEmpty());
+    EXPECT_FALSE(fifo.hasContent());
 }
