@@ -17,28 +17,12 @@
 #include "ChunkedFifo.hpp"
 #include "RFM12TxFifo.hpp"
 #include "RFM12RxFifo.hpp"
+#include "RFM12Status.hpp"
+#include "RFM12Strength.hpp"
 
 enum class RFM12Band: uint8_t {
     _433MHz = 1, _868Mhz = 2, _915MHz = 3
 };
-
-struct drssi_dec_t {
-    uint8_t next_if_below_threshold;
-    uint8_t next_if_over_threshold;
-};
-
-// TODO make this progmen
-static constexpr drssi_dec_t drssi_dec_tree[6] = {
-        {0, 0},
-    /* 1 */ {0 | 0xF0, 2},
-    /* 2 */ {1 | 0xF0, 2 | 0xF0},
-    /* 3 */ {1, 5},
-    /* 4 */ {3 | 0xF0, 4 | 0xF0},
-    /* 5 */ {4, 5 | 0xF0}
-};
-
-// TODO make this progmem
-static constexpr int8_t drssi_strength_table[] = {-106, -100, -94, -88, -82, -76, -70};
 
 template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin, int rxFifoSize = 32, int txFifoSize = 32>
 class RFM12 {
@@ -57,60 +41,21 @@ public:
     enum class Mode { IDLE, LISTENING, RECEIVING, SENDING };
 
 private:
-    enum class Status: uint16_t {
-        // Note that the bit values are in reverse w.r.t. the datasheet, since we
-        // read the status word with RGIT/FFIT as MSB.
-        READY_FOR_NEXT_BYTE = uint16_t(1) << 15,  // RGIT (when sending) or FFIT (when receiving)
-        POWER_ON_RESET      = uint16_t(1) << 14,  // POR
-        UNDERRUN_OVERFLOW   = uint16_t(1) << 13,  // RGUR (when sending) or FFOv (when receiving)
-        RSSI_OVER_THRESHOLD = uint16_t(1) << 8    // ATG (when sending) or RSSI (when receiving)
-    };
-
-    class DRSSI {
-    public:
-        volatile uint8_t position = 3;
-
-    public:
-        void apply(const BitSet<Status> status) {
-            if (position < 6) { // not yet final value
-                if (status[Status::RSSI_OVER_THRESHOLD])
-                    position = drssi_dec_tree[position].next_if_over_threshold;
-                else
-                    position = drssi_dec_tree[position].next_if_below_threshold;
-                if (position < 6) { // not yet final value
-                    RFM12::command(0x94A0 | position);
-                }
-            }
-        }
-
-        void reset() {
-            position = 3;
-            RFM12::command(0x94A0 | position);
-        }
-
-        int8_t getStrength() {
-            if (position < 6) { // signal strength not (yet) known
-                return 0;
-            } else {
-                return drssi_strength_table[position & 0b111];
-            }
-        }
-    };
 
 public:
     volatile Mode mode = Mode::IDLE;
-    DRSSI drssi;
+    RFM12Strength drssi;
     RFM12TxFifo<txFifoSize> txFifo;
     RFM12RxFifo<rxFifoSize> rxFifo;
 
-    BitSet<Status> getStatus(uint8_t &in) {
+    BitSet<RFM12Status> getStatus(uint8_t &in) {
         ss_pin.setLow();
         // status bits are transmitted by RFM12 when sending 0x0000.
         uint16_t statusBits = spi.transceive(0x00) << 8;
         statusBits |= spi.transceive(0x00);
-        auto res = BitSet<Status>(statusBits);
+        auto res = BitSet<RFM12Status>(statusBits);
 
-        if (res[Status::READY_FOR_NEXT_BYTE] && (mode == Mode::RECEIVING || mode == Mode::LISTENING)) {
+        if (res[RFM12Status::READY_FOR_NEXT_BYTE] && (mode == Mode::RECEIVING || mode == Mode::LISTENING)) {
             // RFM12's FIFO has a byte for us
             // slow down to under 2.5 MHz
             spi.setClockPrescaler(SPI2MHz);
@@ -136,7 +81,7 @@ public:
         AtomicScope _;
 
         if (mode == Mode::IDLE) {
-            drssi.reset();
+            command(0x94A0 | drssi.reset());
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
                 mode = Mode::SENDING;
@@ -153,7 +98,7 @@ public:
         ints++;
         uint8_t in = 0;
         auto status = getStatus(in);
-        if (status[Status::READY_FOR_NEXT_BYTE]) {
+        if (status[RFM12Status::READY_FOR_NEXT_BYTE]) {
             if (mode == Mode::SENDING) {
                 // we are sending
                 if (txFifo.isReading()) {
@@ -170,7 +115,7 @@ public:
                 //TODO consider moving the spi read block in here, to not have the double if.
                 recvCount++;
 
-                drssi.apply(status);
+                command(0x94A0 | drssi.apply(status));
                 lastStrength = drssi.getStrength();
 
                 if (rxFifo.isWriting()) {
@@ -190,13 +135,13 @@ public:
         }
 
         // power-on reset
-        if (status[Status::POWER_ON_RESET]) {
+        if (status[RFM12Status::POWER_ON_RESET]) {
             commandIdle();
             sendOrListen();
         }
 
         // fifo overflow or buffer underrun - abort reception/sending
-        if (status[Status::UNDERRUN_OVERFLOW]) {
+        if (status[RFM12Status::UNDERRUN_OVERFLOW]) {
             underruns++;
             rxFifo.writeAbort();
             txFifo.readAbort();
