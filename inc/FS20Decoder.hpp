@@ -2,34 +2,8 @@
 #define FS20DECODER_H
 
 #include "PulseCounter.hpp"
+#include "FS20Packet.hpp"
 #include <util/parity.h>
-
-struct FS20Packet {
-    uint8_t houseCodeHi = 0;
-    uint8_t houseCodeLo = 0;
-    uint8_t address = 0;
-    uint8_t command = 0;
-    uint8_t commandExt = 0;
-    uint8_t checksum = 0;
-
-    bool hasCommandExt() const;
-    uint8_t getExpectedChecksum() const;
-    bool isChecksumCorrect() const;
-
-    static void write(Writer &out, const FS20Packet &packet) {
-        out << packet.houseCodeHi << packet.houseCodeLo << packet.address << packet.command;
-        if (packet.hasCommandExt()) {
-            out << packet.commandExt;
-        }
-    }
-    static void read(Reader &in, FS20Packet &packet) {
-        in >> packet.houseCodeHi >> packet.houseCodeLo >> packet.address >> packet.command;
-        if (packet.hasCommandExt()) {
-            in >> packet.commandExt;
-        }
-        packet.checksum = packet.getExpectedChecksum();
-    }
-};
 
 template <typename pulsecounter_t, uint8_t fifoSize = 32>
 class FS20Decoder {

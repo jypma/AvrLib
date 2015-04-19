@@ -15,18 +15,22 @@
 #include "Fifo.hpp"
 #include "CRC.hpp"
 #include "ChunkedFifo.hpp"
+#include "SerialTx.hpp"
 #include "RFM12TxFifo.hpp"
 #include "RFM12RxFifo.hpp"
 #include "RFM12Status.hpp"
 #include "RFM12Strength.hpp"
+#include "FS20Packet.hpp"
 
 enum class RFM12Band: uint8_t {
     _433MHz = 1, _868Mhz = 2, _915MHz = 3
 };
 
-template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin, int rxFifoSize = 32, int txFifoSize = 32>
+template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin,
+          typename comparator_t, comparator_t &comparator,
+          int rxFifoSize = 32, int txFifoSize = 32>
 class RFM12 {
-    typedef RFM12<spi_t,spi,ss_pin_t, ss_pin,int_pin_t,int_pin, rxFifoSize, txFifoSize> This;
+    typedef RFM12<spi_t,spi,ss_pin_t, ss_pin,int_pin_t,int_pin, comparator_t, comparator, rxFifoSize, txFifoSize> This;
 
     static void command(uint16_t cmd) {
         ss_pin.setLow();
@@ -38,11 +42,8 @@ class RFM12 {
     static const Writer::VTable writerVTable;
 
 public:
-    enum class Mode { IDLE, LISTENING, RECEIVING, SENDING };
+    enum class Mode { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK };
 
-private:
-
-public:
     volatile Mode mode = Mode::IDLE;
     RFM12Strength drssi;
     RFM12TxFifo<txFifoSize> txFifo;
@@ -84,9 +85,15 @@ public:
             command(0x94A0 | drssi.reset());
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
-                mode = Mode::SENDING;
-                txFifo.readStart();
-                command(0x823D); // RF_XMITTER_ON
+                SerialConfig *type = txFifo.readStart();
+                if (type == nullptr) {
+                    mode = Mode::SENDING_FSK;
+                    command(0x823D); // RF_XMITTER_ON
+                } else {
+                    mode = Mode::SENDING_OOK;
+                    int_pin.interruptOff();
+                    serialTx.start(type);
+                }
             } else {
                 mode = Mode::LISTENING;
                 command(0x82DD); // RF_RECEIVER_ON
@@ -99,7 +106,9 @@ public:
         uint8_t in = 0;
         auto status = getStatus(in);
         if (status[RFM12Status::READY_FOR_NEXT_BYTE]) {
-            if (mode == Mode::SENDING) {
+            if (mode == Mode::SENDING_OOK) {
+                // there shouldn't be any interrupts from RFM12 during OOK sending
+            } else if (mode == Mode::SENDING_FSK) {
                 // we are sending
                 if (txFifo.isReading()) {
                     uint8_t b;
@@ -112,6 +121,7 @@ public:
                     sendOrListen();
                 }
             } else {
+                // we are receiving / listening
                 //TODO consider moving the spi read block in here, to not have the double if.
                 recvCount++;
 
@@ -151,29 +161,6 @@ public:
 
     }
 
-    InterruptHandler handler = { this, &This::interrupt };
-
-    static void writeStart(void *ctx) {
-        ((This*)(ctx))->txFifo.writeStart();
-    }
-    static void writeEnd(void *ctx) {
-        ((This*)(ctx))->txFifo.writeEnd();
-        ((This*)(ctx))->sendOrReceive();
-    }
-    static bool write(void *ctx, uint8_t b) {
-        return ((This*)(ctx))->txFifo.write(b);
-    }
-
-
-public:
-    RFM12(RFM12Band band) {
-        enable(band);
-    }
-
-    Mode getMode() {
-        return mode;
-    }
-
     void enable(RFM12Band band) {
         cli();
         ss_pin.configureAsOutput();
@@ -210,48 +197,73 @@ public:
         sendOrListen();
     }
 
+    InterruptHandler handler = { this, &This::interrupt };
+
+    static void writeStart(void *ctx) {
+        ((This*)(ctx))->txFifo.writeStart();
+    }
+    static void writeEnd(void *ctx) {
+        ((This*)(ctx))->txFifo.writeEnd();
+        ((This*)(ctx))->sendOrListen();
+    }
+    static bool write(void *ctx, uint8_t b) {
+        return ((This*)(ctx))->txFifo.write(b);
+    }
+
+    friend struct OOKHelper;
+    struct OOKHelper {
+        This &rfm12;
+
+        void setHigh(bool high) {
+            if (high) {
+                rfm12.command(0x823D); // RF_XMITTER_ON
+            } else {
+                rfm12.commandIdle();
+            }
+        }
+
+        void onSerialTxComplete() {
+            int_pin.interruptOnLow();
+            rfm12.commandIdle();
+            rfm12.sendOrListen();
+        }
+    };
+    OOKHelper ookHelper = { *this };
+    SerialTx<comparator_t, comparator, typeof txFifo, OOKHelper, OOKHelper> serialTx = {txFifo, ookHelper, ookHelper};
+public:
+    RFM12(RFM12Band band) {
+        enable(band);
+    }
+
+    Mode getMode() {
+        return mode;
+    }
+
     inline Reader in() {
         return rxFifo.in();
     }
 
-    inline Writer out() {
-        return txFifo.out();
+    inline Writer out_fsk() {
+        return txFifo.out(nullptr);
+    }
+
+    inline void out_fs20(const FS20Packet &packet) {
+        txFifo.out(FS20Packet::serialConfig) << packet;
     }
 
     inline bool hasContent() const {
         return rxFifo.hasContent();
     }
 
-    class OOK {
-    public:
-        OOK() {
-            int_pin.interruptOnExternalOff();
-        }
-        ~OOK() {
-            int_pin.interruptOnExternalLow();
-        }
-        void on() {
-            RFM12::command(0x823D); // RF_XMITTER_ON
-        }
-        void off() {
-            // TODO
-            //RFM12::commandIdle();
-            //RFM12::sendOrReceive();
-        }
-    };
-
-    OOK ook() {
-        return OOK();
-    }
-
-
 };
 
-template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin, int rxFifoSize, int txFifoSize>
-const Writer::VTable RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::writerVTable = {
-    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::writeStart,
-    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::writeEnd,
-    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,rxFifoSize,txFifoSize>::write
+template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin,
+          typename comparator_t, comparator_t &comparator,
+          int rxFifoSize, int txFifoSize>
+const Writer::VTable RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::writerVTable = {
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::writeStart,
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::writeEnd,
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::write
 };
 
 

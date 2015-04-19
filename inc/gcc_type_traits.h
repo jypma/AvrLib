@@ -64,8 +64,16 @@ template<typename _Tp>
     typedef __underlying_type(_Tp) type;
   };
 
+template<typename, typename>
+    struct is_same;
 
+template<typename, typename>
+    struct is_same
+  : public false_type { };
 
+template<typename _Tp>
+    struct is_same<_Tp, _Tp>
+  : public true_type { };
 }
 
 #endif

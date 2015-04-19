@@ -8,6 +8,7 @@
 #ifndef RFM12TXFIFO_HPP_
 #define RFM12TXFIFO_HPP_
 
+#include "SerialTx.hpp"
 #include "ChunkedFifo.hpp"
 #include "CRC.hpp"
 
@@ -22,16 +23,25 @@ class RFM12TxFifo {
     CRC16 crc;
 
     PacketIndex packetIndex = PacketIndex::PREAMBLE1;
+    SerialConfig *type;
 
 public:
-    inline Writer out() {
-        return fifo.out();
+    Writer out(SerialConfig *type) {
+        Writer out = fifo.out();
+        for (uint8_t i = 0; i < sizeof(SerialConfig*); i++) {
+            out << ((uint8_t*)(&type))[i];
+        }
+        return out;
     }
 
-    void readStart() {
+    SerialConfig *readStart() {
         fifo.readStart();
+        for (uint8_t i = 0; i < sizeof(SerialConfig*); i++) {
+            fifo.read(*((uint8_t*)(&type) + i));
+        }
         crc.reset();
-        packetIndex = PacketIndex::PREAMBLE1;
+        packetIndex = (type == nullptr) ? PacketIndex::PREAMBLE1 : PacketIndex::DATA;
+        return type;
     }
 
     inline uint8_t isReading() const {
@@ -53,8 +63,12 @@ public:
                 break;
             case DATA:
                 fifo.read(b);
-                crc.append(b);
-                if (fifo.getReadAvailable() == 0) packetIndex = CRCLSB;
+                if (type == nullptr) {
+                    crc.append(b);
+                    if (fifo.getReadAvailable() == 0) packetIndex = CRCLSB;
+                } else {
+                    if (fifo.getReadAvailable() == 0) packetIndex = DONE;
+                }
                 break;
             case CRCLSB:
                 b = (uint8_t)(crc.get()); packetIndex = CRCMSB; break;

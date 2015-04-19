@@ -10,7 +10,7 @@ const Reader::VTable AbstractFifo::readerVTable = {
         &AbstractFifo::readStart,
         &AbstractFifo::readCommit,
         &AbstractFifo::readRollback,
-        &AbstractFifo::read,
+        &AbstractFifo::readByte,
         &AbstractFifo::getRemaining
 };
 
@@ -42,8 +42,8 @@ void AbstractFifo::readRollback(void *delegate) {
     ((AbstractFifo*)delegate)->resetRead();
 }
 
-bool AbstractFifo::read(void *delegate, uint8_t &target) {
-    return ((AbstractFifo*)delegate)->remove(target);
+bool AbstractFifo::readByte(void *delegate, uint8_t &target) {
+    return ((AbstractFifo*)delegate)->read(target);
 }
 
 uint8_t AbstractFifo::getRemaining(void *delegate) {
@@ -88,7 +88,7 @@ bool AbstractFifo::reserve(volatile uint8_t * &ptr) {
     }
 }
 
-bool AbstractFifo::remove(uint8_t &b) {
+bool AbstractFifo::read(uint8_t &b) {
     AtomicScope _;
 
     if (hasContent()) {

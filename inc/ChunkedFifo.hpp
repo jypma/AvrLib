@@ -62,7 +62,7 @@ public:
     void readStart();
 
     inline bool isReading() const {
-        return data->isReadMarked();
+        return data->isReading();
     }
 
     inline uint8_t getReadAvailable() {

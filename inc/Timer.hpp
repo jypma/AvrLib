@@ -48,6 +48,11 @@ extern InterruptChain tm2ocrb;
 template <typename info>
 class TimerComparator {
 public:
+    typedef typename info::value_t value_t;
+
+    inline value_t getValue() const {
+        return *info::tcnt;
+    }
     inline InterruptChain &interrupt() const {
         return *info::handler;
     }
@@ -63,8 +68,8 @@ public:
 enum class NonPWMOutputMode: uint8_t {
     disconnected = 0,
     toggle_on_match = 1,
-    clear_on_match = 2,
-    set_on_match = 3
+    low_on_match = 2,
+    high_on_match = 3
 };
 
 template <typename info>
@@ -114,7 +119,13 @@ public:
 template <typename info, typename comparator_a_t, typename comparator_b_t>
 class Timer {
 public:
+    typedef info timer_info_t;
     typedef typename info::value_t value_t;
+    typedef comparator_a_t comparatorA_t;
+    typedef comparator_b_t comparatorB_t;
+private:
+    comparator_a_t comparator_a;
+    comparator_b_t comparator_b;
 public:
     inline InterruptChain &interruptOnOverflow() const {
         return *info::intHandler;
@@ -132,11 +143,11 @@ public:
     inline bool isOverflow() const {
         return *info::tifr & _BV(TOV0);
     }
-    inline comparator_a_t comparatorA() const {
-        return comparator_a_t();
+    inline comparator_a_t &comparatorA() {
+        return comparator_a;
     }
-    inline comparator_b_t comparatorB() const {
-        return comparator_b_t();
+    inline comparator_b_t &comparatorB() {
+        return comparator_b;
     }
 
     /** 8 for 8-bit timer, 16 for 16-bit timer */
@@ -201,10 +212,24 @@ class PrescaledTimer : public Timer<info, comparator_a_t, comparator_b_t> {
 protected:
     inline PrescaledTimer() {}
 public:
+    typedef typename info::value_t value_t;
     static constexpr typename info::prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;
-    static constexpr uint16_t microseconds2counts(uint16_t usecs) {
+    template <uint16_t usecs>
+    static constexpr value_t microseconds2counts() {
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 > 1,
+                "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= info::maximum,
+                "Number of counts for microseconds does not fit in value_t, you might want to increase the timer prescaler.");
         return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
+    }
+    template <uint16_t msecs>
+    static constexpr value_t milliseconds2counts() {
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs > 1,
+                "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= info::maximum,
+                "Number of counts for milliseconds does not fit in value_t, you might want to increase the timer prescaler.");
+        return (F_CPU >> prescalerPower2) / 1000 * msecs;
     }
 };
 
@@ -269,6 +294,7 @@ struct Timer0Info {
 
     struct Comparator {
         typedef uint8_t value_t;
+        static constexpr volatile uint8_t *tcnt = &TCNT0;
         static constexpr volatile uint8_t *timsk = &TIMSK0;
         static constexpr volatile uint8_t *tifr = &TIFR0;
         static constexpr volatile uint8_t *tccra = &TCCR0A;
@@ -327,6 +353,7 @@ struct Timer1Info {
 
     struct Comparator {
         typedef uint16_t value_t;
+        static constexpr volatile uint16_t *tcnt = &TCNT1;
         static constexpr volatile uint8_t *timsk = &TIMSK1;
         static constexpr volatile uint8_t *tifr = &TIFR1;
         static constexpr volatile uint8_t *tccra = &TCCR1A;
@@ -359,6 +386,7 @@ struct Timer2Info {
 
     static constexpr InterruptChain* intHandler = &tm2int;
 
+    static constexpr uint8_t maximum = 255;
     static constexpr uint8_t maximumPower2 = 8;
 
     typedef uint8_t value_t;
@@ -382,6 +410,7 @@ struct Timer2Info {
 
     struct Comparator {
         typedef uint8_t value_t;
+        static constexpr volatile uint8_t *tcnt = &TCNT2;
         static constexpr volatile uint8_t *timsk = &TIMSK2;
         static constexpr volatile uint8_t *tifr = &TIFR2;
         static constexpr volatile uint8_t *tccra = &TCCR2A;

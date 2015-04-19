@@ -8,10 +8,12 @@
 #ifndef INTERRUPT_H_
 #define INTERRUPT_H_
 
+#include "gcc_type_traits.h"
 #include "InterruptHandler.hpp"
 #include "Usart.hpp"
 #include "Writer.hpp"
 #include "ExternalInterrupt.hpp"
+#include "Timer.hpp"
 
 template <typename info>
 class Pin {
@@ -132,6 +134,34 @@ public:
     }
 };
 
+template <typename pinInfo, typename timer_t, class=typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>
+class PinOnComparatorA: public Pin<pinInfo> {
+    timer_t *t;
+public:
+    typedef typename timer_t::comparatorA_t comparator_t;
+    inline PinOnComparatorA(timer_t &_timer): t(&_timer) {}
+    inline comparator_t &timerComparator() const {
+        return t->comparatorA();
+    }
+    inline timer_t &timer() const {
+        return *t;
+    }
+};
+
+template <typename pinInfo, typename timer_t, class=typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>
+class PinOnComparatorB: public Pin<pinInfo> {
+    timer_t *t;
+public:
+    typedef typename timer_t::comparatorB_t comparator_t;
+    inline PinOnComparatorB(timer_t &_timer): t(&_timer) {}
+    inline comparator_t &timerComparator() const {
+        return t->comparatorB();
+    }
+    inline timer_t &timer() const {
+        return *t;
+    }
+};
+
 template <uint8_t bit>
 struct PinOnPortD {
     static constexpr volatile uint8_t *ddr = &DDRD;
@@ -179,16 +209,28 @@ struct SPIPin {
     }
 };
 
+struct PinOnTimer0 {
+    typedef Timer0Info timer_info_t;
+};
+
+struct PinOnTimer1 {
+    typedef Timer1Info timer_info_t;
+};
+
+struct PinOnTimer2 {
+    typedef Timer2Info timer_info_t;
+};
+
 struct PinD2Info: public PinOnPortD<2>, public GPIOPin {};
-struct PinD3Info: public PinOnPortD<3>, public GPIOPin {};
+struct PinD3Info: public PinOnPortD<3>, public GPIOPin, public PinOnTimer2 {};
 struct PinD4Info: public PinOnPortD<4>, public GPIOPin {};
-struct PinD5Info: public PinOnPortD<5>, public GPIOPin {};
-struct PinD6Info: public PinOnPortD<6>, public GPIOPin {};
+struct PinD5Info: public PinOnPortD<5>, public GPIOPin, public PinOnTimer0 {};
+struct PinD6Info: public PinOnPortD<6>, public GPIOPin, public PinOnTimer0 {};
 struct PinD7Info: public PinOnPortD<7>, public GPIOPin {};
 struct PinD8Info: public PinOnPortB<0>, public GPIOPin {};
-struct PinD9Info: public PinOnPortB<1>, public GPIOPin {};
-struct PinD10Info: public PinOnPortB<2>, public GPIOPin {};
-struct PinD11Info: public PinOnPortB<3>, public GPIOPin {};
+struct PinD9Info: public PinOnPortB<1>, public GPIOPin, public PinOnTimer1 {};
+struct PinD10Info: public PinOnPortB<2>, public GPIOPin, public PinOnTimer1 {};
+struct PinD11Info: public PinOnPortB<3>, public GPIOPin, public PinOnTimer2 {};
 struct PinD12Info: public PinOnPortB<4>, public GPIOPin {};
 struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
 struct PinA0Info: public PinOnPortC<0>, public GPIOPin {
@@ -213,15 +255,18 @@ struct PinA5Info: public PinOnPortC<5>, public GPIOPin {
 typedef Pin<PinD0Info> PinD0;
 template <uint8_t writeFifoCapacity = 16> using PinD1 = UsartTxPin<PinD1Info,Usart0Info,writeFifoCapacity>;
 typedef ExtInterruptPin<PinD2Info,Int0Info,extInt0> PinD2;
-typedef ExtInterruptPin<PinD3Info,Int1Info,extInt1> PinD3;
+template <typename timer_t> class PinD3: public PinOnComparatorB<PinD3Info,timer_t>, public ExtInterrupt<Int1Info,extInt1> {
+public:
+    inline PinD3(timer_t &_timer): PinOnComparatorB<PinD3Info,timer_t>(_timer) {}
+};
 typedef Pin<PinD4Info> PinD4;
-typedef Pin<PinD5Info> PinD5;
-typedef Pin<PinD6Info> PinD6;
+template <typename timer_t> using PinD5 = PinOnComparatorA<PinD5Info,timer_t>;
+template <typename timer_t> using PinD6 = PinOnComparatorB<PinD6Info,timer_t>;
 typedef Pin<PinD7Info> PinD7;
 typedef Pin<PinD8Info> PinD8;
-typedef Pin<PinD9Info> PinD9;
-typedef Pin<PinD10Info> PinD10;
-typedef Pin<PinD11Info> PinD11;
+template <typename timer_t> using PinD9 = PinOnComparatorA<PinD9Info,timer_t>;
+template <typename timer_t> using PinD10 = PinOnComparatorB<PinD10Info,timer_t>;
+template <typename timer_t> using PinD11 = PinOnComparatorA<PinD11Info,timer_t>;
 typedef Pin<PinD12Info> PinD12;
 typedef Pin<PinD13Info> PinD13;
 typedef ChangeInterruptPin<PinA0Info> PinA0;

@@ -40,18 +40,44 @@ public:
     void interruptOnLow() {
 
     }
+    void interruptOff() {
+
+    }
     bool isLow() {
         return false;
     }
 };
 
-MockSPIMaster spi;
-MockSSPin ss_pin;
-MockIntPin int_pin;
+struct MockComparator {
+    typedef uint8_t value_t;
+    InterruptChain i;
+    value_t target = 0;
+
+    InterruptChain &interrupt() {
+        return i;
+    }
+
+    void setTarget(value_t _target) {
+        target = _target;
+    }
+
+    void interruptOn() {
+
+    }
+
+    value_t getValue() {
+        return 5;
+    }
+};
+
+MockSPIMaster rfm_spi;
+MockSSPin rfm_ss_pin;
+MockIntPin rfm_int_pin;
+MockComparator rfm_comparator;
 
 TEST(RFM12Test, rfm12_configures_pins_correctly) {
-    RFM12<typeof spi, spi, typeof ss_pin, ss_pin, typeof int_pin, int_pin> rfm(RFM12Band::_868Mhz);
+    RFM12<typeof rfm_spi, rfm_spi, typeof rfm_ss_pin, rfm_ss_pin, typeof rfm_int_pin, rfm_int_pin, typeof rfm_comparator, rfm_comparator> rfm(RFM12Band::_868Mhz);
 
-    EXPECT_TRUE(ss_pin.isOutput);
-    EXPECT_TRUE(int_pin.isInput);
+    EXPECT_TRUE(rfm_ss_pin.isOutput);
+    EXPECT_TRUE(rfm_int_pin.isInput);
 }

@@ -25,7 +25,7 @@ TEST(FifoTest, fifo_size_1_can_be_used_twice) {
     EXPECT_EQ(1, fifo.getCapacity());
 
     uint8_t dequeued;
-    EXPECT_TRUE(fifo.remove(dequeued));
+    EXPECT_TRUE(fifo.read(dequeued));
     EXPECT_EQ(42, dequeued);
     EXPECT_TRUE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -42,7 +42,7 @@ TEST(FifoTest, fifo_size_1_can_be_used_twice) {
     EXPECT_EQ(1, fifo.getSize());
     EXPECT_EQ(1, fifo.getCapacity());
 
-    EXPECT_TRUE(fifo.remove(dequeued));
+    EXPECT_TRUE(fifo.read(dequeued));
     EXPECT_EQ(84, dequeued);
     EXPECT_TRUE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -63,7 +63,7 @@ TEST(FifoTest, fifo_size_2_can_be_used_twice) {
     EXPECT_EQ(2, fifo.getCapacity());
 
     uint8_t dequeued;
-    EXPECT_TRUE(fifo.remove(dequeued));
+    EXPECT_TRUE(fifo.read(dequeued));
     EXPECT_EQ(42, dequeued);
     EXPECT_TRUE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -79,7 +79,7 @@ TEST(FifoTest, fifo_size_2_can_be_used_twice) {
     EXPECT_TRUE(fifo.hasContent());
     EXPECT_EQ(1, fifo.getSize());
 
-    EXPECT_TRUE(fifo.remove(dequeued));
+    EXPECT_TRUE(fifo.read(dequeued));
     EXPECT_EQ(84, dequeued);
     EXPECT_TRUE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -109,7 +109,7 @@ TEST(FifoTest, fifo_size_2_is_full_after_two_elements) {
     EXPECT_EQ(2, fifo.getCapacity());
 
     uint8_t v1;
-    EXPECT_TRUE(fifo.remove(v1));
+    EXPECT_TRUE(fifo.read(v1));
     EXPECT_EQ(42, v1);
     EXPECT_FALSE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -119,7 +119,7 @@ TEST(FifoTest, fifo_size_2_is_full_after_two_elements) {
     EXPECT_EQ(2, fifo.getCapacity());
 
     uint8_t v2;
-    EXPECT_TRUE(fifo.remove(v2));
+    EXPECT_TRUE(fifo.read(v2));
     EXPECT_EQ(84, v2);
     EXPECT_TRUE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -136,7 +136,7 @@ TEST(FifoTest, peek_shows_first_element_without_removing) {
     EXPECT_EQ(42, fifo.peek());
     EXPECT_EQ(1, fifo.getSize());
     uint8_t b;
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_EQ(42, b);
 }
 
@@ -164,11 +164,11 @@ TEST(FifoTest, append_during_write_mark_cannot_be_read_until_committed) {
     EXPECT_FALSE(fifo.isEmpty());
 
     uint8_t b;
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_EQ(42, b);
     EXPECT_EQ(1, fifo.getSize());
 
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_EQ(84, b);
     EXPECT_EQ(0, fifo.getSize());
 }
@@ -190,11 +190,11 @@ TEST(FifoTest, writes_during_write_mark_disappear_after_reset) {
     fifo.append(84);
 
     uint8_t b;
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_EQ(42, b);
     EXPECT_EQ(1, fifo.getSize());
 
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_EQ(84, b);
     EXPECT_EQ(0, fifo.getSize());
 }
@@ -207,10 +207,10 @@ TEST(FifoTest, remove_during_marked_read_does_not_free_up_space_until_committed)
 
     EXPECT_TRUE(fifo.isFull());
     uint8_t b;
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_TRUE(fifo.isFull());
     EXPECT_EQ(42, b);
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_TRUE(fifo.isFull());
     EXPECT_EQ(84, b);
 
@@ -234,8 +234,8 @@ TEST(FifoTest, remove_during_marked_read_can_be_repeated_after_reset) {
     fifo.append(84);
     fifo.markRead();
     uint8_t dummy;
-    fifo.remove(dummy);
-    fifo.remove(dummy);
+    fifo.read(dummy);
+    fifo.read(dummy);
     fifo.resetRead();
 
     EXPECT_TRUE(fifo.isFull());
@@ -245,9 +245,9 @@ TEST(FifoTest, remove_during_marked_read_can_be_repeated_after_reset) {
     EXPECT_FALSE(fifo.isEmpty());
 
     uint8_t b;
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_EQ(42, b);
-    EXPECT_TRUE(fifo.remove(b));
+    EXPECT_TRUE(fifo.read(b));
     EXPECT_EQ(84, b);
 
     EXPECT_FALSE(fifo.isFull());
@@ -285,7 +285,7 @@ TEST(FifoTest, fifo_operates_rotating) {
         EXPECT_TRUE(fifo.isFull());
         EXPECT_EQ(3, fifo.getSize());
 
-        EXPECT_TRUE(fifo.remove(out));
+        EXPECT_TRUE(fifo.read(out));
 
         EXPECT_EQ(1, out);
         EXPECT_FALSE(fifo.isFull());
@@ -295,17 +295,17 @@ TEST(FifoTest, fifo_operates_rotating) {
 
         EXPECT_TRUE(fifo.isFull());
         EXPECT_EQ(3, fifo.getSize());
-        fifo.remove(out);
+        fifo.read(out);
         EXPECT_EQ(2, out);
 
         EXPECT_FALSE(fifo.isFull());
         EXPECT_EQ(2, fifo.getSize());
-        fifo.remove(out);
+        fifo.read(out);
         EXPECT_EQ(3, out);
 
         EXPECT_FALSE(fifo.isFull());
         EXPECT_EQ(1, fifo.getSize());
-        fifo.remove(out);
+        fifo.read(out);
         EXPECT_EQ(4, out);
 
         EXPECT_FALSE(fifo.isFull());
@@ -378,7 +378,7 @@ TEST(FifoTest, reservation_can_be_written_to) {
 
     EXPECT_EQ(1, fifo.getSize());
     uint8_t out;
-    fifo.remove(out);
+    fifo.read(out);
     EXPECT_EQ(42, out);
 }
 

@@ -28,7 +28,7 @@ class AbstractFifo {
     static void readStart(void *delegate);
     static void readCommit(void *delegate);
     static void readRollback(void *delegate);
-    static bool read(void *delegate, uint8_t &target);
+    static bool readByte(void *delegate, uint8_t &target);
     static uint8_t getRemaining(void *delegate);
 
     volatile uint8_t * const buffer;
@@ -79,7 +79,7 @@ public:
         readMark = readPos;
     }
 
-    inline bool isReadMarked() {
+    inline bool isReading() {
         return readMark != NO_MARK;
     }
 
@@ -102,7 +102,7 @@ public:
     bool reserve(volatile uint8_t * &ptr);
 
     /** Returns whether a value was removed and updated in b (true), or false if the Fifo was empty */
-    bool remove(uint8_t &b);
+    bool read(uint8_t &b);
 
     void clear();
 

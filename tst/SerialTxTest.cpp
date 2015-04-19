@@ -30,7 +30,7 @@ struct SerialTxMockFifo {
         return count > 0;
     }
 
-    void remove (uint8_t &value) {
+    void read(uint8_t &value) {
         value = 42;
         count--;
     }
@@ -54,7 +54,7 @@ SerialTxMockComparator stx_comparator;
 SerialTxMockFifo stx_fifo;
 SerialTxMockTarget stx_target;
 SerialTxMockCallback stx_callback;
-typedef SerialTx<typeof stx_comparator, stx_comparator, typeof stx_fifo, stx_fifo, typeof stx_target, stx_target, typeof stx_callback, stx_callback> tx_t;
+typedef SerialTx<typeof stx_comparator, stx_comparator, typeof stx_fifo, typeof stx_target, typeof stx_callback> tx_t;
 
 uint8_t expect_zero(uint8_t start) {
     EXPECT_EQ(uint8_t(start + 10), stx_comparator.target);
@@ -81,10 +81,10 @@ TEST(SerialTxTest, all_config_parts_are_transmitted) {
     stx_target.high = false;
     stx_callback.complete = false;
 
-    tx_t tx;
+    tx_t tx = {stx_fifo, stx_target, stx_callback};
     uint8_t prefix[] = { 1 };
     uint8_t postfix[] = { 0 };
-    tx_t::Config config = { prefix, 1, 10, false, 20, true, 30, true, 40, false, true, postfix, 1 };
+    SerialConfig config = { prefix, 1, 10, false, 20, true, 30, true, 40, false, true, postfix, 1 };
 
     tx.start(&config);
 
@@ -116,8 +116,8 @@ TEST(SerialTxTest, empty_config_and_fifo_causes_callback_invocation_directly_wit
     stx_target.high = false;
     stx_callback.complete = false;
 
-    tx_t tx;
-    tx_t::Config config = { nullptr, 0, 10, false, 20, true, 30, true, 40, false, false, nullptr, 0 };
+    tx_t tx = {stx_fifo, stx_target, stx_callback};
+    SerialConfig config = { nullptr, 0, 10, false, 20, true, 30, true, 40, false, false, nullptr, 0 };
     tx.start(&config);
     EXPECT_EQ(0, stx_comparator.target);
     EXPECT_FALSE(stx_target.high);

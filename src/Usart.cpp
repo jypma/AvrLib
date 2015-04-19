@@ -11,7 +11,7 @@ ISR(USART_UDRE_vect)
     } else {
         // There is more data in the output buffer. Send the next byte
         uint8_t next;
-        usart0writeFifo->remove(next);
+        usart0writeFifo->read(next);
         UDR0 = next;
     }
 }

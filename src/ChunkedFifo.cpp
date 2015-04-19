@@ -107,7 +107,7 @@ void ChunkedFifo::readStart() {
     readValid = data->hasContent();
     if (readValid) {
         data->markRead();
-        readValid = data->remove(readLength);
+        readValid = data->read(readLength);
     }
     if (!readValid) {
         readLength = 0;
@@ -119,7 +119,7 @@ bool ChunkedFifo::read(uint8_t &ch) {
 
     if (readValid && readLength > 0) {
         readLength--;
-        return data->remove(ch);
+        return data->read(ch);
     } else {
         readValid = false;
         readLength = 0;
@@ -134,7 +134,7 @@ void ChunkedFifo::readEnd() {
         if (readValid) {
             uint8_t dummy;
             while (readLength > 0) {
-                data->remove(dummy);
+                data->read(dummy);
                 readLength--;
             }
             data->commitRead();
