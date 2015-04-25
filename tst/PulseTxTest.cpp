@@ -54,7 +54,7 @@ TEST(PulseTxTest, single_pulse_on_software_target_can_be_sent) {
     MockComparator comparator;
     MockSoftwarePin pin;
     SimplePulseTxSource<> source(false);
-    auto tx = softwarePulseTx(comparator, pin, source);
+    auto tx = pulseTx(comparator, pin, source);
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(comparator.isInterruptOn);
 
@@ -74,7 +74,7 @@ TEST(PulseTxTest, multiple_pulses_on_software_target_can_be_sent) {
     MockComparator comparator;
     MockSoftwarePin pin;
     SimplePulseTxSource<> source(false);
-    auto tx = softwarePulseTx(comparator, pin, source);
+    auto tx = pulseTx(comparator, pin, source);
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(comparator.isInterruptOn);
 
@@ -124,7 +124,7 @@ struct MockHardwarePin {
 TEST(PulseTxTest, single_pulse_on_comparators_pwm_pin_can_be_sent) {
     MockHardwarePin pin;
     SimplePulseTxSource<> source(false);
-    auto tx = hardwarePulseTx(pin, source);
+    auto tx = pulseTx(pin, source);
 
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(pin.comp.isInterruptOn);
@@ -147,7 +147,7 @@ TEST(PulseTxTest, single_pulse_on_comparators_pwm_pin_can_be_sent) {
 TEST(PulseTxTest, multiple_pulses_on_comparators_pwm_pin_can_be_sent) {
     MockHardwarePin pin;
     SimplePulseTxSource<> source(false);
-    auto tx = hardwarePulseTx(pin, source);
+    auto tx = pulseTx(pin, source);
 
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(pin.comp.isInterruptOn);

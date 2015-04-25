@@ -102,7 +102,7 @@ TEST(SerialTxTest, all_config_parts_are_transmitted) {
     std::cout << "should invoke " << (long)(void*)(&ChunkPulseSource::getNextPulse) << std::endl << std::flush;
     MockComparator comparator;
     MockPin pin;
-    auto tx = SoftwarePulseTx<MockComparator, MockPin, ChunkPulseSource>(comparator, pin, source);
+    auto tx = pulseTx(comparator, pin, source);
 
     fifo.out() << &config << uint8_t(42);
     fifo.out() << &config << uint8_t(43);
@@ -117,7 +117,7 @@ TEST(SerialTxTest, startSend_with_empty_config_and_empty_packet_causes_no_side_e
     ChunkPulseSource source = { &fifo };
     MockComparator comparator;
     MockPin pin;
-    auto tx = softwarePulseTx(comparator, pin, source);
+    auto tx = pulseTx(comparator, pin, source);
 
     fifo.out() << &config;
     tx.sendFromSource();

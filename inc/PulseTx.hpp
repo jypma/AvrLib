@@ -67,6 +67,45 @@ public:
 };
 
 
+template <typename target_t>
+class PulseTxCallbackTarget {
+    target_t *target;
+public:
+    inline PulseTxCallbackTarget(target_t &_target): target(&_target) {}
+
+    inline void onInitialTransition(bool high) {
+        target->setHigh(high);
+    }
+    inline void onIntermediateTransition(bool high) {
+        target->setHigh(high);
+    }
+    inline void onFinalTransition(bool high) {
+        target->setHigh(high);
+    }
+};
+
+template <typename pin_t>
+class PulseTxComparatorPinTarget {
+    pin_t *pin;
+public:
+    inline PulseTxComparatorPinTarget(pin_t &_pin): pin(&_pin) {
+        // contrary to the datasheet, setting DDR on the output pin actually seems to disconnect the timer comparator.
+        pin->configureAsInputWithoutPullup();
+    }
+
+    inline void onInitialTransition(bool high) {
+        pin->setHigh(high);
+        pin->timerComparator().output(high ? NonPWMOutputMode::low_on_match : NonPWMOutputMode::high_on_match);
+    }
+    inline void onIntermediateTransition(bool high) {
+        pin->timerComparator().output(high ? NonPWMOutputMode::low_on_match : NonPWMOutputMode::high_on_match);
+    }
+    inline void onFinalTransition(bool high) {
+        pin->setHigh(high);
+        pin->timerComparator().output(NonPWMOutputMode::disconnected);
+    }
+};
+
 /**
  * Sends out individual pulses. The object must stay in scope for the duration of the pulse(s)!
  *
@@ -75,13 +114,13 @@ public:
  * source_t source            : Provides further pulses, hasNextPulse() and getNextPulseDuration(). Optional, in which case it'll just be a single pulse.
  *                              TODO template specialization when target is in fact the output pin of comparator_t.
  */
-template <typename comparator_t, typename target_t, typename source_t>
+template <typename comparator_t, typename target_t, typename target_wrapper_t, typename source_t>
 class PulseTx {
-    typedef PulseTx<comparator_t,target_t,source_t> This;
+    typedef PulseTx<comparator_t,target_t,target_wrapper_t,source_t> This;
     typedef typename comparator_t::value_t count_t;
 protected:
     comparator_t * const comparator;
-    target_t * const target;
+    target_wrapper_t target;
     source_t * const src;
     count_t lastPulseEnd = 0;
     Pulse pulse = Pulse::empty();
@@ -89,18 +128,18 @@ protected:
     void onComparator() {
         pulse = src->getNextPulse();
         if (pulse.isDefined()) {
-            target->onIntermediateTransition(pulse.isHigh());
+            target.onIntermediateTransition(pulse.isHigh());
             lastPulseEnd += pulse.getDuration();
             comparator->setTarget(lastPulseEnd);
         } else {
-            target->onFinalTransition(src->isHighOnIdle());
+            target.onFinalTransition(src->isHighOnIdle());
             comparator->interruptOff();
         }
     }
     InterruptHandler onComparatorInt = { this, &This::onComparator };
 
 public:
-    PulseTx(comparator_t &_comparator, target_t &_target, source_t &_source): comparator(&_comparator), target(&_target), src(&_source) {
+    PulseTx(comparator_t &_comparator, target_t &_target, source_t &_source): comparator(&_comparator), target(_target), src(&_source) {
         comparator->interrupt().attach(onComparatorInt);
     }
 
@@ -116,7 +155,7 @@ public:
         pulse = src->getNextPulse();
         if (pulse.isDefined()) {
             lastPulseEnd = comparator->getValue() + pulse.getDuration();
-            target->onInitialTransition(pulse.isHigh());
+            target.onInitialTransition(pulse.isHigh());
             comparator->setTarget(lastPulseEnd);
             comparator->interruptOn();
         }
@@ -135,67 +174,51 @@ public:
     }
 };
 
+template <typename comparator_t, typename target_t, typename source_t>
+using CallbackPulseTx = PulseTx<comparator_t, target_t, PulseTxCallbackTarget<target_t>, source_t>;
 
-template <typename pin_t>
-struct HardwarePulseTxTarget {
-    pin_t &pin;
-    inline HardwarePulseTxTarget(pin_t &_pin): pin(_pin) {
-        // contrary to the datasheet, setting DDR on the output pin actually seems to disconnect the timer comparator.
-        pin.configureAsInputWithoutPullup();
-    }
-
-    inline void onInitialTransition(bool high) {
-        pin.setHigh(high);
-        pin.timerComparator().output(high ? NonPWMOutputMode::low_on_match : NonPWMOutputMode::high_on_match);
-    }
-    inline void onIntermediateTransition(bool high) {
-        pin.timerComparator().output(high ? NonPWMOutputMode::low_on_match : NonPWMOutputMode::high_on_match);
-    }
-    inline void onFinalTransition(bool high) {
-        pin.setHigh(high);
-        pin.timerComparator().output(NonPWMOutputMode::disconnected);
-    }
-};
-
-template <typename pin_t, typename source_t = SimplePulseTxSource<>>
-class HardwarePulseTx: public PulseTx<typename pin_t::comparator_t, HardwarePulseTxTarget<pin_t>, source_t> {
-    HardwarePulseTxTarget<pin_t> target;
-public:
-    HardwarePulseTx(pin_t &pin, source_t &source = source_t::create()):
-        PulseTx<typename pin_t::comparator_t, HardwarePulseTxTarget<pin_t>, source_t>(pin.timerComparator(), target, source), target(pin) {}
-};
-template <typename pin_t, typename source_t>
-inline HardwarePulseTx<pin_t, source_t> hardwarePulseTx(pin_t &pin, source_t &source) {
-    return HardwarePulseTx<pin_t, source_t>(pin, source);
+template <typename comparator_t, typename target_t, typename source_t>
+inline CallbackPulseTx<comparator_t, target_t, source_t> pulseTx(comparator_t &comparator, target_t &target, source_t &source) {
+    return CallbackPulseTx<comparator_t, target_t, source_t>(comparator, target, source);
 }
 
-template <typename target_t>
-struct SoftwarePulseTxTarget {
-    target_t &target;
-    inline SoftwarePulseTxTarget(target_t &_target): target(_target) {}
+template <typename pin_t, typename source_t>
+using ComparatorPinPulseTx = PulseTx<typename pin_t::comparator_t, pin_t, PulseTxComparatorPinTarget<pin_t>, source_t>;
 
-    inline void onInitialTransition(bool high) {
-        target.setHigh(high);
-    }
-    inline void onIntermediateTransition(bool high) {
-        target.setHigh(high);
-    }
-    inline void onFinalTransition(bool high) {
-        target.setHigh(high);
-    }
-};
+template <typename pin_t, typename source_t>
+inline ComparatorPinPulseTx<pin_t, source_t> pulseTx(pin_t &pin, source_t &source) {
+    return ComparatorPinPulseTx<pin_t, source_t>(pin.timerComparator(), pin, source);
+}
 
-template <typename comparator_t, typename target_t, typename source_t>
-class SoftwarePulseTx: public PulseTx<comparator_t, SoftwarePulseTxTarget<target_t>, source_t> {
-    SoftwarePulseTxTarget<target_t> target;
+template <typename comparator_t, typename target_t, typename target_wrapper_t>
+class SimplePulseTx: public PulseTx<comparator_t, target_t, target_wrapper_t, SimplePulseTxSource<>> {
+    typedef PulseTx<comparator_t, target_t, target_wrapper_t, SimplePulseTxSource<>> Super;
+    SimplePulseTxSource<> source;
 public:
-    SoftwarePulseTx(comparator_t &_comparator, target_t &_target, source_t &_source):
-        PulseTx<comparator_t, SoftwarePulseTxTarget<target_t>, source_t>(_comparator, target, _source), target(_target) {}
+    SimplePulseTx(comparator_t &_comparator, target_t &_target, bool idleHigh):
+        Super(_comparator, _target, source), source(idleHigh) {}
+
+    void send(Pulse const &pulse) {
+        source.append(pulse);
+        Super::sendFromSource();
+    }
 };
 
-template <typename comparator_t, typename target_t, typename source_t>
-inline SoftwarePulseTx<comparator_t, target_t, source_t> softwarePulseTx(comparator_t &_comparator, target_t &_target, source_t &_source) {
-    return SoftwarePulseTx<comparator_t, target_t, source_t>(_comparator, _target, _source);
-};
+template <typename comparator_t, typename target_t>
+using SimpleCallbackPulseTx = SimplePulseTx<comparator_t, target_t, PulseTxCallbackTarget<target_t>>;
+
+template <typename comparator_t, typename target_t>
+inline SimpleCallbackPulseTx<comparator_t, target_t> simplePulseTx(comparator_t &comparator, target_t &target, bool idleHigh) {
+    return SimpleCallbackPulseTx<comparator_t, target_t>(comparator, target, idleHigh);
+}
+
+template <typename pin_t>
+using SimpleComparatorPinPulseTx = SimplePulseTx<typename pin_t::comparator_t, pin_t, PulseTxComparatorPinTarget<pin_t>>;
+
+template <typename pin_t>
+inline SimpleComparatorPinPulseTx<pin_t> simplePulseTx(pin_t &pin, bool idleHigh) {
+    return SimpleComparatorPinPulseTx<pin_t>(pin.timerComparator(), pin, idleHigh);
+}
+
 
 #endif /* PULSETX_HPP_ */

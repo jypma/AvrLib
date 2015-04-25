@@ -243,7 +243,7 @@ public:
 
     OOKTarget ookTarget = { *this };
     OOKSource ookSource = { *this, txFifo.getChunkedFifo() };
-    SoftwarePulseTx<comparator_t, OOKTarget, OOKSource> ookTx = softwarePulseTx(comparator, ookTarget, ookSource);
+    CallbackPulseTx<comparator_t, OOKTarget, OOKSource> ookTx = pulseTx(comparator, ookTarget, ookSource);
 public:
     RFM12(RFM12Band band) {
         enable(band);
