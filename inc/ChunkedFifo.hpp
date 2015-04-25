@@ -18,6 +18,7 @@ class ChunkedFifo {
     static void writeCommit(void *delegate);
     static void writeRollback(void *delegate);
     static bool write(void *delegate, uint8_t b);
+    static bool isWriting(void *delegate);
 
     const static Reader::VTable readerVTable;
     static void readStart(void *delegate);
@@ -25,6 +26,7 @@ class ChunkedFifo {
     static void readRollback(void *delegate);
     static bool read(void *delegate, uint8_t &b);
     static uint8_t getAvailable(void *delegate);
+    static bool isReading(void *delegate);
 
     AbstractFifo *data;
 
@@ -65,8 +67,19 @@ public:
         return data->isReading();
     }
 
-    inline uint8_t getReadAvailable() {
+    /** returns the number of bytes available in the current chunk, just after readStart() has been called. */
+    inline uint8_t getReadAvailable() const {
         return readLength;
+    }
+
+    /** returns whether the current read, started by readStart, has no more bytes available */
+    inline bool isReadComplete() const {
+        return readLength == 0;
+    }
+
+    /** returns whether the current read, started by readStart, has more bytes available */
+    inline bool hasReadAvailable() const {
+        return readLength != 0;
     }
 
     bool read(uint8_t &ch);

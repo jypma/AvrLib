@@ -28,11 +28,27 @@ public:
         void (*writeCommit)(void *);
         void (*writeRollback)(void *);
         bool (*write)(void *, uint8_t);
+        bool (*isWriting)(void *);
+
+        VTable(
+            void (*_writeStart)(void *),
+            void (*_writeCommit)(void *),
+            void (*_writeRollback)(void *),
+            bool (*_write)(void *, uint8_t),
+            bool (*_isWriting)(void *)
+        ):
+            writeStart(_writeStart),
+            writeCommit(_writeCommit),
+            writeRollback(_writeRollback),
+            write(_write),
+            isWriting(_isWriting)
+        {}
     };
 private:
     const VTable * const vtable;
     void * const delegate;
     bool valid;
+    bool wasWriting;
 
     void write(const uint8_t b);
 
@@ -48,12 +64,26 @@ private:
        T::write(*this, t);
     }
 
-    void doWrite(const char *string);
+    template<typename T>
+    void doWrite(const T& t, typename std::enable_if<std::is_pointer<T>::value>::type* = 0)
+    {
+        for (uint8_t i = 0; i < sizeof(T); i++) {
+            write( ((uint8_t*)(&t))[i] );
+        }
+    }
 
-    Writer(): vtable(nullptr), delegate(nullptr), valid(false) {}
+    void doWrite(char *string);
+    inline void doWrite(const char *string) {
+        doWrite((char*) string);
+    }
+
+    //Writer(): vtable(nullptr), delegate(nullptr), valid(false), wasWriting(false) {}
 public:
     inline Writer(const VTable *_vtable, void *_delegate): vtable(_vtable), delegate(_delegate), valid(true) {
-        vtable->writeStart(delegate);
+        wasWriting = vtable->isWriting(delegate);
+        if (!wasWriting) {
+            vtable->writeStart(delegate);
+        }
     }
     ~Writer();
 
@@ -81,6 +111,9 @@ public:
     Writer &operator << (Decimal<uint32_t> v);
     /** Writes the given value as decimal */
     Writer &operator << (Decimal<int32_t> v);
+
+    /** Writes a single byte 1 if the boolean is true, or 0 if it is false. */
+    Writer &operator << (const bool b);
 
     inline operator bool() const {
         return valid;

@@ -21,12 +21,15 @@
 #include "RFM12Status.hpp"
 #include "RFM12Strength.hpp"
 #include "FS20Packet.hpp"
+#include "SerialTx.hpp"
 
 enum class RFM12Band: uint8_t {
     _433MHz = 1, _868Mhz = 2, _915MHz = 3
 };
 
-template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin,
+template <typename spi_t, spi_t &spi,
+          typename ss_pin_t, ss_pin_t &ss_pin,
+          typename int_pin_t, int_pin_t &int_pin,
           typename comparator_t, comparator_t &comparator,
           int rxFifoSize = 32, int txFifoSize = 32>
 class RFM12 {
@@ -85,14 +88,13 @@ public:
             command(0x94A0 | drssi.reset());
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
-                SerialConfig *type = txFifo.readStart();
-                if (type == nullptr) {
+                if (txFifo.readStart()) {
                     mode = Mode::SENDING_FSK;
                     command(0x823D); // RF_XMITTER_ON
                 } else {
                     mode = Mode::SENDING_OOK;
                     int_pin.interruptOff();
-                    serialTx.start(type);
+                    ookTx.sendFromSource();
                 }
             } else {
                 mode = Mode::LISTENING;
@@ -110,12 +112,11 @@ public:
                 // there shouldn't be any interrupts from RFM12 during OOK sending
             } else if (mode == Mode::SENDING_FSK) {
                 // we are sending
-                if (txFifo.isReading()) {
+                if (txFifo.hasReadAvailable()) {
                     uint8_t b;
                     txFifo.read(b);
                     command(0xB800 | b); // RF_TXREG_WRITE
                 } else {
-                    txFifo.readEnd();
                     commandIdle();
                     command(0xB8AA);     // RF_TXREG_WRITE 0xAA (postfix)
                     sendOrListen();
@@ -210,8 +211,8 @@ public:
         return ((This*)(ctx))->txFifo.write(b);
     }
 
-    friend struct OOKHelper;
-    struct OOKHelper {
+    friend struct OOKTarget;
+    struct OOKTarget {
         This &rfm12;
 
         void setHigh(bool high) {
@@ -221,15 +222,28 @@ public:
                 rfm12.commandIdle();
             }
         }
+    };
 
-        void onSerialTxComplete() {
-            int_pin.interruptOnLow();
-            rfm12.commandIdle();
-            rfm12.sendOrListen();
+    friend struct OOKSource;
+    struct OOKSource: public ChunkPulseSource {
+        This &rfm12;
+
+        OOKSource(This &_rfm12, ChunkedFifo &_fifo): ChunkPulseSource(&_fifo), rfm12(_rfm12) {}
+
+        Pulse getNextPulse() {
+            Pulse result = ChunkPulseSource::getNextPulse();
+            if (result.isEmpty()) {
+                int_pin.interruptOnLow();
+                rfm12.commandIdle();
+                rfm12.sendOrListen();
+            }
+            return result;
         }
     };
-    OOKHelper ookHelper = { *this };
-    SerialTx<comparator_t, comparator, typeof txFifo, OOKHelper, OOKHelper> serialTx = {txFifo, ookHelper, ookHelper};
+
+    OOKTarget ookTarget = { *this };
+    OOKSource ookSource = { *this, txFifo.getChunkedFifo() };
+    SoftwarePulseTx<comparator_t, OOKTarget, OOKSource> ookTx = softwarePulseTx(comparator, ookTarget, ookSource);
 public:
     RFM12(RFM12Band band) {
         enable(band);

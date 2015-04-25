@@ -23,28 +23,34 @@ class RFM12TxFifo {
     CRC16 crc;
 
     PacketIndex packetIndex = PacketIndex::PREAMBLE1;
-    SerialConfig *type;
 
 public:
+    ChunkedFifo &getChunkedFifo() {
+        return fifo;
+    }
+
     Writer out(SerialConfig *type) {
         Writer out = fifo.out();
-        for (uint8_t i = 0; i < sizeof(SerialConfig*); i++) {
-            out << ((uint8_t*)(&type))[i];
-        }
+        out << type;
         return out;
     }
 
-    SerialConfig *readStart() {
+    /** Returns whether or not this indeed is an RFM12 packet, i.e. SerialConfig was nullptr calling out(). */
+    bool readStart() {
         fifo.readStart();
-        for (uint8_t i = 0; i < sizeof(SerialConfig*); i++) {
-            fifo.read(*((uint8_t*)(&type) + i));
+        SerialConfig *type;
+        fifo.in() >> type;
+        if (type == nullptr) {
+            crc.reset();
+            packetIndex = (type == nullptr) ? PacketIndex::PREAMBLE1 : PacketIndex::DATA;
+            return true;
+        } else {
+            fifo.readAbort();
+            return false;
         }
-        crc.reset();
-        packetIndex = (type == nullptr) ? PacketIndex::PREAMBLE1 : PacketIndex::DATA;
-        return type;
     }
 
-    inline uint8_t isReading() const {
+    inline bool hasReadAvailable() const {
         return fifo.isReading() && (packetIndex != DONE);
     }
 
@@ -63,12 +69,8 @@ public:
                 break;
             case DATA:
                 fifo.read(b);
-                if (type == nullptr) {
-                    crc.append(b);
-                    if (fifo.getReadAvailable() == 0) packetIndex = CRCLSB;
-                } else {
-                    if (fifo.getReadAvailable() == 0) packetIndex = DONE;
-                }
+                crc.append(b);
+                if (fifo.getReadAvailable() == 0) packetIndex = CRCLSB;
                 break;
             case CRCLSB:
                 b = (uint8_t)(crc.get()); packetIndex = CRCMSB; break;
@@ -79,14 +81,14 @@ public:
             case DONE:
                 b = 0xAA; break;
         }
+
+        if (packetIndex == DONE) {
+            fifo.readEnd();
+        }
     }
 
     void readAbort() {
         fifo.readAbort();
-    }
-
-    void readEnd() {
-        fifo.readEnd();
     }
 
     inline bool hasContent() const {

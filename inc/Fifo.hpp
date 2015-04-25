@@ -23,6 +23,7 @@ class AbstractFifo {
     static void writeCommit(void *delegate);
     static void writeRollback(void *delegate);
     static bool write(void *delegate, uint8_t b);
+    static bool isWriting(void *delegate);
 
     const static Reader::VTable readerVTable;
     static void readStart(void *delegate);
@@ -30,6 +31,7 @@ class AbstractFifo {
     static void readRollback(void *delegate);
     static bool readByte(void *delegate, uint8_t &target);
     static uint8_t getRemaining(void *delegate);
+    static bool isReading(void *delegate);
 
     volatile uint8_t * const buffer;
     const uint8_t bufferSize;

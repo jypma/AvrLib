@@ -16,7 +16,7 @@ struct FS20Packet {
     static constexpr uint8_t prefix[] = { 0b00000000, 0b00010000 };
 
     static constexpr SerialConfig serialConfig = {
-        prefix, 12, 400, false, 400, true, 600, false, 600, true, true, nullptr, 0
+        false, prefix, 12, { false, 400}, {true, 400}, {false, 600}, {true, 600}, true, nullptr, 0
     };
 
     uint8_t houseCodeHi = 0;

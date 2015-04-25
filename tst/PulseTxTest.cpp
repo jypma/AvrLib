@@ -53,11 +53,14 @@ struct MockSoftwarePin {
 TEST(PulseTxTest, single_pulse_on_software_target_can_be_sent) {
     MockComparator comparator;
     MockSoftwarePin pin;
-    SoftwarePulseTx<MockComparator,MockSoftwarePin> tx = { comparator, pin };
+    SimplePulseTxSource<> source(false);
+    auto tx = softwarePulseTx(comparator, pin, source);
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(comparator.isInterruptOn);
 
-    tx.pulse(true, 50);
+    source.append(Pulse(true, 50));
+    tx.sendFromSource();
+
     EXPECT_TRUE(pin.high);
     EXPECT_TRUE(comparator.isInterruptOn);
     EXPECT_EQ(55, comparator.target);
@@ -67,28 +70,19 @@ TEST(PulseTxTest, single_pulse_on_software_target_can_be_sent) {
     EXPECT_FALSE(comparator.isInterruptOn);
 }
 
-struct MockSource {
-    uint8_t index = 0;
-
-    bool hasNextPulse() {
-        return index < 2;
-    }
-    inline uint8_t getNextPulseDuration() {
-        index++;
-        return (index == 1) ? 42 : (index == 2) ? 10 : 0;
-    }
-
-};
-
 TEST(PulseTxTest, multiple_pulses_on_software_target_can_be_sent) {
     MockComparator comparator;
     MockSoftwarePin pin;
-    MockSource source;
-    SoftwarePulseTx<MockComparator,MockSoftwarePin,MockSource> tx = { comparator, pin, source };
+    SimplePulseTxSource<> source(false);
+    auto tx = softwarePulseTx(comparator, pin, source);
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(comparator.isInterruptOn);
 
-    tx.pulse(true, 50);
+    source.append(Pulse(true, 50));
+    source.append(Pulse(false, 42));
+    source.append(Pulse(true, 10));
+    tx.sendFromSource();
+
     EXPECT_TRUE(pin.high);
     EXPECT_TRUE(comparator.isInterruptOn);
     EXPECT_EQ(55, comparator.target);
@@ -122,16 +116,23 @@ struct MockHardwarePin {
     void configureAsOutput() {
 
     }
+    void configureAsInputWithoutPullup() {
+
+    }
 };
 
 TEST(PulseTxTest, single_pulse_on_comparators_pwm_pin_can_be_sent) {
     MockHardwarePin pin;
-    HardwarePulseTx<MockHardwarePin> tx = { pin };
+    SimplePulseTxSource<> source(false);
+    auto tx = hardwarePulseTx(pin, source);
+
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(pin.comp.isInterruptOn);
     EXPECT_EQ(NonPWMOutputMode::disconnected, pin.comp.outputMode);
 
-    tx.pulse(true, 50);
+    source.append(Pulse(true, 50));
+    tx.sendFromSource();
+
     EXPECT_TRUE(pin.high);
     EXPECT_TRUE(pin.comp.isInterruptOn);
     EXPECT_EQ(55, pin.comp.target);
@@ -145,13 +146,18 @@ TEST(PulseTxTest, single_pulse_on_comparators_pwm_pin_can_be_sent) {
 
 TEST(PulseTxTest, multiple_pulses_on_comparators_pwm_pin_can_be_sent) {
     MockHardwarePin pin;
-    MockSource source;
-    HardwarePulseTx<MockHardwarePin,MockSource> tx = { pin, source };
+    SimplePulseTxSource<> source(false);
+    auto tx = hardwarePulseTx(pin, source);
+
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(pin.comp.isInterruptOn);
     EXPECT_EQ(NonPWMOutputMode::disconnected, pin.comp.outputMode);
 
-    tx.pulse(true, 50);
+    source.append(Pulse(true, 50));
+    source.append(Pulse(false, 42));
+    source.append(Pulse(true, 10));
+    tx.sendFromSource();
+
     EXPECT_TRUE(pin.high);
     EXPECT_TRUE(pin.comp.isInterruptOn);
     EXPECT_EQ(55, pin.comp.target);

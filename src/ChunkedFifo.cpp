@@ -4,7 +4,8 @@ const Writer::VTable ChunkedFifo::writerVTable = {
         &ChunkedFifo::writeStart,
         &ChunkedFifo::writeCommit,
         &ChunkedFifo::writeRollback,
-        &ChunkedFifo::write };
+        &ChunkedFifo::write,
+        &ChunkedFifo::isWriting };
 
 void ChunkedFifo::writeStart(void *delegate) {
     ((ChunkedFifo*)delegate)->writeStart();
@@ -22,12 +23,17 @@ bool ChunkedFifo::write(void *delegate, uint8_t b) {
     return ((ChunkedFifo*)delegate)->write(b);
 }
 
+bool ChunkedFifo::isWriting(void *delegate) {
+    return ((ChunkedFifo*)delegate)->isWriting();
+}
+
 const Reader::VTable ChunkedFifo::readerVTable = {
         &ChunkedFifo::readStart,
         &ChunkedFifo::readCommit,
         &ChunkedFifo::readRollback,
         &ChunkedFifo::read,
-        &ChunkedFifo::getAvailable };
+        &ChunkedFifo::getAvailable,
+        &ChunkedFifo::isReading };
 
 void ChunkedFifo::readStart(void *delegate) {
     ((ChunkedFifo*)delegate)->readStart();
@@ -47,6 +53,10 @@ bool ChunkedFifo::read(void *delegate, uint8_t &b) {
 
 uint8_t ChunkedFifo::getAvailable(void *delegate) {
     return ((ChunkedFifo*)delegate)->getReadAvailable();
+}
+
+bool ChunkedFifo::isReading(void *delegate) {
+    return ((ChunkedFifo*)delegate)->isReading();
 }
 
 void ChunkedFifo::clear() {

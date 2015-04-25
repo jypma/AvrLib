@@ -1,10 +1,12 @@
 #include "Writer.hpp"
 
 Writer::~Writer() {
-    if (valid) {
-        vtable->writeCommit(delegate);
-    } else {
-        vtable->writeRollback(delegate);
+    if (!wasWriting) {
+        if (valid) {
+            vtable->writeCommit(delegate);
+        } else {
+            vtable->writeRollback(delegate);
+        }
     }
 }
 
@@ -33,7 +35,7 @@ Writer &Writer::operator << (const uint32_t i) {
     return *this;
 }
 
-void Writer::doWrite (const char *string) {
+void Writer::doWrite (char *string) {
     if (string != nullptr) {
         uint8_t c = *string;
         while (c) {
@@ -222,5 +224,10 @@ Writer &Writer::operator << (Decimal<int32_t> v) {
     } else {
         *this << dec(uint32_t(v.value));
     }
+    return *this;
+}
+
+Writer &Writer::operator<< (const bool b) {
+    write(b ? 1 : 0);
     return *this;
 }

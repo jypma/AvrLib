@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include "RFM12.hpp"
 
+namespace RFM12Test {
+
 class MockSPIMaster {
 public:
     void setClockPrescaler(SPIPrescaler p) const {
@@ -65,6 +67,10 @@ struct MockComparator {
 
     }
 
+    void interruptOff() {
+
+    }
+
     value_t getValue() {
         return 5;
     }
@@ -80,4 +86,6 @@ TEST(RFM12Test, rfm12_configures_pins_correctly) {
 
     EXPECT_TRUE(rfm_ss_pin.isOutput);
     EXPECT_TRUE(rfm_int_pin.isInput);
+}
+
 }

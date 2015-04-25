@@ -19,11 +19,29 @@ public:
         void (*readRollback)(void *);
         bool (*read)(void *, uint8_t &);
         uint8_t (*getRemaining)(void*);
+        bool (*isReading)(void*);
+
+        VTable(
+            void (*_readStart)(void *),
+            void (*_readCommit)(void *),
+            void (*_readRollback)(void *),
+            bool (*_read)(void *, uint8_t &),
+            uint8_t (*_getRemaining)(void*),
+            bool (*_isReading)(void*)
+        ):
+            readStart(_readStart),
+            readCommit(_readCommit),
+            readRollback(_readRollback),
+            read(_read),
+            getRemaining(_getRemaining),
+            isReading(_isReading)
+        {}
     };
 private:
     const VTable * const vtable;
     void * const delegate;
     bool valid;
+    bool wasReading;
 
     void read(uint8_t &b) {
         if (valid) {
@@ -43,14 +61,27 @@ private:
         T::read(*this, t);
     }
 
+    template<typename T>
+    void doRead(T& t, typename std::enable_if<std::is_pointer<T>::value>::type* = 0)
+    {
+        for (uint8_t i = 0; i < sizeof(T); i++) {
+            read(*((uint8_t*)(&t) + i));
+        }
+    }
+
     void doRead(uint8_t &b);
     void doRead(uint16_t &i);
     void doRead(uint32_t &i);
+    /** Reads a single byte. Sets the boolean to false if it's 0, or true otherwise. */
+    void doRead(bool &b);
 
-    Reader(): vtable(nullptr), delegate(nullptr), valid(false) {}
+    //Reader(): vtable(nullptr), delegate(nullptr), valid(false), wasReading(false) {}
 public:
     inline Reader(const VTable *_vtable, void *_delegate): vtable(_vtable), delegate(_delegate), valid(true) {
-        vtable->readStart(delegate);
+        wasReading = vtable->isReading(delegate);
+        if (!wasReading) {
+            vtable->readStart(delegate);
+        }
     }
     ~Reader();
 

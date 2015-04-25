@@ -1,15 +1,25 @@
 #include "Reader.hpp"
 
 Reader::~Reader()  {
-    if (valid) {
-        vtable->readCommit(delegate);
-    } else {
-        vtable->readRollback(delegate);
+    if (!wasReading) {
+        if (valid) {
+            vtable->readCommit(delegate);
+        } else {
+            vtable->readRollback(delegate);
+        }
     }
 }
 
 void Reader::doRead(uint8_t &b) {
     read(b);
+}
+
+void Reader::doRead(bool &b) {
+    uint8_t value;
+    read(value);
+    if (valid) {
+        b = (value == 0) ? false : true;
+    }
 }
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__

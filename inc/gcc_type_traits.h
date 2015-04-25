@@ -74,6 +74,48 @@ template<typename, typename>
 template<typename _Tp>
     struct is_same<_Tp, _Tp>
   : public true_type { };
+
+/// remove_const
+template<typename _Tp>
+  struct remove_const
+  { typedef _Tp     type; };
+
+template<typename _Tp>
+  struct remove_const<_Tp const>
+  { typedef _Tp     type; };
+
+/// remove_volatile
+template<typename _Tp>
+  struct remove_volatile
+  { typedef _Tp     type; };
+
+template<typename _Tp>
+  struct remove_volatile<_Tp volatile>
+  { typedef _Tp     type; };
+
+/// remove_cv
+template<typename _Tp>
+  struct remove_cv
+  {
+    typedef typename
+    remove_const<typename remove_volatile<_Tp>::type>::type     type;
+  };
+
+
+template<typename>
+    struct __is_pointer_helper
+    : public false_type { };
+
+  template<typename _Tp>
+    struct __is_pointer_helper<_Tp*>
+    : public true_type { };
+
+  /// is_pointer
+  template<typename _Tp>
+    struct is_pointer
+    : public __is_pointer_helper<typename remove_cv<_Tp>::type>::type
+    { };
+
 }
 
 #endif

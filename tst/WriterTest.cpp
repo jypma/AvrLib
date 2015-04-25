@@ -8,6 +8,7 @@ struct MockOut {
     bool hasStarted = false;
     bool hasCommit = false;
     bool hasRollback = false;
+    bool writing = false;
 
     static void writeStart(void *ctx) {
         ((MockOut*)(ctx))->hasStarted = true;
@@ -24,11 +25,32 @@ struct MockOut {
         out->length++;
         return true;
     }
+    static bool isWriting(void *ctx) {
+        return ((MockOut*)ctx)->writing;
+    }
 };
 
-const Writer::VTable vtable = { &MockOut::writeStart, &MockOut::writeCommit, &MockOut::writeRollback, &MockOut::write };
+const Writer::VTable vtable = { &MockOut::writeStart, &MockOut::writeCommit, &MockOut::writeRollback, &MockOut::write, &MockOut::isWriting };
 
 enum class TestEnum: uint8_t {ONE, TWO};
+
+TEST(WriterTest, does_not_commit_if_constructed_on_fifo_that_was_already_writing) {
+    MockOut out;
+    out.writing = true;
+    {
+        Writer w(&vtable, &out);
+    }
+    EXPECT_FALSE(out.hasCommit);
+}
+
+TEST(WriterTest, does_commit_if_constructed_on_fifo_that_was_not_writing) {
+    MockOut out;
+    out.writing = false;
+    {
+        Writer w(&vtable, &out);
+    }
+    EXPECT_TRUE(out.hasCommit);
+}
 
 TEST(WriterTest, raw_bytes_and_enums_are_output_correctly) {
     MockOut out;
