@@ -45,28 +45,6 @@ public:
     }
 };
 
-template <int fifoSize=16>
-class SimplePulseTxSource {
-    Fifo<fifoSize> fifo;
-    bool idleHigh;
-public:
-    SimplePulseTxSource(bool _idleHigh): idleHigh(_idleHigh) {}
-
-    Pulse getNextPulse() {
-        Pulse pulse;
-        return (fifo.in() >> pulse) ? pulse : Pulse::empty();
-    }
-
-    bool isHighOnIdle() {
-        return idleHigh;
-    }
-
-    void append(Pulse const &pulse) {
-        fifo.out() << pulse;
-    }
-};
-
-
 template <typename target_t>
 class PulseTxCallbackTarget {
     target_t *target;
@@ -188,36 +166,6 @@ using ComparatorPinPulseTx = PulseTx<typename pin_t::comparator_t, pin_t, PulseT
 template <typename pin_t, typename source_t>
 inline ComparatorPinPulseTx<pin_t, source_t> pulseTx(pin_t &pin, source_t &source) {
     return ComparatorPinPulseTx<pin_t, source_t>(pin.timerComparator(), pin, source);
-}
-
-template <typename comparator_t, typename target_t, typename target_wrapper_t>
-class SimplePulseTx: public PulseTx<comparator_t, target_t, target_wrapper_t, SimplePulseTxSource<>> {
-    typedef PulseTx<comparator_t, target_t, target_wrapper_t, SimplePulseTxSource<>> Super;
-    SimplePulseTxSource<> source;
-public:
-    SimplePulseTx(comparator_t &_comparator, target_t &_target, bool idleHigh):
-        Super(_comparator, _target, source), source(idleHigh) {}
-
-    void send(Pulse const &pulse) {
-        source.append(pulse);
-        Super::sendFromSource();
-    }
-};
-
-template <typename comparator_t, typename target_t>
-using SimpleCallbackPulseTx = SimplePulseTx<comparator_t, target_t, PulseTxCallbackTarget<target_t>>;
-
-template <typename comparator_t, typename target_t>
-inline SimpleCallbackPulseTx<comparator_t, target_t> simplePulseTx(comparator_t &comparator, target_t &target, bool idleHigh) {
-    return SimpleCallbackPulseTx<comparator_t, target_t>(comparator, target, idleHigh);
-}
-
-template <typename pin_t>
-using SimpleComparatorPinPulseTx = SimplePulseTx<typename pin_t::comparator_t, pin_t, PulseTxComparatorPinTarget<pin_t>>;
-
-template <typename pin_t>
-inline SimpleComparatorPinPulseTx<pin_t> simplePulseTx(pin_t &pin, bool idleHigh) {
-    return SimpleComparatorPinPulseTx<pin_t>(pin.timerComparator(), pin, idleHigh);
 }
 
 

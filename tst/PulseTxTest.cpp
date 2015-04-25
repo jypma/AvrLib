@@ -6,6 +6,7 @@
  */
 
 #include "PulseTx.hpp"
+#include "SimplePulseTx.hpp"
 #include <gtest/gtest.h>
 
 namespace PulseTxTest {
