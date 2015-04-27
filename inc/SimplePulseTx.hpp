@@ -45,6 +45,11 @@ public:
         source.append(pulse);
         Super::sendFromSource();
     }
+
+    template <typename Value, bool high>
+    inline void send(const PulseIn<Value, high> pulse) {
+        send(pulse.template on<comparator_t>());
+    }
 };
 
 template <typename comparator_t, typename target_t, int fifoSize=simplePulseTxDefaultQueueSize>

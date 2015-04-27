@@ -11,7 +11,8 @@ struct MockPulseCounter {
     };
     struct Timer {
         static constexpr uint8_t prescalerPower2 = 8;
-        static constexpr uint16_t microseconds2counts(uint16_t usecs) {
+        template <uint32_t usecs>
+        static constexpr uint16_t microseconds2counts() {
             return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
         }
     };

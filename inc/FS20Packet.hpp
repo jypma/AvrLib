@@ -15,9 +15,17 @@
 struct FS20Packet {
     static constexpr uint8_t prefix[] = { 0b00000000, 0b00010000 };
 
-    static constexpr SerialConfig serialConfig = {
-        false, prefix, 12, { false, 400}, {true, 400}, {false, 600}, {true, 600}, true, nullptr, 0
-    };
+    template <typename prescaled_t>
+    static constexpr SerialConfig serialConfig() {
+        using namespace TimeUnits;
+
+        return SerialConfig { false, prefix, 12,
+            lowPulse(400_us).template on<prescaled_t>(),
+            highPulse(400_us).template on<prescaled_t>(),
+            lowPulse(600_us).template on<prescaled_t>(),
+            highPulse(600_us).template on<prescaled_t>(),
+            true, nullptr, 0 };
+    }
 
     uint8_t houseCodeHi = 0;
     uint8_t houseCodeLo = 0;

@@ -262,7 +262,7 @@ public:
     }
 
     inline void out_fs20(const FS20Packet &packet) {
-        txFifo.out(FS20Packet::serialConfig) << packet;
+        txFifo.out(FS20Packet::serialConfig<comparator_t>()) << packet;
     }
 
     inline bool hasContent() const {

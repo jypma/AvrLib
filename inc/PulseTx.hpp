@@ -45,6 +45,24 @@ public:
     }
 };
 
+template <typename Value, bool high>
+struct PulseIn {
+    template <typename prescaled_t>
+    static constexpr Pulse on() {
+        return Pulse(high, Value::template toCounts<prescaled_t>());
+    }
+};
+
+template <typename Value>
+PulseIn<Value, true> constexpr highPulse(Value duration) {
+    return PulseIn<Value, true>();
+}
+
+template <typename Value>
+PulseIn<Value, false> constexpr lowPulse(Value duration) {
+    return PulseIn<Value, false>();
+}
+
 template <typename target_t>
 class PulseTxCallbackTarget {
     target_t *target;

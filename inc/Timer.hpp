@@ -12,6 +12,78 @@
 #include "AtomicScope.hpp"
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include "gcc_limits.h"
+
+namespace TimeUnits {
+    template <typename t>
+    constexpr t pow(t base, int exp) {
+      return (exp > 0) ? base * pow(base, exp-1) : 1;
+    };
+
+    template <char...> struct literal;
+    template <> struct literal<> {
+      static constexpr uint32_t to_uint32 = 0;
+    };
+    template <char c, char ...cv> struct literal<c, cv...> {
+      static constexpr uint32_t to_uint32 = (c - '0') * pow(10, sizeof...(cv)) + literal<cv...>::to_uint32;
+    };
+
+    template<typename Base, int percentage>
+    class MultipliedTimeUnit;
+
+    template <char... cv>
+    class TimeUnit {
+        typedef literal<cv...> value;
+    public:
+        static constexpr uint32_t to_uint32 = value::to_uint32;
+    };
+
+    template<typename Base, int percentage>
+    class MultipliedTimeUnit {
+    public:
+        MultipliedTimeUnit() {
+            static_assert(percentage > 0, "percentage must be larger than zero");
+        }
+        template <typename prescaled_t, uint32_t value = Base::to_uint32>
+        static constexpr uint16_t toCounts() {
+            return Base::template toCounts<prescaled_t, uint32_t(value) * percentage / 100>();
+        }
+    };
+
+    template <char... cv>
+    class Microseconds: public TimeUnit<cv...> {
+    public:
+        template <typename prescaled_t, uint32_t value = TimeUnit<cv...>::to_uint32>
+        static constexpr uint16_t toCounts() {
+            return prescaled_t::template microseconds2counts<value>();
+        }
+
+        template <int percentage>
+        static constexpr MultipliedTimeUnit<Microseconds<cv...>,percentage> percent() {
+            return MultipliedTimeUnit<Microseconds<cv...>,percentage>();
+        }
+    };
+
+    template <char... cv>
+    class Milliseconds: public TimeUnit<cv...> {
+    public:
+        template <typename prescaled_t, uint32_t value = TimeUnit<cv...>::to_uint32>
+        static constexpr uint16_t toCounts() {
+            return prescaled_t::template milliseconds2counts<value>();
+        }
+
+        template <int percentage>
+        static constexpr MultipliedTimeUnit<Milliseconds<cv...>,percentage> percent() {
+            return MultipliedTimeUnit<Milliseconds<cv...>,percentage>();
+        }
+    };
+
+    template <char ...cv>
+    constexpr Microseconds<cv...> operator "" _us() { return Microseconds<cv...>(); }
+
+    template <char ...cv>
+    constexpr Milliseconds<cv...> operator "" _ms() { return Milliseconds<cv...>(); }
+};
 
 ISR(TIMER0_OVF_vect);
 ISR(TIMER1_OVF_vect);
@@ -44,116 +116,6 @@ extern InterruptChain tm1ocrb;
 extern InterruptChain tm2int;
 extern InterruptChain tm2ocra;
 extern InterruptChain tm2ocrb;
-
-template <typename info>
-class TimerComparator {
-public:
-    typedef typename info::value_t value_t;
-
-    inline value_t getValue() const {
-        return *info::tcnt;
-    }
-    inline InterruptChain &interrupt() const {
-        return *info::handler;
-    }
-    inline void interruptOn() const {
-        *info::tifr |= _BV(info::tifr_bit); // Datasheet: "OCF is cleared by writing logic 1 to the bit"
-        *info::timsk |= _BV(info::timsk_bit);
-    }
-    inline void interruptOff() const {
-        *info::timsk &= ~_BV(info::timsk_bit);
-    }
-};
-
-enum class NonPWMOutputMode: uint8_t {
-    disconnected = 0,
-    toggle_on_match = 1,
-    low_on_match = 2,
-    high_on_match = 3
-};
-
-template <typename info>
-class NonPWMTimerComparator: public TimerComparator<info> {
-public:
-    /**
-     * Sets the pin output mode, i.e. what should happen to this comparator's linked
-     * pin whenever the comparator matches.
-     */
-    void output(NonPWMOutputMode mode) const {
-        *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
-    }
-    /**
-     * Sets the target at which the next comparator match event is to take place.
-     * Takes effect immediately.
-     */
-    inline void setTarget(typename info::value_t value) {
-        *info::ocr = value;
-    }
-};
-
-enum class FastPWMOutputMode: uint8_t {
-    disconnected = 0,
-    connected = 2,
-    connected_inverting = 3
-};
-
-template <typename info>
-class FastPWMTimerComparator: public TimerComparator<info> {
-public:
-    /**
-     * Sets the pin output mode, i.e. what should happen to this comparator's linked
-     * pin whenever the comparator matches.
-     */
-    void output(FastPWMOutputMode mode) const {
-        *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
-    }
-    /**
-     * Sets the target at which the next comparator match event is to take place.
-     * Takes effect at the start of the next timer run (i.e. after the next overflow).
-     */
-    inline void setTargetFromNextRun(typename info::value_t value) {
-        *info::ocr = value;
-    }
-};
-
-template <typename info, typename comparator_a_t, typename comparator_b_t>
-class Timer {
-public:
-    typedef info timer_info_t;
-    typedef typename info::value_t value_t;
-    typedef comparator_a_t comparatorA_t;
-    typedef comparator_b_t comparatorB_t;
-private:
-    comparator_a_t comparator_a;
-    comparator_b_t comparator_b;
-public:
-    inline InterruptChain &interruptOnOverflow() const {
-        return *info::intHandler;
-    }
-    inline void interruptOnOverflowOn() const {
-        *info::tifr |= _BV(TOV0); // Datasheet: "[...] is cleared by writing logic 1 to the bit"
-        *info::timsk |= _BV(TOIE0);
-    }
-    inline void interruptOnOverflowOff() const {
-        *info::timsk &= ~_BV(TOIE0);
-    }
-    inline value_t getValue() const {
-        return *info::tcnt;
-    }
-    inline bool isOverflow() const {
-        return *info::tifr & _BV(TOV0);
-    }
-    inline comparator_a_t &comparatorA() {
-        return comparator_a;
-    }
-    inline comparator_b_t &comparatorB() {
-        return comparator_b;
-    }
-
-    /** 8 for 8-bit timer, 16 for 16-bit timer */
-    static constexpr value_t maximum = info::maximum;
-    static constexpr uint8_t maximumPower2 = info::maximumPower2;
-};
 
 template<typename prescaler_t, prescaler_t prescaler>
 struct PrescalerMeta {};
@@ -206,39 +168,152 @@ template<> struct PrescalerMeta<IntPrescaler,IntPrescaler::_1024> {
     constexpr static uint8_t power2 = 10;
 };
 
-template <typename info, typename info::prescaler_t _prescaler, typename comparator_a_t, typename comparator_b_t>
-class PrescaledTimer : public Timer<info, comparator_a_t, comparator_b_t> {
-    typedef PrescalerMeta<typename info::prescaler_t,_prescaler> Meta;
-protected:
-    inline PrescaledTimer() {}
+template <typename _value_t, typename prescaler_t, prescaler_t _prescaler>
+class Prescaled {
+    typedef PrescalerMeta<prescaler_t,_prescaler> Meta;
 public:
-    typedef typename info::value_t value_t;
-    static constexpr typename info::prescaler_t prescaler = _prescaler;
+    typedef _value_t value_t;
+    static constexpr prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;
-    template <uint16_t usecs>
+    template <uint32_t usecs>
     static constexpr value_t microseconds2counts() {
         static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 > 1,
                 "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= info::maximum,
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<value_t>::max(),
                 "Number of counts for microseconds does not fit in value_t, you might want to increase the timer prescaler.");
         return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
     }
-    template <uint16_t msecs>
+    template <uint32_t msecs>
     static constexpr value_t milliseconds2counts() {
         static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs > 1,
                 "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= info::maximum,
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<value_t>::max(),
                 "Number of counts for milliseconds does not fit in value_t, you might want to increase the timer prescaler.");
         return (F_CPU >> prescalerPower2) / 1000 * msecs;
     }
 };
+
+template <typename info>
+class TimerComparator {
+public:
+
+    inline typename info::value_t getValue() const {
+        return *info::tcnt;
+    }
+    inline InterruptChain &interrupt() const {
+        return *info::handler;
+    }
+    inline void interruptOn() const {
+        *info::tifr |= _BV(info::tifr_bit); // Datasheet: "OCF is cleared by writing logic 1 to the bit"
+        *info::timsk |= _BV(info::timsk_bit);
+    }
+    inline void interruptOff() const {
+        *info::timsk &= ~_BV(info::timsk_bit);
+    }
+};
+
+enum class NonPWMOutputMode: uint8_t {
+    disconnected = 0,
+    toggle_on_match = 1,
+    low_on_match = 2,
+    high_on_match = 3
+};
+
+template <typename info, typename prescaler_t, prescaler_t prescaler>
+class NonPWMTimerComparator: public TimerComparator<info>, public Prescaled<typename info::value_t, prescaler_t, prescaler> {
+public:
+    /**
+     * Sets the pin output mode, i.e. what should happen to this comparator's linked
+     * pin whenever the comparator matches.
+     */
+    void output(NonPWMOutputMode mode) const {
+        *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
+    }
+    /**
+     * Sets the target at which the next comparator match event is to take place.
+     * Takes effect immediately.
+     */
+    inline void setTarget(typename info::value_t value) {
+        *info::ocr = value;
+    }
+};
+
+enum class FastPWMOutputMode: uint8_t {
+    disconnected = 0,
+    connected = 2,
+    connected_inverting = 3
+};
+
+template <typename info, typename prescaler_t, prescaler_t prescaler>
+class FastPWMTimerComparator: public TimerComparator<info>, public Prescaled<typename info::value_t, prescaler_t, prescaler> {
+public:
+    /**
+     * Sets the pin output mode, i.e. what should happen to this comparator's linked
+     * pin whenever the comparator matches.
+     */
+    void output(FastPWMOutputMode mode) const {
+        *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
+    }
+    /**
+     * Sets the target at which the next comparator match event is to take place.
+     * Takes effect at the start of the next timer run (i.e. after the next overflow).
+     */
+    inline void setTargetFromNextRun(typename info::value_t value) {
+        *info::ocr = value;
+    }
+};
+
+template <typename info, typename comparator_a_t, typename comparator_b_t>
+class Timer {
+public:
+    typedef info timer_info_t;
+    typedef comparator_a_t comparatorA_t;
+    typedef comparator_b_t comparatorB_t;
+private:
+    comparator_a_t comparator_a;
+    comparator_b_t comparator_b;
+public:
+    inline InterruptChain &interruptOnOverflow() const {
+        return *info::intHandler;
+    }
+    inline void interruptOnOverflowOn() const {
+        *info::tifr |= _BV(TOV0); // Datasheet: "[...] is cleared by writing logic 1 to the bit"
+        *info::timsk |= _BV(TOIE0);
+    }
+    inline void interruptOnOverflowOff() const {
+        *info::timsk &= ~_BV(TOIE0);
+    }
+    inline typename info::value_t getValue() const {
+        return *info::tcnt;
+    }
+    inline bool isOverflow() const {
+        return *info::tifr & _BV(TOV0);
+    }
+    inline comparator_a_t &comparatorA() {
+        return comparator_a;
+    }
+    inline comparator_b_t &comparatorB() {
+        return comparator_b;
+    }
+
+    static constexpr typename info::value_t maximum = std::numeric_limits<typename info::value_t>::max();
+    /** 8 for 8-bit timer, 16 for 16-bit timer */
+    static constexpr uint8_t maximumPower2 = sizeof(typename info::value_t) * 8;
+};
+
+template <typename info, typename info::prescaler_t _prescaler, typename comparator_a_t, typename comparator_b_t>
+class PrescaledTimer : public Timer<info, comparator_a_t, comparator_b_t>,
+                       public Prescaled<typename info::value_t, typename info::prescaler_t, _prescaler>
+{};
 
 /**
  * In fast PWM mode, changes to the comparator values apply on the next timer run.
  * However, hardware PWM can apply those comparator values.
  */
 template <typename info, typename info::prescaler_t _prescaler>
-class FastPWMTimer: public PrescaledTimer<info, _prescaler, FastPWMTimerComparator<typename info::ComparatorA>, FastPWMTimerComparator<typename info::ComparatorB>> {
+class FastPWMTimer: public PrescaledTimer<info, _prescaler,
+                      FastPWMTimerComparator<typename info::ComparatorA, typename info::prescaler_t, _prescaler>,
+                      FastPWMTimerComparator<typename info::ComparatorB, typename info::prescaler_t, _prescaler>> {
 public:
     inline FastPWMTimer() {
         info::configureFastPWM(_prescaler);
@@ -252,7 +327,9 @@ public:
  * However, no hardware PWM can be performed.
  */
 template <typename info, typename info::prescaler_t _prescaler>
-class NormalTimer: public PrescaledTimer<info, _prescaler, NonPWMTimerComparator<typename info::ComparatorA>, NonPWMTimerComparator<typename info::ComparatorB>> {
+class NormalTimer: public PrescaledTimer<info, _prescaler,
+                     NonPWMTimerComparator<typename info::ComparatorA, typename info::prescaler_t, _prescaler>,
+                     NonPWMTimerComparator<typename info::ComparatorB, typename info::prescaler_t, _prescaler>> {
 public:
     inline NormalTimer() {
         info::configureNormal(_prescaler);
@@ -269,9 +346,6 @@ struct Timer0Info {
     static constexpr volatile uint8_t *tifr = &TIFR0;
 
     static constexpr InterruptChain* intHandler = &tm0int;
-
-    static constexpr uint8_t maximum = 255;
-    static constexpr uint8_t maximumPower2 = 8;
 
     typedef uint8_t value_t;
     typedef ExtPrescaler prescaler_t;
