@@ -20,6 +20,9 @@ TEST(RFM12TxFifoTest, tx_fifo_wraps_empty_packet_correctly) {
     EXPECT_EQ(0xAA, in);
     EXPECT_TRUE(fifo.hasReadAvailable());
     fifo.read(in);
+    EXPECT_EQ(0xAA, in);
+    EXPECT_TRUE(fifo.hasReadAvailable());
+    fifo.read(in);
     EXPECT_EQ(0x2D, in);
     EXPECT_TRUE(fifo.hasReadAvailable());
     fifo.read(in);
@@ -45,6 +48,9 @@ TEST(RFM12TxFifoTest, tx_fifo_wraps_1_byte_packet_correctly) {
     fifo.readStart();
     EXPECT_TRUE(fifo.hasReadAvailable());
     uint8_t in;
+    fifo.read(in);
+    EXPECT_EQ(0xAA, in);
+    EXPECT_TRUE(fifo.hasReadAvailable());
     fifo.read(in);
     EXPECT_EQ(0xAA, in);
     EXPECT_TRUE(fifo.hasReadAvailable());

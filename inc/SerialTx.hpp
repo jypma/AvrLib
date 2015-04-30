@@ -14,10 +14,18 @@
 #include "PulseTx.hpp"
 #include "ChunkedFifo.hpp"
 
+enum class SerialParity {
+    NONE, EVEN, ODD
+};
+
+enum class SerialBitOrder {
+    LSB_FIRST, MSB_FIRST
+};
+
 struct SerialConfig {
     bool highOnIdle;
 
-    const uint8_t *prefix;
+    const uint8_t *prefix;   /* Prefix bits are ALWAYS sent out LSB first, regardless of the configured data bitOrder */
     uint8_t prefix_bits;
 
     Pulse zero_a;
@@ -25,18 +33,23 @@ struct SerialConfig {
     Pulse one_a;
     Pulse one_b;
 
-    bool parity;   /* whether to conclude with an (even) parity bit */
+    SerialParity parity;
+    SerialBitOrder bitOrder;
 
-    const uint8_t *postfix;
+    const uint8_t *postfix; /* Postfix bits are ALWAYS sent out LSB first, regardless of the configured data bitOrder */
     uint8_t postfix_bits;
 
-    uint8_t prefixBit(uint8_t bitIndex) const {
+    bool hasParity() {
+        return parity != SerialParity::NONE;
+    }
+
+    bool prefixBit(uint8_t bitIndex) const {
         uint8_t b = prefix[bitIndex / 8];
         uint8_t bit = bitIndex % 8;
         return (b >> bit) & 1;
     }
 
-    uint8_t postfixBit(uint8_t bitIndex) const {
+    bool postfixBit(uint8_t bitIndex) const {
         uint8_t b = postfix[bitIndex / 8];
         uint8_t bit = bitIndex % 8;
         return (b >> bit) & 1;
@@ -56,15 +69,20 @@ protected:
 
     SerialBitState bitState = SerialBitState::BEFORE;
     uint8_t bitIndex = 0;
-    uint8_t currentBit = 0;
+    bool currentBit = false;
     SerialPulseState pulseState = SerialPulseState::A;
     uint8_t currentByte = 0;
 
-    uint8_t getCurrentBit() {
+    bool getCurrentBit() {
         switch(bitState) {
           case SerialBitState::PREFIX: return config->prefixBit(bitIndex);
-          case SerialBitState::DATA: return (currentByte >> bitIndex) & 1;
-          case SerialBitState::PARITY_BIT: return parity_even_bit(currentByte);
+          case SerialBitState::DATA: return (config->bitOrder == SerialBitOrder::LSB_FIRST) ?
+                                            (currentByte >> bitIndex) & 1 :
+                                            (currentByte << bitIndex) & 128;
+          case SerialBitState::PARITY_BIT:
+              return (config->parity == SerialParity::EVEN) ?
+                                           parity_even_bit(currentByte) :
+                                          !parity_even_bit(currentByte);
           case SerialBitState::POSTFIX: return config->postfixBit(bitIndex);
           default: return 0;
         }
@@ -89,7 +107,7 @@ class ChunkPulseSource: public AbstractSerialSource {
             fifo->read(currentByte);
             bitState = SerialBitState::DATA;
         } else {
-            bitState = (config->parity) ? SerialBitState::PARITY_BIT :
+            bitState = (config->hasParity() && bitState == SerialBitState::DATA) ? SerialBitState::PARITY_BIT :
                        (config->postfix_bits > 0) ? SerialBitState::POSTFIX : SerialBitState::AFTER;
         }
     }
@@ -99,13 +117,13 @@ class ChunkPulseSource: public AbstractSerialSource {
             return Pulse::empty();
         } else {
             if (pulseState == SerialPulseState::A) {
-                if (currentBit == 1) {
+                if (currentBit != 0) {
                     return config->one_a;
                 } else {
                     return config->zero_a;
                 }
             } else {
-                if (currentBit == 1) {
+                if (currentBit != 0) {
                     return config->one_b;
                 } else {
                     return config->zero_b;
@@ -129,13 +147,19 @@ class ChunkPulseSource: public AbstractSerialSource {
         case SerialBitState::DATA:
             bitIndex++;
             if (bitIndex >= 8) {
-                nextDataByte();
+                if (config->hasParity()) {
+                    bitIndex = 0;
+                    bitState = SerialBitState::PARITY_BIT;
+                } else {
+                    nextDataByte();
+                }
             }
             break;
 
         case SerialBitState::PARITY_BIT:
-            bitIndex = 0;
-            bitState = (config->postfix_bits > 0) ? SerialBitState::POSTFIX : SerialBitState::AFTER;
+            nextDataByte();
+            //bitIndex = 0;
+            //bitState = (config->postfix_bits > 0) ? SerialBitState::POSTFIX : SerialBitState::AFTER;
             break;
 
         case SerialBitState::POSTFIX:
@@ -184,7 +208,7 @@ public:
             if (pulseState == SerialPulseState::A) {
                 pulseState = SerialPulseState::B;
                 if ((currentBit == 0 && config->zero_b.isDefined())
-                 || (currentBit == 1 && config->one_b.isDefined())) {
+                 || (currentBit != 0 && config->one_b.isDefined())) {
 
                 } else {
                     nextBit();

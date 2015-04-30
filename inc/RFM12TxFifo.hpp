@@ -15,7 +15,7 @@
 template <int fifoSize = 32>
 class RFM12TxFifo {
     enum PacketIndex {
-        PREAMBLE1, PREAMBLE2, SYNC, LENGTH, DATA, CRCLSB, CRCMSB, POSTFIX, DONE
+        PREAMBLE1, PREAMBLE2, PREAMBLE3, SYNC, LENGTH, DATA, CRCLSB, CRCMSB, POSTFIX, DONE
     };
 
     Fifo<fifoSize> data;
@@ -59,6 +59,8 @@ public:
             case PREAMBLE1:
                 b = 0xAA; packetIndex = PREAMBLE2; break;
             case PREAMBLE2:
+                b = 0xAA; packetIndex = PREAMBLE3; break;
+            case PREAMBLE3:
                 b = 0xAA; packetIndex = SYNC; break;
             case SYNC:
                 b = 0x2D; packetIndex = LENGTH; break;

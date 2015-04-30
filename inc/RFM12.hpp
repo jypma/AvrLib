@@ -31,9 +31,10 @@ template <typename spi_t, spi_t &spi,
           typename ss_pin_t, ss_pin_t &ss_pin,
           typename int_pin_t, int_pin_t &int_pin,
           typename comparator_t, comparator_t &comparator,
+          bool checkCrc = true,
           int rxFifoSize = 32, int txFifoSize = 32>
 class RFM12 {
-    typedef RFM12<spi_t,spi,ss_pin_t, ss_pin,int_pin_t,int_pin, comparator_t, comparator, rxFifoSize, txFifoSize> This;
+    typedef RFM12<spi_t,spi,ss_pin_t, ss_pin,int_pin_t,int_pin, comparator_t, comparator, checkCrc, rxFifoSize, txFifoSize> This;
 
     static void command(uint16_t cmd) {
         ss_pin.setLow();
@@ -48,9 +49,9 @@ public:
     enum class Mode { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK };
 
     volatile Mode mode = Mode::IDLE;
-    RFM12Strength drssi;
+    //RFM12Strength drssi;
     RFM12TxFifo<txFifoSize> txFifo;
-    RFM12RxFifo<rxFifoSize> rxFifo;
+    RFM12RxFifo<rxFifoSize, checkCrc> rxFifo;
 
     BitSet<RFM12Status> getStatus(uint8_t &in) {
         ss_pin.setLow();
@@ -72,9 +73,13 @@ public:
     }
     volatile uint8_t ints = 0;
     volatile uint8_t lastLen = 0;
-    volatile int8_t lastStrength = 0;
+    //volatile int8_t lastStrength = 0;
     volatile uint8_t recvCount = 0;
     volatile uint8_t underruns = 0;
+    volatile uint8_t ooks = 0;
+    volatile uint16_t ook_bits = 0;
+    volatile uint8_t ook_done = 0;
+    PinD7 ookPin;
 
     void commandIdle() {
         command(0x820D);  // RF_IDLE_MODE
@@ -85,15 +90,19 @@ public:
         AtomicScope _;
 
         if (mode == Mode::IDLE) {
-            command(0x94A0 | drssi.reset());
+            //command(0x94A0 | drssi.reset());
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
                 if (txFifo.readStart()) {
                     mode = Mode::SENDING_FSK;
                     command(0x823D); // RF_XMITTER_ON
+                    //command(0xB8AA);     // RF_TXREG_WRITE 0xAA (preamble)
                 } else {
+                    ooks++;
                     mode = Mode::SENDING_OOK;
                     int_pin.interruptOff();
+                    ookPin.setHigh();
+                    command(0x820D);  // RF_IDLE_MODE
                     ookTx.sendFromSource();
                 }
             } else {
@@ -126,8 +135,8 @@ public:
                 //TODO consider moving the spi read block in here, to not have the double if.
                 recvCount++;
 
-                command(0x94A0 | drssi.apply(status));
-                lastStrength = drssi.getStrength();
+                //command(0x94A0 | drssi.apply(status));
+                //lastStrength = drssi.getStrength();
 
                 if (rxFifo.isWriting()) {
                     rxFifo.write(in);
@@ -184,8 +193,13 @@ public:
         command(0xC606); // approx 49.2 Kbps, i.e. 10000/29/(1+6) Kbps
         command(0x94A2); // VDI,FAST,134kHz,0dBm,-91dBm
         command(0xC2AC); // AL,!ml,DIG,DQD4
+
         command(0xCA8B); // FIFO8,1-SYNC,!ff,DR
         command(0xCE2D); // SYNC=2D；
+
+        //command(0xCA83); // FIFO8,2-SYNC,!ff,DR
+        //command(0xCE01); // SYNC=2DD4；
+
         command(0xC483); // @PWR,NO RSTRIC,!st,!fi,OE,EN
         command(0x9850); // !mp,90kHz,MAX OUT
         command(0xCC77); // OB1，OB0, LPX,！ddy，DDIT，BW0
@@ -213,39 +227,84 @@ public:
 
     friend struct OOKTarget;
     struct OOKTarget {
-        This &rfm12;
+        This *rfm12;
 
         void setHigh(bool high) {
             if (high) {
-                rfm12.command(0x823D); // RF_XMITTER_ON
+                rfm12->command(0x823D); // RF_XMITTER_ON
             } else {
-                rfm12.commandIdle();
+                rfm12->command(0x820D);  // RF_IDLE_MODE
             }
         }
     };
 
     friend struct OOKSource;
     struct OOKSource: public ChunkPulseSource {
-        This &rfm12;
+        This *rfm12;
 
-        OOKSource(This &_rfm12, ChunkedFifo &_fifo): ChunkPulseSource(&_fifo), rfm12(_rfm12) {}
+        OOKSource(This *_rfm12, ChunkedFifo &_fifo): ChunkPulseSource(&_fifo), rfm12(_rfm12) {}
 
         Pulse getNextPulse() {
+            rfm12->ook_bits++;
             Pulse result = ChunkPulseSource::getNextPulse();
             if (result.isEmpty()) {
+                rfm12->ook_done++;
+/*
+                rfm12->command(0x0000); // initial SPI transfer added to avoid power-up problem
+                rfm12->command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
+
+                // wait until RFM12B is out of power-up reset, this takes several *seconds*
+                while (int_pin.isLow()) {
+                    rfm12->command(0x0000);
+                }
+
+                rfm12->command(0x80C7 | (static_cast<uint8_t>(2) << 4)); // EL (ena TX), EF (ena RX FIFO), 12.0pF
+                rfm12->command(0xA640); // 868MHz
+                rfm12->command(0xC606); // approx 49.2 Kbps, i.e. 10000/29/(1+6) Kbps
+                rfm12->command(0x94A2); // VDI,FAST,134kHz,0dBm,-91dBm
+                rfm12->command(0xC2AC); // AL,!ml,DIG,DQD4
+
+                rfm12->command(0xCA8B); // FIFO8,1-SYNC,!ff,DR
+                rfm12->command(0xCE2D); // SYNC=2D；
+
+                rfm12->command(0xC483); // @PWR,NO RSTRIC,!st,!fi,OE,EN
+                rfm12->command(0x9850); // !mp,90kHz,MAX OUT
+                rfm12->command(0xCC77); // OB1，OB0, LPX,！ddy，DDIT，BW0
+                rfm12->command(0xE000); // NOT USE
+                rfm12->command(0xC800); // NOT USE
+                rfm12->command(0xC049); // 1.66MHz,3.1V
+*/
+                //rfm12->command(0xB8AA); // RF_TXREG_WRITE in case we're still in OOK mode
+                //while (int_pin.isLow()) {
+                //    rfm12->command(0x0000);
+                // }
+                rfm12->commandIdle();
                 int_pin.interruptOnLow();
-                rfm12.commandIdle();
-                rfm12.sendOrListen();
+                rfm12->sendOrListen();
+                rfm12->ookPin.setLow();
+            } else {
+                // because of SPI delays, and the DELAY and TRANSMITTER_ON messages being processed by the RFM12
+                // at different delays, we need to make an adjustment between the desired pulse lengths, and the actual
+                // forwarded pulse lengths.
+                using namespace TimeUnits;
+                constexpr auto correction = (240_us).template toCounts<comparator_t>();
+                if (result.isHigh()) {
+                    result = Pulse(true, result.getDuration() + correction);
+                } else {
+                    result = Pulse(false, result.getDuration() - correction);
+                }
             }
             return result;
         }
     };
 
-    OOKTarget ookTarget = { *this };
-    OOKSource ookSource = { *this, txFifo.getChunkedFifo() };
+    OOKTarget ookTarget = { this };
+    OOKSource ookSource = { this, txFifo.getChunkedFifo() };
     CallbackPulseTx<comparator_t, OOKTarget, OOKSource> ookTx = pulseTx(comparator, ookTarget, ookSource);
+    SerialConfig fs20SerialConfig = FS20Packet::serialConfig<comparator_t>();
 public:
     RFM12(RFM12Band band) {
+        ookPin.configureAsOutput();
         enable(band);
     }
 
@@ -257,12 +316,12 @@ public:
         return rxFifo.in();
     }
 
-    inline Writer out_fsk() {
+    inline Writer out() {
         return txFifo.out(nullptr);
     }
 
     inline void out_fs20(const FS20Packet &packet) {
-        txFifo.out(FS20Packet::serialConfig<comparator_t>()) << packet;
+        txFifo.out(&fs20SerialConfig) << packet;
     }
 
     inline bool hasContent() const {
@@ -273,11 +332,11 @@ public:
 
 template <typename spi_t, spi_t &spi, typename ss_pin_t, ss_pin_t &ss_pin, typename int_pin_t, int_pin_t &int_pin,
           typename comparator_t, comparator_t &comparator,
-          int rxFifoSize, int txFifoSize>
-const Writer::VTable RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::writerVTable = {
-    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::writeStart,
-    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::writeEnd,
-    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,rxFifoSize,txFifoSize>::write
+          bool checkCrc, int rxFifoSize, int txFifoSize>
+const Writer::VTable RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,checkCrc,rxFifoSize,txFifoSize>::writerVTable = {
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,checkCrc,rxFifoSize,txFifoSize>::writeStart,
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,checkCrc,rxFifoSize,txFifoSize>::writeEnd,
+    &RFM12<spi_t, spi,ss_pin_t,ss_pin,int_pin_t,int_pin,comparator_t,comparator,checkCrc,rxFifoSize,txFifoSize>::write
 };
 
 

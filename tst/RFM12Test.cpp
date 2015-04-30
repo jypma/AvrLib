@@ -74,6 +74,11 @@ struct MockComparator {
     value_t getValue() {
         return 5;
     }
+
+    template <uint32_t value>
+    static constexpr value_t microseconds2counts() {
+        return uint16_t(value);
+    }
 };
 
 MockSPIMaster rfm_spi;

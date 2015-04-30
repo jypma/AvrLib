@@ -136,8 +136,20 @@ public:
     }
 };
 
-template <typename pinInfo, typename timer_t, class=typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>
+struct NoTimer {};
+
+template <typename pinInfo, typename timer_t, class Enable=void>
 class PinOnComparatorA: public Pin<pinInfo> {
+    typedef typename timer_t::fail error_wrong_timer_template_argument;
+};
+
+template <typename pinInfo, typename timer_t>
+class PinOnComparatorA<pinInfo, timer_t, typename std::enable_if<std::is_same<timer_t, NoTimer>::value>::type>: public Pin<pinInfo> {
+    // If NoTimer is provided as timer_t, the pin will be defined without timer capability.
+};
+
+template <typename pinInfo, typename timer_t>
+class PinOnComparatorA<pinInfo, timer_t, typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>: public Pin<pinInfo> {
     timer_t *t;
 public:
     typedef typename timer_t::comparatorA_t comparator_t;
@@ -150,8 +162,18 @@ public:
     }
 };
 
-template <typename pinInfo, typename timer_t, class=typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>
+template <typename pinInfo, typename timer_t, class Enable=void>
 class PinOnComparatorB: public Pin<pinInfo> {
+    typedef typename timer_t::fail error_wrong_timer_template_argument;
+};
+
+template <typename pinInfo, typename timer_t>
+class PinOnComparatorB<pinInfo, timer_t, typename std::enable_if<std::is_same<timer_t, NoTimer>::value>::type>: public Pin<pinInfo> {
+    // If NoTimer is provided as timer_t, the pin will be defined without timer capability.
+};
+
+template <typename pinInfo, typename timer_t>
+class PinOnComparatorB<pinInfo, timer_t, typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>: public Pin<pinInfo> {
     timer_t *t;
 public:
     typedef typename timer_t::comparatorB_t comparator_t;
@@ -262,13 +284,13 @@ public:
     inline PinD3(timer_t &_timer): PinOnComparatorB<PinD3Info,timer_t>(_timer) {}
 };
 typedef Pin<PinD4Info> PinD4;
-template <typename timer_t> using PinD5 = PinOnComparatorA<PinD5Info,timer_t>;
-template <typename timer_t> using PinD6 = PinOnComparatorB<PinD6Info,timer_t>;
+template <typename timer_t = NoTimer> using PinD5 = PinOnComparatorA<PinD5Info,timer_t>;
+template <typename timer_t = NoTimer> using PinD6 = PinOnComparatorB<PinD6Info,timer_t>;
 typedef Pin<PinD7Info> PinD7;
 typedef Pin<PinD8Info> PinD8;
-template <typename timer_t> using PinD9 = PinOnComparatorA<PinD9Info,timer_t>;
-template <typename timer_t> using PinD10 = PinOnComparatorB<PinD10Info,timer_t>;
-template <typename timer_t> using PinD11 = PinOnComparatorA<PinD11Info,timer_t>;
+template <typename timer_t = NoTimer> using PinD9 = PinOnComparatorA<PinD9Info,timer_t>;
+template <typename timer_t = NoTimer> using PinD10 = PinOnComparatorB<PinD10Info,timer_t>;
+template <typename timer_t = NoTimer> using PinD11 = PinOnComparatorA<PinD11Info,timer_t>;
 typedef Pin<PinD12Info> PinD12;
 typedef Pin<PinD13Info> PinD13;
 typedef ChangeInterruptPin<PinA0Info> PinA0;

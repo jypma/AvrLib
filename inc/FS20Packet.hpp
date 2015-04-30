@@ -13,18 +13,23 @@
 #include "SerialTx.hpp"
 
 struct FS20Packet {
-    static constexpr uint8_t prefix[] = { 0b00000000, 0b00010000 };
+    static const uint8_t prefix[];
+    static const uint8_t postfix[];
 
     template <typename prescaled_t>
     static constexpr SerialConfig serialConfig() {
         using namespace TimeUnits;
 
-        return SerialConfig { false, prefix, 12,
-            lowPulse(400_us).template on<prescaled_t>(),
+        return SerialConfig {
+            /* highOnIdle */ false,
+            prefix, 24,
             highPulse(400_us).template on<prescaled_t>(),
-            lowPulse(600_us).template on<prescaled_t>(),
+            lowPulse(400_us).template on<prescaled_t>(),
             highPulse(600_us).template on<prescaled_t>(),
-            true, nullptr, 0 };
+            lowPulse(600_us).template on<prescaled_t>(),
+            SerialParity::EVEN,
+            SerialBitOrder::MSB_FIRST,
+            postfix, 2 };
     }
 
     uint8_t houseCodeHi = 0;
