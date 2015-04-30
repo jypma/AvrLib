@@ -87,7 +87,7 @@ MockIntPin rfm_int_pin;
 MockComparator rfm_comparator;
 
 TEST(RFM12Test, rfm12_configures_pins_correctly) {
-    RFM12<typeof rfm_spi, rfm_spi, typeof rfm_ss_pin, rfm_ss_pin, typeof rfm_int_pin, rfm_int_pin, typeof rfm_comparator, rfm_comparator> rfm(RFM12Band::_868Mhz);
+    RFM12<MockSPIMaster, MockSSPin, MockIntPin, MockComparator> rfm(rfm_spi, rfm_ss_pin, rfm_int_pin, rfm_comparator, RFM12Band::_868Mhz);
 
     EXPECT_TRUE(rfm_ss_pin.isOutput);
     EXPECT_TRUE(rfm_int_pin.isInput);
