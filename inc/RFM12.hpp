@@ -233,7 +233,7 @@ private:
     struct OOKSource: public ChunkPulseSource {
         This *rfm12;
 
-        OOKSource(This *_rfm12, ChunkedFifo &_fifo): ChunkPulseSource(&_fifo), rfm12(_rfm12) {}
+        OOKSource(This *_rfm12, ChunkedFifo &_fifo): ChunkPulseSource(_fifo), rfm12(_rfm12) {}
 
         Pulse getNextPulse() {
             Pulse result = ChunkPulseSource::getNextPulse();

@@ -279,18 +279,18 @@ struct PinA5Info: public PinOnPortC<5>, public GPIOPin {
 typedef Pin<PinD0Info> PinD0;
 template <uint8_t writeFifoCapacity = 16> using PinD1 = UsartTxPin<PinD1Info,Usart0Info,writeFifoCapacity>;
 typedef ExtInterruptPin<PinD2Info,Int0Info,extInt0> PinD2;
-template <typename timer_t> class PinD3: public PinOnComparatorB<PinD3Info,timer_t>, public ExtInterrupt<Int1Info,extInt1> {
+template <typename timer2_t> class PinD3: public PinOnComparatorB<PinD3Info,timer2_t>, public ExtInterrupt<Int1Info,extInt1> {
 public:
-    inline PinD3(timer_t &_timer): PinOnComparatorB<PinD3Info,timer_t>(_timer) {}
+    inline PinD3(timer2_t &_timer): PinOnComparatorB<PinD3Info,timer2_t>(_timer) {}
 };
 typedef Pin<PinD4Info> PinD4;
-template <typename timer_t = NoTimer> using PinD5 = PinOnComparatorA<PinD5Info,timer_t>;
-template <typename timer_t = NoTimer> using PinD6 = PinOnComparatorB<PinD6Info,timer_t>;
+template <typename timer0_t = NoTimer> using PinD5 = PinOnComparatorA<PinD5Info,timer0_t>;
+template <typename timer0_t = NoTimer> using PinD6 = PinOnComparatorB<PinD6Info,timer0_t>;
 typedef Pin<PinD7Info> PinD7;
 typedef Pin<PinD8Info> PinD8;
-template <typename timer_t = NoTimer> using PinD9 = PinOnComparatorA<PinD9Info,timer_t>;
-template <typename timer_t = NoTimer> using PinD10 = PinOnComparatorB<PinD10Info,timer_t>;
-template <typename timer_t = NoTimer> using PinD11 = PinOnComparatorA<PinD11Info,timer_t>;
+template <typename timer1_t = NoTimer> using PinD9 = PinOnComparatorA<PinD9Info,timer1_t>;
+template <typename timer1_t = NoTimer> using PinD10 = PinOnComparatorB<PinD10Info,timer1_t>;
+template <typename timer2_t = NoTimer> using PinD11 = PinOnComparatorA<PinD11Info,timer2_t>;
 typedef Pin<PinD12Info> PinD12;
 typedef Pin<PinD13Info> PinD13;
 typedef ChangeInterruptPin<PinA0Info> PinA0;

@@ -1,4 +1,5 @@
 #include "SerialTx.hpp"
+#include "AtomicScope.hpp"
 
 bool SerialConfig::prefixBit(uint8_t bitIndex) const {
     uint8_t b = prefix[bitIndex / 8];
@@ -12,7 +13,11 @@ bool SerialConfig::postfixBit(uint8_t bitIndex) const {
     return (b >> bit) & 1;
 }
 
-bool AbstractSerialSource::getCurrentBit() {
+bool SerialConfig::hasPulseBForBit(bool bit) const {
+    return (bit) ? one_b.isDefined() : zero_b.isDefined();
+}
+
+bool AbstractSerialSource::getCurrentBit() const {
     switch(bitState) {
       case SerialBitState::PREFIX: return config->prefixBit(bitIndex);
       case SerialBitState::DATA: return (config->bitOrder == SerialBitOrder::LSB_FIRST) ?
@@ -28,19 +33,7 @@ bool AbstractSerialSource::getCurrentBit() {
     return 0;
 }
 
-void ChunkPulseSource::nextDataByte() {
-    bitIndex = 0;
-    pulseState = SerialPulseState::A;
-    if (fifo->hasReadAvailable()) {
-        fifo->read(currentByte);
-        bitState = SerialBitState::DATA;
-    } else {
-        bitState = (config->hasParity() && bitState == SerialBitState::DATA) ? SerialBitState::PARITY_BIT :
-                   (config->postfix_bits > 0) ? SerialBitState::POSTFIX : SerialBitState::AFTER;
-    }
-}
-
-Pulse ChunkPulseSource::getCurrentPulse() const {
+Pulse AbstractSerialSource::getCurrentPulse() const {
     if (bitState == SerialBitState::BEFORE || bitState == SerialBitState::AFTER) {
         return Pulse::empty();
     } else {
@@ -57,6 +50,18 @@ Pulse ChunkPulseSource::getCurrentPulse() const {
                 return config->zero_b;
             }
         }
+    }
+}
+
+void ChunkPulseSource::nextDataByte() {
+    bitIndex = 0;
+    pulseState = SerialPulseState::A;
+    if (fifo->hasReadAvailable()) {
+        fifo->read(currentByte);
+        bitState = SerialBitState::DATA;
+    } else {
+        bitState = (config->hasParity() && bitState == SerialBitState::DATA) ? SerialBitState::PARITY_BIT :
+                   (config->postfix_bits > 0) ? SerialBitState::POSTFIX : SerialBitState::AFTER;
     }
 }
 
@@ -86,8 +91,6 @@ void ChunkPulseSource::nextBit() {
 
     case SerialBitState::PARITY_BIT:
         nextDataByte();
-        //bitIndex = 0;
-        //bitState = (config->postfix_bits > 0) ? SerialBitState::POSTFIX : SerialBitState::AFTER;
         break;
 
     case SerialBitState::POSTFIX:
@@ -106,6 +109,8 @@ void ChunkPulseSource::nextBit() {
 }
 
 Pulse ChunkPulseSource::getNextPulse() {
+    AtomicScope _;
+
     if (bitState == SerialBitState::BEFORE) {
         bitIndex = 0;
         fifo->readStart();
@@ -131,10 +136,7 @@ Pulse ChunkPulseSource::getNextPulse() {
     if (result.isDefined()) {
         if (pulseState == SerialPulseState::A) {
             pulseState = SerialPulseState::B;
-            if ((currentBit == 0 && config->zero_b.isDefined())
-             || (currentBit != 0 && config->one_b.isDefined())) {
-
-            } else {
+            if (!config->hasPulseBForBit(currentBit)) {
                 nextBit();
             }
         } else {
@@ -142,6 +144,89 @@ Pulse ChunkPulseSource::getNextPulse() {
         }
     } else {
         fifo->readEnd();
+        bitState = SerialBitState::BEFORE;
+    }
+
+    return result;
+}
+
+void StreamPulseSource::nextBit() {
+    pulseState = SerialPulseState::A;
+    switch(bitState) {
+    case SerialBitState::PREFIX:
+        bitIndex++;
+        if (bitIndex >= config->prefix_bits) {
+            bitState = SerialBitState::DATA;
+            bitIndex = 0;
+        }
+        break;
+
+    case SerialBitState::DATA:
+        bitIndex++;
+        if (bitIndex >= 8) {
+            if (config->hasParity()) {
+                bitIndex = 0;
+                bitState = SerialBitState::PARITY_BIT;
+            } else if (config->postfix_bits > 0) {
+                bitIndex = 0;
+                bitState = SerialBitState::POSTFIX;
+            } else {
+                bitState = SerialBitState::BEFORE;
+            }
+        }
+        break;
+
+    case SerialBitState::PARITY_BIT:
+        if (config->postfix_bits > 0) {
+            bitIndex = 0;
+            bitState = SerialBitState::POSTFIX;
+        } else {
+            bitState = SerialBitState::BEFORE;
+        }
+        break;
+
+    case SerialBitState::POSTFIX:
+        bitIndex++;
+        if (bitIndex >= config->postfix_bits) {
+            bitState = SerialBitState::BEFORE;
+            bitIndex = 0;
+        }
+        break;
+
+    case SerialBitState::BEFORE: return;
+    case SerialBitState::AFTER: return;
+    }
+
+    currentBit = getCurrentBit();
+}
+
+
+Pulse StreamPulseSource::getNextPulse() {
+    AtomicScope _;
+
+    if (bitState == SerialBitState::BEFORE) {
+        bitIndex = 0;
+        if (fifo->hasContent()) {
+            fifo->read(currentByte);
+            bitState = (config->prefix_bits > 0) ? SerialBitState::PREFIX : SerialBitState::DATA;
+        }
+        if (bitState != SerialBitState::BEFORE && bitState != SerialBitState::AFTER) {
+            currentBit = getCurrentBit();
+        }
+    }
+
+    Pulse result = getCurrentPulse();
+
+    if (result.isDefined()) {
+        if (pulseState == SerialPulseState::A) {
+            pulseState = SerialPulseState::B;
+            if (!config->hasPulseBForBit(currentBit)) {
+                nextBit();
+            }
+        } else {
+            nextBit();
+        }
+    } else {
         bitState = SerialBitState::BEFORE;
     }
 

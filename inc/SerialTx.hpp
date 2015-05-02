@@ -10,7 +10,6 @@
 
 #include <util/parity.h>
 #include "InterruptHandler.hpp"
-#include "AtomicScope.hpp"
 #include "PulseTx.hpp"
 #include "ChunkedFifo.hpp"
 
@@ -46,8 +45,11 @@ struct SerialConfig {
     bool prefixBit(uint8_t bitIndex) const;
 
     bool postfixBit(uint8_t bitIndex) const;
+
+    bool hasPulseBForBit(bool bit) const;
 };
 
+//TODO should be private. We could do without AFTER.
 enum class SerialBitState: uint8_t {
     BEFORE, PREFIX, DATA, PARITY_BIT, POSTFIX, AFTER
 };
@@ -65,7 +67,9 @@ protected:
     SerialPulseState pulseState = SerialPulseState::A;
     uint8_t currentByte = 0;
 
-    bool getCurrentBit();
+    bool getCurrentBit() const;
+
+    Pulse getCurrentPulse() const;
 public:
     bool isHighOnIdle() {
         return config->highOnIdle;
@@ -73,19 +77,35 @@ public:
 };
 
 /**
- * Outputs a single chunk from a chunked fifo.
+ * Outputs a single chunk at a time, from a chunked fifo. Every chunk in the fifo
+ * should start with a pointer to a SerialConfig settings for that chunk; the remaining
+ * bytes are the serial data to send.
  */
 class ChunkPulseSource: public AbstractSerialSource {
     ChunkedFifo *fifo;
 
     void nextDataByte();
 
-    Pulse getCurrentPulse() const;
-
     void nextBit();
 
 public:
-    ChunkPulseSource(ChunkedFifo *_fifo): fifo(_fifo) {}
+    ChunkPulseSource(ChunkedFifo &_fifo): fifo(&_fifo) {}
+
+    Pulse getNextPulse();
+};
+
+/**
+ * Outputs a single byte at a time. from a fifo. The serial config is set at
+ * construction time.
+ */
+class StreamPulseSource: public AbstractSerialSource {
+    AbstractFifo *fifo;
+
+    void nextBit();
+public:
+    StreamPulseSource(AbstractFifo &_fifo, SerialConfig &_config): fifo(&_fifo) {
+        config = &_config;
+    }
 
     Pulse getNextPulse();
 };
