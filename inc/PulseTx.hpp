@@ -85,8 +85,7 @@ class PulseTxComparatorPinTarget {
     pin_t *pin;
 public:
     inline PulseTxComparatorPinTarget(pin_t &_pin): pin(&_pin) {
-        // contrary to the datasheet, setting DDR on the output pin actually seems to disconnect the timer comparator.
-        pin->configureAsInputWithoutPullup();
+        pin->configureAsOutput();
     }
 
     inline void onInitialTransition(bool high) {

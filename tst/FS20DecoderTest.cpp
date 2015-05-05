@@ -4,15 +4,11 @@
 
 struct FS20MockPulseCounter {
     typedef uint8_t count_t;
-    struct PulseEvent {
-        PulseType type;
-        uint8_t length;
-        PulseType getType() const { return type; }
-        uint8_t getLength() const { return length; }
-    };
-    struct Timer {
+    struct comparator_t {
         static constexpr uint8_t prescalerPower2 = 6;
-        static constexpr uint16_t microseconds2counts(uint16_t usecs) {
+
+        template <uint32_t usecs>
+        static constexpr uint16_t microseconds2counts() {
             return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
         }
     };
@@ -22,11 +18,11 @@ template <typename T>
 void sendData(T &decoder, const uint8_t *seq, uint16_t length) {
     PulseType type = PulseType::HIGH;
     for (uint8_t i = 0; i < length; i++) {
-        FS20MockPulseCounter::PulseEvent event = { type, seq[i] };
+        PulseEvent<FS20MockPulseCounter::count_t> event = { type, seq[i] };
         decoder.apply(event);
         type = (type == PulseType::HIGH) ? PulseType::LOW : PulseType::HIGH;
     }
-    FS20MockPulseCounter::PulseEvent event = { PulseType::TIMEOUT, 0 };
+    PulseEvent<FS20MockPulseCounter::count_t> event = { PulseType::TIMEOUT, 0 };
     decoder.apply(event);
 }
 

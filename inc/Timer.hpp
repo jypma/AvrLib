@@ -168,34 +168,44 @@ template<> struct PrescalerMeta<IntPrescaler,IntPrescaler::_1024> {
     constexpr static uint8_t power2 = 10;
 };
 
-template <typename _value_t, typename prescaler_t, prescaler_t _prescaler>
-class Prescaled {
-    typedef PrescalerMeta<prescaler_t,_prescaler> Meta;
+template <typename _value_t>
+class Counting {
 public:
     typedef _value_t value_t;
+
+    static constexpr value_t maximum = std::numeric_limits<value_t>::max();
+    /** 8 for 8-bit timer, 16 for 16-bit timer */
+    static constexpr uint8_t maximumPower2 = sizeof(value_t) * 8;
+};
+
+template <typename _value_t, typename prescaler_t, prescaler_t _prescaler>
+class Prescaled: public Counting<_value_t> {
+    typedef PrescalerMeta<prescaler_t,_prescaler> Meta;
+public:
     static constexpr prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;
     template <uint32_t usecs>
-    static constexpr value_t microseconds2counts() {
+    static constexpr _value_t microseconds2counts() {
         static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 > 1,
                 "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<value_t>::max(),
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<_value_t>::max(),
                 "Number of counts for microseconds does not fit in value_t, you might want to increase the timer prescaler.");
         return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
     }
     template <uint32_t msecs>
-    static constexpr value_t milliseconds2counts() {
+    static constexpr _value_t milliseconds2counts() {
         static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs > 1,
                 "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<value_t>::max(),
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<_value_t>::max(),
                 "Number of counts for milliseconds does not fit in value_t, you might want to increase the timer prescaler.");
         return (F_CPU >> prescalerPower2) / 1000 * msecs;
     }
 };
 
 template <typename info>
-class TimerComparator {
+class TimerComparator: public Counting<typename info::value_t> {
 public:
+    typedef typename info::timer_info_t timer_info_t;
 
     inline typename info::value_t getValue() const {
         return *info::tcnt;
@@ -264,7 +274,7 @@ public:
 };
 
 template <typename info, typename comparator_a_t, typename comparator_b_t>
-class Timer {
+class Timer: public Counting<typename info::value_t> {
 public:
     typedef info timer_info_t;
     typedef comparator_a_t comparatorA_t;
@@ -295,10 +305,6 @@ public:
     inline comparator_b_t &comparatorB() {
         return comparator_b;
     }
-
-    static constexpr typename info::value_t maximum = std::numeric_limits<typename info::value_t>::max();
-    /** 8 for 8-bit timer, 16 for 16-bit timer */
-    static constexpr uint8_t maximumPower2 = sizeof(typename info::value_t) * 8;
 };
 
 template <typename info, typename info::prescaler_t _prescaler, typename comparator_a_t, typename comparator_b_t>
@@ -368,6 +374,7 @@ struct Timer0Info {
 
     struct Comparator {
         typedef uint8_t value_t;
+        typedef Timer0Info timer_info_t;
         static constexpr volatile uint8_t *tcnt = &TCNT0;
         static constexpr volatile uint8_t *timsk = &TIMSK0;
         static constexpr volatile uint8_t *tifr = &TIFR0;
@@ -402,9 +409,6 @@ struct Timer1Info {
 
     static constexpr InterruptChain* intHandler = &tm1int;
 
-    static constexpr uint16_t maximum = 65535;
-    static constexpr uint8_t maximumPower2 = 16;
-
     typedef uint16_t value_t;
     typedef ExtPrescaler prescaler_t;
 
@@ -427,6 +431,7 @@ struct Timer1Info {
 
     struct Comparator {
         typedef uint16_t value_t;
+        typedef Timer1Info timer_info_t;
         static constexpr volatile uint16_t *tcnt = &TCNT1;
         static constexpr volatile uint8_t *timsk = &TIMSK1;
         static constexpr volatile uint8_t *tifr = &TIFR1;
@@ -460,9 +465,6 @@ struct Timer2Info {
 
     static constexpr InterruptChain* intHandler = &tm2int;
 
-    static constexpr uint8_t maximum = 255;
-    static constexpr uint8_t maximumPower2 = 8;
-
     typedef uint8_t value_t;
     typedef IntPrescaler prescaler_t;
 
@@ -484,6 +486,7 @@ struct Timer2Info {
 
     struct Comparator {
         typedef uint8_t value_t;
+        typedef Timer2Info timer_info_t;
         static constexpr volatile uint8_t *tcnt = &TCNT2;
         static constexpr volatile uint8_t *timsk = &TIMSK2;
         static constexpr volatile uint8_t *tifr = &TIFR2;

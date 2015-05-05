@@ -5,15 +5,19 @@
 #include "FS20Packet.hpp"
 #include <util/parity.h>
 
+namespace FS20 {
+
+using namespace TimeUnits;
+
 template <typename pulsecounter_t, uint8_t fifoSize = 32>
 class FS20Decoder {
-    typedef typename pulsecounter_t::PulseEvent Event;
-    typedef typename pulsecounter_t::Timer Timer;
+    typedef typename pulsecounter_t::comparator_t comparator_t;
     typedef typename pulsecounter_t::count_t count_t;
+    typedef PulseEvent<count_t> Event;
 
 public:
-    static constexpr count_t zero_length = Timer::microseconds2counts(400); // 256: 24     64: 100
-    static constexpr count_t one_length = Timer::microseconds2counts(600);  // 256: 37     64: 150
+    static constexpr count_t zero_length  = (400_us).template toCounts<comparator_t>();
+    static constexpr count_t one_length  = (600_us).template toCounts<comparator_t>();
 
     enum class State { SYNC, RECEIVING };
 
@@ -159,4 +163,12 @@ public:
     }
 };
 
+}
+
+using FS20::FS20Decoder;
+
+template <typename pulsecounter_t, uint8_t fifoSize = 32>
+FS20Decoder<pulsecounter_t, fifoSize> fs20Decoder(const pulsecounter_t &counter) {
+    return FS20Decoder<pulsecounter_t, fifoSize>();
+}
 #endif

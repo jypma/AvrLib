@@ -284,8 +284,8 @@ public:
     inline PinD3(timer2_t &_timer): PinOnComparatorB<PinD3Info,timer2_t>(_timer) {}
 };
 typedef Pin<PinD4Info> PinD4;
-template <typename timer0_t = NoTimer> using PinD5 = PinOnComparatorA<PinD5Info,timer0_t>;
-template <typename timer0_t = NoTimer> using PinD6 = PinOnComparatorB<PinD6Info,timer0_t>;
+template <typename timer0_t = NoTimer> using PinD5 = PinOnComparatorB<PinD5Info,timer0_t>;
+template <typename timer0_t = NoTimer> using PinD6 = PinOnComparatorA<PinD6Info,timer0_t>;
 typedef Pin<PinD7Info> PinD7;
 typedef Pin<PinD8Info> PinD8;
 template <typename timer1_t = NoTimer> using PinD9 = PinOnComparatorA<PinD9Info,timer1_t>;

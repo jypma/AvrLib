@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "SerialTx.hpp"
+#include "RS232.hpp"
 
 namespace SerialTxTest {
 
