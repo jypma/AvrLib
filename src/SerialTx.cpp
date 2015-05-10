@@ -1,15 +1,16 @@
 #include "SerialTx.hpp"
 #include "AtomicScope.hpp"
+#include "Debug.hpp"
 
 bool SerialConfig::prefixBit(uint8_t bitIndex) const {
-    uint8_t b = prefix[bitIndex / 8];
-    uint8_t bit = bitIndex % 8;
+    uint8_t b = prefix[bitIndex >> 3];
+    uint8_t bit = bitIndex & 7;
     return (b >> bit) & 1;
 }
 
 bool SerialConfig::postfixBit(uint8_t bitIndex) const {
-    uint8_t b = postfix[bitIndex / 8];
-    uint8_t bit = bitIndex % 8;
+    uint8_t b = postfix[bitIndex >> 3];
+    uint8_t bit = bitIndex & 7;
     return (b >> bit) & 1;
 }
 
@@ -17,12 +18,20 @@ bool SerialConfig::hasPulseBForBit(bool bit) const {
     return (bit) ? one_b.isDefined() : zero_b.isDefined();
 }
 
-bool AbstractSerialSource::getCurrentBit() const {
+bool AbstractSerialSource::getCurrentBit() {
+    bool result;
     switch(bitState) {
       case SerialBitState::PREFIX: return config->prefixBit(bitIndex);
-      case SerialBitState::DATA: return (config->bitOrder == SerialBitOrder::LSB_FIRST) ?
-                                        (currentByte >> bitIndex) & 1 :
-                                        (currentByte << bitIndex) & 128;
+      case SerialBitState::DATA_LSB:
+          result = currentByteBits & 1;
+          currentByteBits >>= 1;
+          return result;
+          //return (currentByte >> bitIndex) & 1;
+      case SerialBitState::DATA_MSB:
+          result = currentByteBits & 128;
+          currentByteBits <<= 1;
+          return result;
+          //return (currentByte << bitIndex) & 128;
       case SerialBitState::PARITY_BIT:
           return (config->parity == SerialParity::EVEN) ?
                                        parity_even_bit(currentByte) :
@@ -38,13 +47,13 @@ Pulse AbstractSerialSource::getCurrentPulse() const {
         return Pulse::empty();
     } else {
         if (pulseState == SerialPulseState::A) {
-            if (currentBit != 0) {
+            if (currentBit) {
                 return config->one_a;
             } else {
                 return config->zero_a;
             }
         } else {
-            if (currentBit != 0) {
+            if (currentBit) {
                 return config->one_b;
             } else {
                 return config->zero_b;
@@ -58,9 +67,10 @@ void ChunkPulseSource::nextDataByte() {
     pulseState = SerialPulseState::A;
     if (fifo->hasReadAvailable()) {
         fifo->read(currentByte);
-        bitState = SerialBitState::DATA;
+        currentByteBits = currentByte;
+        bitState = config->bitOrder == SerialBitOrder::LSB_FIRST ? SerialBitState::DATA_LSB : SerialBitState::DATA_MSB;
     } else {
-        bitState = (config->hasParity() && bitState == SerialBitState::DATA) ? SerialBitState::PARITY_BIT :
+        bitState = (config->hasParity() && (bitState == SerialBitState::DATA_LSB || bitState == SerialBitState::DATA_MSB)) ? SerialBitState::PARITY_BIT :
                    (config->postfix_bits > 0) ? SerialBitState::POSTFIX : SerialBitState::AFTER;
     }
 }
@@ -71,13 +81,14 @@ void ChunkPulseSource::nextBit() {
     case SerialBitState::PREFIX:
         bitIndex++;
         if (bitIndex >= config->prefix_bits) {
-            bitState = SerialBitState::DATA;
+            bitState = config->bitOrder == SerialBitOrder::LSB_FIRST ? SerialBitState::DATA_LSB : SerialBitState::DATA_MSB;
             bitIndex = 0;
             nextDataByte();
         }
         break;
 
-    case SerialBitState::DATA:
+    case SerialBitState::DATA_MSB:
+    case SerialBitState::DATA_LSB:
         bitIndex++;
         if (bitIndex >= 8) {
             if (config->hasParity()) {
@@ -156,12 +167,13 @@ void StreamPulseSource::nextBit() {
     case SerialBitState::PREFIX:
         bitIndex++;
         if (bitIndex >= config->prefix_bits) {
-            bitState = SerialBitState::DATA;
+            bitState = config->bitOrder == SerialBitOrder::LSB_FIRST ? SerialBitState::DATA_LSB : SerialBitState::DATA_MSB;
             bitIndex = 0;
         }
         break;
 
-    case SerialBitState::DATA:
+    case SerialBitState::DATA_LSB:
+    case SerialBitState::DATA_MSB:
         bitIndex++;
         if (bitIndex >= 8) {
             if (config->hasParity()) {
@@ -206,9 +218,10 @@ Pulse StreamPulseSource::getNextPulse() {
 
     if (bitState == SerialBitState::BEFORE) {
         bitIndex = 0;
-        if (fifo->hasContent()) {
-            fifo->read(currentByte);
-            bitState = (config->prefix_bits > 0) ? SerialBitState::PREFIX : SerialBitState::DATA;
+        if (fifo->fastread(currentByte)) {
+            currentByteBits = currentByte;
+            bitState = (config->prefix_bits > 0) ? SerialBitState::PREFIX :
+                       (config->bitOrder == SerialBitOrder::LSB_FIRST) ? SerialBitState::DATA_LSB : SerialBitState::DATA_MSB;
         }
         if (bitState != SerialBitState::BEFORE && bitState != SerialBitState::AFTER) {
             currentBit = getCurrentBit();

@@ -5,14 +5,13 @@ AbstractFifo *usart0writeFifo = nullptr;
 
 ISR(USART_UDRE_vect)
 {
-    if (usart0writeFifo == nullptr || usart0writeFifo->isEmpty()) {
+    uint8_t next;
+    if (usart0writeFifo != nullptr && usart0writeFifo->fastread(next)) {
+        // There is more data in the output buffer. Send the next byte
+        UDR0 = next;
+    } else {
         // Buffer empty, so disable interrupts
         UCSR0B &= ~_BV(UDRIE0);
-    } else {
-        // There is more data in the output buffer. Send the next byte
-        uint8_t next;
-        usart0writeFifo->read(next);
-        UDR0 = next;
     }
 }
 

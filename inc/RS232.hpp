@@ -16,24 +16,23 @@ private:
     static const uint8_t postfix[];
 public:
     template <typename prescaled_t, uint32_t bits_per_second = 57600>
-    static SerialConfig serialConfig_8n1() {
-        using namespace TimeUnits;
-
+    struct _8n1 {
         // TODO put static_assert here that errors out on bit rate errors > 3% ???
         // Or do varying pulse lenghts
-        constexpr auto bit_length = prescaled_t::template microseconds2counts<1000000 / bits_per_second>();
+        static constexpr typename prescaled_t::value_t bit_length = prescaled_t::template microseconds2counts<1000000l / bits_per_second>();
+        static_assert(bit_length > prescaled_t::template microseconds2counts<30>(), "bits_per_second must be low enough so that a single bit is more than 25us, since the software serial implementation is so slow.");
 
-        return SerialConfig {
+        static constexpr SerialConfig serialconfig = SerialConfig {
             /* highOnIdle */ true,
             prefix, 1,
-            Pulse(true, bit_length),
-            Pulse::empty(),
             Pulse(false, bit_length),
+            Pulse::empty(),
+            Pulse(true, bit_length),
             Pulse::empty(),
             SerialParity::NONE,
             SerialBitOrder::LSB_FIRST,
             postfix, 1 };
-    }
+    };
 };
 
 #endif /* RS232_HPP_ */

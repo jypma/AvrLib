@@ -18,6 +18,8 @@
 template <typename info>
 class Pin {
 public:
+    typedef info info_t;
+
     void configureAsOutput() const {
         info::configureAsGPIO();
         *info::ddr |= info::bitmask;
@@ -173,7 +175,9 @@ class PinOnComparatorB<pinInfo, timer_t, typename std::enable_if<std::is_same<ti
 };
 
 template <typename pinInfo, typename timer_t>
-class PinOnComparatorB<pinInfo, timer_t, typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>: public Pin<pinInfo> {
+class PinOnComparatorB<pinInfo, timer_t, typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>:
+    public Pin<pinInfo>,
+    public Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
     timer_t *t;
 public:
     typedef typename timer_t::comparatorB_t comparator_t;
@@ -183,6 +187,42 @@ public:
     }
     inline timer_t &timer() const {
         return *t;
+    }
+
+    void setHigh (bool on) const {
+        if (on) {
+            setHigh();
+        } else {
+            setLow();
+        }
+    }
+
+    void setHigh() const {
+        *pinInfo::port |= pinInfo::bitmask;
+        if (timerComparator().isOutputConnected()) {
+            // If one of the timer comparator modes is enabled, the pin's port bit actually doesnt do anything.
+            // Instead, we change output mode. This only works for non-PWM modes, but during PWM it doesn't make
+            // sense to call setHigh() anyways.
+
+            // TODO move this hack so it only is present on PinOnComparatorA/B that are linked to a NonPWMComparator
+            typedef typename comparator_t::comparator_info_t info;
+            *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(NonPWMOutputMode::high_on_match) << info::output_mode_bitstart);
+            *info::tccrb |= (1 << info::foc);
+        }
+    }
+
+    void setLow() const {
+        *pinInfo::port &= ~pinInfo::bitmask;
+        if (timerComparator().isOutputConnected()) {
+            // If one of the timer comparator modes is enabled, the pin's port bit actually doesnt do anything.
+            // Instead, we change output mode. This only works for non-PWM modes, but during PWM it doesn't make
+            // sense to call setHigh() anyways.
+
+            // TODO move this hack so it only is present on PinOnComparatorA/B that are linked to a NonPWMComparator
+            typedef typename comparator_t::comparator_info_t info;
+            *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(NonPWMOutputMode::low_on_match) << info::output_mode_bitstart);
+            *info::tccrb |= (1 << info::foc);
+        }
     }
 };
 
@@ -259,21 +299,38 @@ struct PinD12Info: public PinOnPortB<4>, public GPIOPin {};
 struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
 struct PinA0Info: public PinOnPortC<0>, public GPIOPin {
     static constexpr InterruptChain* pinChange = &_pcint8_handler;
+    static constexpr uint8_t adc_mux = 0;
 };
 struct PinA1Info: public PinOnPortC<1>, public GPIOPin {
     static constexpr InterruptChain* pinChange = &_pcint9_handler;
+    static constexpr uint8_t adc_mux = 1;
 };
 struct PinA2Info: public PinOnPortC<2>, public GPIOPin {
     static constexpr InterruptChain* pinChange = &_pcint10_handler;
+    static constexpr uint8_t adc_mux = 2;
 };
 struct PinA3Info: public PinOnPortC<3>, public GPIOPin {
     static constexpr InterruptChain* pinChange = &_pcint11_handler;
+    static constexpr uint8_t adc_mux = 3;
 };
 struct PinA4Info: public PinOnPortC<4>, public GPIOPin {
     static constexpr InterruptChain* pinChange = &_pcint12_handler;
+    static constexpr uint8_t adc_mux = 4;
 };
 struct PinA5Info: public PinOnPortC<5>, public GPIOPin {
     static constexpr InterruptChain* pinChange = &_pcint13_handler;
+    static constexpr uint8_t adc_mux = 5;
+};
+struct PinA6Info {
+    static constexpr uint8_t adc_mux = 6;
+};
+struct PinA7Info {
+    static constexpr uint8_t adc_mux = 7;
+};
+
+template <typename pinInfo>
+class ADCOnlyPin {
+    typedef pinInfo info_t;
 };
 
 typedef Pin<PinD0Info> PinD0;
@@ -293,6 +350,14 @@ template <typename timer1_t = NoTimer> using PinD10 = PinOnComparatorB<PinD10Inf
 template <typename timer2_t = NoTimer> using PinD11 = PinOnComparatorA<PinD11Info,timer2_t>;
 typedef Pin<PinD12Info> PinD12;
 typedef Pin<PinD13Info> PinD13;
+
 typedef ChangeInterruptPin<PinA0Info> PinA0;
+typedef ChangeInterruptPin<PinA1Info> PinA1;
+typedef ChangeInterruptPin<PinA2Info> PinA2;
+typedef ChangeInterruptPin<PinA3Info> PinA3;
+typedef ChangeInterruptPin<PinA4Info> PinA4;
+typedef ChangeInterruptPin<PinA5Info> PinA5;
+typedef ADCOnlyPin<PinA6Info> PinA6;
+typedef ADCOnlyPin<PinA7Info> PinA7;
 
 #endif /* INTERRUPT_H_ */

@@ -40,9 +40,11 @@ struct MockPin {
 };
 
 uint8_t expect_zero(uint8_t start, MockComparator &comparator, MockPin &pin) {
+    std::cout << "expect zero invoke A" << std::endl;
     EXPECT_EQ(uint8_t(start + 10), comparator.target);
     EXPECT_FALSE(pin.high);
     comparator.i.invoke();
+    std::cout << "expect zero invoke B" << std::endl;
     EXPECT_EQ(uint8_t(start + 10 + 20), comparator.target);
     EXPECT_TRUE(pin.high);
     comparator.i.invoke();
@@ -50,9 +52,11 @@ uint8_t expect_zero(uint8_t start, MockComparator &comparator, MockPin &pin) {
 }
 
 uint8_t expect_one(uint8_t start, MockComparator &comparator, MockPin &pin) {
+    std::cout << "expect one invoke A" << std::endl;
     EXPECT_EQ(uint8_t(start + 30), comparator.target);
     EXPECT_TRUE(pin.high);
     comparator.i.invoke();
+    std::cout << "expect one invoke B" << std::endl;
     EXPECT_EQ(uint8_t(start + 30 + 40), comparator.target);
     EXPECT_FALSE(pin.high);
     comparator.i.invoke();

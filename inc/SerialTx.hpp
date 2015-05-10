@@ -51,7 +51,7 @@ struct SerialConfig {
 
 //TODO should be private. We could do without AFTER.
 enum class SerialBitState: uint8_t {
-    BEFORE, PREFIX, DATA, PARITY_BIT, POSTFIX, AFTER
+    BEFORE, PREFIX, DATA_LSB, DATA_MSB, PARITY_BIT, POSTFIX, AFTER
 };
 enum class SerialPulseState: uint8_t {
     A, B
@@ -65,9 +65,9 @@ protected:
     uint8_t bitIndex = 0;
     bool currentBit = false;
     SerialPulseState pulseState = SerialPulseState::A;
-    uint8_t currentByte = 0;
+    uint8_t currentByte, currentByteBits = 0;
 
-    bool getCurrentBit() const;
+    bool getCurrentBit();
 
     Pulse getCurrentPulse() const;
 public:

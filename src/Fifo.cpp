@@ -59,7 +59,7 @@ uint8_t AbstractFifo::getRemaining(void *delegate) {
 bool AbstractFifo::isReading(void *delegate) {
     return ((AbstractFifo*)delegate)->isReading();
 }
-
+/*
 uint8_t AbstractFifo::markedOrWritePos() const {
     return (writeMark == NO_MARK) ? writePos : writeMark;
 }
@@ -67,7 +67,7 @@ uint8_t AbstractFifo::markedOrWritePos() const {
 uint8_t AbstractFifo::markedOrReadPos() const {
     return (readMark == NO_MARK) ? readPos : readMark;
 }
-
+*/
 uint8_t AbstractFifo::getSize() const {
     AtomicScope _;
     return (markedOrWritePos() > markedOrReadPos()) ? markedOrWritePos() - markedOrReadPos() :
@@ -80,7 +80,10 @@ bool AbstractFifo::append(uint8_t b) {
 
     if (hasSpace()) {
         buffer[writePos] = b;
-        writePos = (writePos + 1) % bufferSize;
+        writePos++;
+        if (writePos >= bufferSize) {
+            writePos -= bufferSize;
+        }
         return true;
     } else {
         return false;
@@ -91,7 +94,10 @@ bool AbstractFifo::reserve(volatile uint8_t * &ptr) {
     AtomicScope _;
     if (isWriteMarked() && hasSpace()) {
         ptr = buffer + writePos;
-        writePos = (writePos + 1) % bufferSize;
+        writePos++;
+        if (writePos >= bufferSize) {
+            writePos -= bufferSize;
+        }
         return true;
     } else {
         return false;
@@ -103,7 +109,10 @@ bool AbstractFifo::read(uint8_t &b) {
 
     if (hasContent()) {
         b = buffer[readPos];
-        readPos = (readPos + 1) % bufferSize;
+        readPos++;
+        if (readPos >= bufferSize) {
+            readPos -= bufferSize;
+        }
         return true;
     } else {
         return false;

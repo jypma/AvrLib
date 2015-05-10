@@ -40,8 +40,12 @@ class AbstractFifo {
     uint8_t writeMark = NO_MARK;
     uint8_t readMark = NO_MARK;
 
-    uint8_t markedOrWritePos() const;
-    uint8_t markedOrReadPos() const;
+    inline uint8_t markedOrWritePos() const {
+        return (writeMark == NO_MARK) ? writePos : writeMark;
+    }
+    inline uint8_t markedOrReadPos() const {
+        return (readMark == NO_MARK) ? readPos : readMark;
+    }
 public:
     AbstractFifo(uint8_t * const _buffer, const uint8_t _bufferSize): buffer(_buffer), bufferSize(_bufferSize) {}
 
@@ -111,6 +115,19 @@ public:
     Writer out();
 
     Reader in();
+
+    /** Only for use in interrupts. Inlined, and does not disable interrupt flag. */
+    inline bool fastread(uint8_t &b) {
+        const bool avail = markedOrWritePos() != readPos;
+        if (avail) {
+            b = buffer[readPos];
+            readPos++;
+            if (readPos >= bufferSize) {
+                readPos -= bufferSize;
+            }
+        }
+        return avail;
+    }
 };
 
 /**

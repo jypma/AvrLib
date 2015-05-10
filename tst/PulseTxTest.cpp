@@ -19,7 +19,7 @@ struct MockComparator {
     value_t target = 0;
     NonPWMOutputMode outputMode = NonPWMOutputMode::disconnected;
 
-    void output(NonPWMOutputMode mode) {
+    void setOutput(NonPWMOutputMode mode) {
         outputMode = mode;
     }
 
@@ -105,6 +105,8 @@ TEST(PulseTxTest, multiple_pulses_on_software_target_can_be_sent) {
 
 struct MockHardwarePin {
     typedef MockComparator comparator_t;
+    typedef uint8_t value_t;
+
     comparator_t comp;
 
     inline comparator_t &timerComparator() {
@@ -135,14 +137,11 @@ TEST(PulseTxTest, single_pulse_on_comparators_pwm_pin_can_be_sent) {
     tx.sendFromSource();
 
     EXPECT_TRUE(pin.high);
-    EXPECT_TRUE(pin.comp.isInterruptOn);
+    EXPECT_FALSE(pin.comp.isInterruptOn); // a single pulse doesn't need the interrupt being invoked. It'll simply go low on match.
     EXPECT_EQ(55, pin.comp.target);
     EXPECT_EQ(NonPWMOutputMode::low_on_match, pin.comp.outputMode);
 
-    pin.comp.i.invoke();
-    EXPECT_FALSE(pin.high);
-    EXPECT_FALSE(pin.comp.isInterruptOn);
-    EXPECT_EQ(NonPWMOutputMode::disconnected, pin.comp.outputMode);
+    // no further assertions, we'll leave the pin at the comparator's mercy for now.
 }
 
 TEST(PulseTxTest, multiple_pulses_on_comparators_pwm_pin_can_be_sent) {
@@ -170,14 +169,11 @@ TEST(PulseTxTest, multiple_pulses_on_comparators_pwm_pin_can_be_sent) {
     EXPECT_EQ(NonPWMOutputMode::high_on_match, pin.comp.outputMode);
 
     pin.comp.i.invoke();
-    EXPECT_TRUE(pin.comp.isInterruptOn);
+    EXPECT_FALSE(pin.comp.isInterruptOn);  // no interrupt for the last pulse. It'll simply go low on match.
     EXPECT_EQ(107, pin.comp.target);
     EXPECT_EQ(NonPWMOutputMode::low_on_match, pin.comp.outputMode);
 
-    pin.comp.i.invoke();
-    EXPECT_FALSE(pin.high);
-    EXPECT_FALSE(pin.comp.isInterruptOn);
-    EXPECT_EQ(NonPWMOutputMode::disconnected, pin.comp.outputMode);
+    // no further assertions, we'll leave the pin at the comparator's mercy for now.
 }
 
 }

@@ -178,11 +178,12 @@ public:
     static constexpr uint8_t maximumPower2 = sizeof(value_t) * 8;
 };
 
-template <typename _value_t, typename prescaler_t, prescaler_t _prescaler>
+template <typename _value_t, typename _prescaler_t, _prescaler_t _prescaler>
 class Prescaled: public Counting<_value_t> {
-    typedef PrescalerMeta<prescaler_t,_prescaler> Meta;
+    typedef PrescalerMeta<_prescaler_t,_prescaler> Meta;
 public:
-    static constexpr prescaler_t prescaler = _prescaler;
+    typedef _prescaler_t prescaler_t;
+    static constexpr _prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;
     template <uint32_t usecs>
     static constexpr _value_t microseconds2counts() {
@@ -206,6 +207,7 @@ template <typename info>
 class TimerComparator: public Counting<typename info::value_t> {
 public:
     typedef typename info::timer_info_t timer_info_t;
+    typedef info comparator_info_t;
 
     inline typename info::value_t getValue() const {
         return *info::tcnt;
@@ -220,6 +222,11 @@ public:
     inline void interruptOff() const {
         *info::timsk &= ~_BV(info::timsk_bit);
     }
+
+    inline bool isOutputConnected() {
+        return (*info::tccra & info::output_mode_bitmask) >> info::output_mode_bitstart != 0;
+    }
+
 };
 
 enum class NonPWMOutputMode: uint8_t {
@@ -236,7 +243,7 @@ public:
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
      * pin whenever the comparator matches.
      */
-    void output(NonPWMOutputMode mode) const {
+    void setOutput(NonPWMOutputMode mode) const {
         *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
     }
     /**
@@ -245,6 +252,10 @@ public:
      */
     inline void setTarget(typename info::value_t value) {
         *info::ocr = value;
+    }
+
+    void applyOutput() {
+        *info::tccrb |= (1 << info::foc);
     }
 };
 
@@ -261,7 +272,7 @@ public:
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
      * pin whenever the comparator matches.
      */
-    void output(FastPWMOutputMode mode) const {
+    void setOutput(FastPWMOutputMode mode) const {
         *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
     }
     /**
@@ -379,6 +390,7 @@ struct Timer0Info {
         static constexpr volatile uint8_t *timsk = &TIMSK0;
         static constexpr volatile uint8_t *tifr = &TIFR0;
         static constexpr volatile uint8_t *tccra = &TCCR0A;
+        static constexpr volatile uint8_t *tccrb = &TCCR0B;
     };
 
     struct ComparatorA: public Comparator {
@@ -388,7 +400,7 @@ struct Timer0Info {
         static constexpr InterruptChain* handler = &tm0ocra;
         static constexpr uint8_t output_mode_bitmask = (1 << COM0A0) | (1 << COM0A1);
         static constexpr uint8_t output_mode_bitstart = COM0A0;
-
+        static constexpr uint8_t foc = FOC0A;
     };
     struct ComparatorB: public Comparator {
         static constexpr volatile uint8_t *ocr = &OCR0B;
@@ -397,6 +409,7 @@ struct Timer0Info {
         static constexpr InterruptChain* handler = &tm0ocrb;
         static constexpr uint8_t output_mode_bitmask = (1 << COM0B0) | (1 << COM0B1);
         static constexpr uint8_t output_mode_bitstart = COM0B0;
+        static constexpr uint8_t foc = FOC0B;
     };
 };
 
@@ -436,6 +449,7 @@ struct Timer1Info {
         static constexpr volatile uint8_t *timsk = &TIMSK1;
         static constexpr volatile uint8_t *tifr = &TIFR1;
         static constexpr volatile uint8_t *tccra = &TCCR1A;
+        static constexpr volatile uint8_t *tccrb = &TCCR1B;
     };
 
     struct ComparatorA: public Comparator {
@@ -445,6 +459,7 @@ struct Timer1Info {
         static constexpr InterruptChain* handler = &tm1ocra;
         static constexpr uint8_t output_mode_bitmask = (1 << COM1A0) | (1 << COM1A1);
         static constexpr uint8_t output_mode_bitstart = COM1A0;
+        static constexpr uint8_t foc = FOC1A;
     };
     struct ComparatorB: public Comparator {
         static constexpr volatile uint16_t *ocr = &OCR1B;
@@ -453,6 +468,7 @@ struct Timer1Info {
         static constexpr InterruptChain* handler = &tm1ocrb;
         static constexpr uint8_t output_mode_bitmask = (1 << COM1B0) | (1 << COM1B1);
         static constexpr uint8_t output_mode_bitstart = COM1B0;
+        static constexpr uint8_t foc = FOC1B;
     };
 };
 
@@ -491,6 +507,7 @@ struct Timer2Info {
         static constexpr volatile uint8_t *timsk = &TIMSK2;
         static constexpr volatile uint8_t *tifr = &TIFR2;
         static constexpr volatile uint8_t *tccra = &TCCR2A;
+        static constexpr volatile uint8_t *tccrb = &TCCR2B;
     };
 
     struct ComparatorA: public Comparator {
@@ -500,6 +517,7 @@ struct Timer2Info {
         static constexpr InterruptChain* handler = &tm2ocra;
         static constexpr uint8_t output_mode_bitmask = (1 << COM2A0) | (1 << COM2A1);
         static constexpr uint8_t output_mode_bitstart = COM2A0;
+        static constexpr uint8_t foc = FOC2A;
     };
     struct ComparatorB: public Comparator {
         static constexpr volatile uint8_t *ocr = &OCR2B;
@@ -508,6 +526,7 @@ struct Timer2Info {
         static constexpr InterruptChain* handler = &tm2ocrb;
         static constexpr uint8_t output_mode_bitmask = (1 << COM2B0) | (1 << COM2B1);
         static constexpr uint8_t output_mode_bitstart = COM2B0;
+        static constexpr uint8_t foc = FOC2B;
     };
 };
 
