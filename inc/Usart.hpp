@@ -63,6 +63,15 @@ public:
         // clear the TXC bit -- "can be cleared by writing a one to its bit location"
         *info::ucsra |= _BV(TXC0);
     }
+
+    static void flush() {
+        if (info::fifo != nullptr) {
+            while (info::fifo->hasContent()) ;
+        }
+
+        while (*info::ucsrb & _BV(UDRIE0)) ;
+        while ((*info::ucsra & _BV(TXC0)) == 0) ;
+    }
 };
 
 struct Usart0Info {
