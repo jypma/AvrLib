@@ -93,6 +93,7 @@ private:
     Fifo<fifo_length> fifo;
     count_t start = comparator->getValue();
     bool wasEmptyPeriod = true;
+    bool lastWasTimeout = false;
 
     _comparator_t *const comparator;
     pin_t *const pin;
@@ -103,10 +104,13 @@ private:
         const PulseEvent<count_t> evt(start, end, pin->isHigh());
         if (evt.getLength() > minimumLength) {
            fifo.out() << evt;
-        } /*else {
-           TODO consider fifo.clear() here? or what?
-           fifo.out() << PulseType::TIMEOUT;
-        }*/
+           lastWasTimeout = false;
+        } else {
+            if (!lastWasTimeout) {
+                fifo.out() << PulseType::TIMEOUT;
+                lastWasTimeout = true;
+            }
+        }
         wasEmptyPeriod = false;
         comparator->interruptOn();
         start = end;
@@ -117,6 +121,7 @@ private:
             if (!(fifo.out() << PulseType::TIMEOUT)) {
                 fifo.clear();
                 fifo.out() << PulseType::TIMEOUT;
+                lastWasTimeout = true;
             }
             comparator->interruptOff();
         } else {

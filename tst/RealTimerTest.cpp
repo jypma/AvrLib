@@ -4,6 +4,9 @@
 #include <thread>
 
 struct MockTimer {
+    typedef uint8_t value_t;
+    typedef uint8_t prescaler_t;
+    static constexpr uint8_t prescaler = 8;
     InterruptChain interrupt;
     uint8_t value = 0;
     static constexpr uint8_t maximumPower2 = 8;
@@ -24,7 +27,7 @@ struct MockTimer {
 
 MockTimer t1;
 TEST(RealTimerTest, timer_callback_increments_time) {
-    RealTimer<MockTimer, &t1> rt;
+    auto rt = realTimer(t1);
 
     EXPECT_EQ(0, rt.counts());
     EXPECT_EQ(0, rt.millis());
@@ -43,7 +46,7 @@ void wait2() {
 }
 MockTimer t2;
 TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called) {
-    RealTimer<MockTimer, &t2, 0, &wait2> rt;
+    RealTimer<MockTimer, 0, &wait2> rt(t2);
 
     std::thread background([]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -63,7 +66,7 @@ void wait3() {
 }
 MockTimer t3;
 TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparound) {
-    RealTimer<MockTimer, &t3, 0xFFFFFFFF, &wait3> rt;
+    RealTimer<MockTimer, 0xFFFFFFFF, &wait3> rt(t3);
 
     std::thread background([]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

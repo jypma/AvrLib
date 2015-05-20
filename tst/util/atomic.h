@@ -1,0 +1,1 @@
+#define ATOMIC_BLOCK(TYPE)

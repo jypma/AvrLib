@@ -18,11 +18,12 @@ inline void noop() {
 
 extern uint8_t _watchdogCounter;
 
-template<typename prescaled, prescaled *timer, uint32_t initialTicks = 0, void (*wait)() = noop>
-class RealTimer {
-    typedef RealTimer<prescaled,timer,initialTicks,wait> This;
+template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = noop>
+class RealTimer: public Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
+    typedef RealTimer<timer_t,initialTicks,wait> This;
 
     volatile uint32_t _ticks = initialTicks;
+    timer_t *timer;
 
     void tick() {
        _ticks++;
@@ -65,7 +66,7 @@ class RealTimer {
     }
 
 public:
-    RealTimer() {
+    RealTimer(timer_t &_timer): timer(&_timer) {
         timer->interruptOnOverflow().attach(tickH);
         timer->interruptOnOverflowOn();
     }
@@ -83,7 +84,7 @@ public:
      */
     uint32_t counts() const {
         AtomicScope _;
-        return (_ticks << prescaled::maximumPower2) | timer->getValue();
+        return (_ticks << timer_t::maximumPower2) | timer->getValue();
     }
 
     uint64_t micros() const {
@@ -96,7 +97,7 @@ public:
         // divide by 16 ( >> 4) to go from clock ticks to microseconds
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
 
-        return ((((uint64_t)_ticks) << prescaled::prescalerPower2) / 16) << prescaled::maximumPower2;
+        return ((((uint64_t)_ticks) << timer_t::prescalerPower2) / 16) << timer_t::maximumPower2;
     }
 
     uint64_t millis() const {
@@ -110,7 +111,7 @@ public:
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
         // divide by 1000 to get milliseconds
 
-        return (((((uint64_t)_ticks) << prescaled::prescalerPower2) / 16) << prescaled::maximumPower2) / 1000;
+        return (((((uint64_t)_ticks) << timer_t::prescalerPower2) / 16) << timer_t::maximumPower2) / 1000;
     }
 
     void delayTicks(uint32_t ticksDelay) const {
@@ -129,7 +130,7 @@ public:
     }
 
     void delayMillis(uint16_t millisDelay) const {
-        uint32_t ticksDelay = (((((uint32_t)millisDelay) * 1000) >> prescaled::maximumPower2) * 16) >> prescaled::prescalerPower2;
+        uint32_t ticksDelay = (((((uint32_t)millisDelay) * 1000) >> timer_t::maximumPower2) * 16) >> timer_t::prescalerPower2;
         delayTicks(ticksDelay);
     }
 
@@ -165,7 +166,7 @@ public:
 
         // adjust ticks for the delay we've just had
         millisSleep -= msleft;
-        uint32_t ticksDelay = (((((uint32_t)millisSleep) * 1000) >> prescaled::maximumPower2) * 16) >> prescaled::prescalerPower2;
+        uint32_t ticksDelay = (((((uint32_t)millisSleep) * 1000) >> timer_t::maximumPower2) * 16) >> timer_t::prescalerPower2;
         { AtomicScope _;
           _ticks += ticksDelay;
         }
@@ -174,4 +175,44 @@ public:
     }
 };
 
+template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = noop>
+RealTimer<timer_t,initialTicks,wait> realTimer(timer_t &timer) {
+    return RealTimer<timer_t,initialTicks,wait>(timer);
+}
+
+
+template <typename rt_t, typename value>
+class Periodic {
+    static constexpr uint16_t countsDelay = value::template toCounts<rt_t>();
+
+    uint32_t nextCounts;
+    rt_t *rt;
+
+    void calculateNextCounts(uint32_t startTime) {
+        if (uint32_t(0xFFFFFFFF) - startTime < countsDelay) {
+            // we expect an integer wraparound.
+            // first, wait for the int to overflow (with some margin)
+            while (rt->counts() > 5) ;
+        }
+        nextCounts = startTime + countsDelay;
+    }
+public:
+    Periodic(rt_t &_rt): rt(&_rt) {
+        calculateNextCounts(rt->counts());
+    }
+
+    bool isNow() {
+        if (rt->counts() >= nextCounts) {
+            calculateNextCounts(nextCounts);
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
+
+template <typename rt_t, typename value_t>
+Periodic<rt_t,value_t> periodic(rt_t &rt, value_t value) {
+    return Periodic<rt_t,value_t>(rt);
+}
 #endif /* REALTIMER_HPP_ */

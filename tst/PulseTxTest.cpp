@@ -131,7 +131,7 @@ TEST(PulseTxTest, single_pulse_on_comparators_pwm_pin_can_be_sent) {
 
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(pin.comp.isInterruptOn);
-    EXPECT_EQ(NonPWMOutputMode::disconnected, pin.comp.outputMode);
+    EXPECT_EQ(NonPWMOutputMode::low_on_match, pin.comp.outputMode); // since we created the source with low on idle, initially it should be low_on_match.
 
     source.append(Pulse(true, 50));
     tx.sendFromSource();
@@ -151,7 +151,7 @@ TEST(PulseTxTest, multiple_pulses_on_comparators_pwm_pin_can_be_sent) {
 
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(pin.comp.isInterruptOn);
-    EXPECT_EQ(NonPWMOutputMode::disconnected, pin.comp.outputMode);
+    EXPECT_EQ(NonPWMOutputMode::low_on_match, pin.comp.outputMode); // since we created the source with low on idle, initially it should be low_on_match.
 
     source.append(Pulse(true, 50));
     source.append(Pulse(false, 42));
