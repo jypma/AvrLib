@@ -8,9 +8,13 @@
 #ifndef RFM12TXFIFO_HPP_
 #define RFM12TXFIFO_HPP_
 
-#include "SerialTx.hpp"
+#include "Serial/SerialTx.hpp"
 #include "ChunkedFifo.hpp"
 #include "CRC.hpp"
+
+namespace HopeRF {
+
+using namespace Serial;
 
 template <int fifoSize = 32>
 class RFM12TxFifo {
@@ -29,8 +33,8 @@ public:
         return fifo;
     }
 
-    Writer out(SerialConfig *type) {
-        Writer out = fifo.out();
+    Writer<ChunkedFifo> out(SerialConfig *type) {
+        auto out = fifo.out();
         out << type;
         return out;
     }
@@ -98,5 +102,7 @@ public:
     }
 
 };
+
+}
 
 #endif /* RFM12TXFIFO_HPP_ */

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
-#include "RFM12TxFifo.hpp"
+#include "HopeRF/RFM12TxFifo.hpp"
+
+using namespace HopeRF;
 
 struct MockOOKType {
     int foo;

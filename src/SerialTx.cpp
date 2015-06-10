@@ -1,6 +1,7 @@
-#include "SerialTx.hpp"
+#include "Serial/SerialTx.hpp"
 #include "AtomicScope.hpp"
-#include "Debug.hpp"
+
+using namespace Serial;
 
 bool SerialConfig::prefixBit(uint8_t bitIndex) const {
     uint8_t b = prefix[bitIndex >> 3];

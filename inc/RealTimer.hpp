@@ -183,7 +183,7 @@ RealTimer<timer_t,initialTicks,wait> realTimer(timer_t &timer) {
 
 template <typename rt_t, typename value>
 class Periodic {
-    static constexpr uint16_t countsDelay = value::template toCounts<rt_t>();
+    static constexpr uint16_t countsDelay = value::template toCounts<rt_t, uint16_t>();
 
     uint32_t nextCounts;
     rt_t *rt;

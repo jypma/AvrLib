@@ -10,6 +10,8 @@
 
 #include "SerialTx.hpp"
 
+namespace Serial {
+
 struct RS232 {
 private:
     static const uint8_t prefix[];
@@ -34,5 +36,7 @@ public:
             postfix, 1 };
     };
 };
+
+}
 
 #endif /* RS232_HPP_ */

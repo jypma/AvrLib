@@ -9,8 +9,8 @@
 #define FIFO_HPP_
 
 #include "AtomicScope.hpp"
-#include "Writer.hpp"
-#include "Reader.hpp"
+#include "Streams/Writer.hpp"
+#include "Streams/Reader.hpp"
 
 /**
  * A FIFO queue of bytes, with a maximum size of 254.
@@ -18,34 +18,31 @@
 class AbstractFifo {
     constexpr static uint8_t NO_MARK = 255;
 
-    const static Writer::VTable writerVTable;
-    static void writeStart(void *delegate);
-    static void writeCommit(void *delegate);
-    static void writeRollback(void *delegate);
-    static bool write(void *delegate, uint8_t b);
-    static bool isWriting(void *delegate);
-
-    const static Reader::VTable readerVTable;
-    static void readStart(void *delegate);
-    static void readCommit(void *delegate);
-    static void readRollback(void *delegate);
-    static bool readByte(void *delegate, uint8_t &target);
-    static uint8_t getRemaining(void *delegate);
-    static bool isReading(void *delegate);
-
     volatile uint8_t * const buffer;
     const uint8_t bufferSize;
     volatile uint8_t readPos = 0;
     volatile uint8_t writePos = 0;
     uint8_t writeMark = NO_MARK;
     uint8_t readMark = NO_MARK;
+    uint8_t readMarkInvocations = 0;
+    uint8_t writeMarkInvocations = 0;
 
+public:
+    inline bool isWriting() const {
+        return writeMarkInvocations > 0;
+    }
+    inline bool isReading() const {
+        return readMarkInvocations > 0;
+    }
+
+private:
     inline uint8_t markedOrWritePos() const {
-        return (writeMark == NO_MARK) ? writePos : writeMark;
+        return isWriting() ? writeMark : writePos;
     }
     inline uint8_t markedOrReadPos() const {
-        return (readMark == NO_MARK) ? readPos : readMark;
+        return isReading() ? readMark : readPos;
     }
+
 public:
     AbstractFifo(uint8_t * const _buffer, const uint8_t _bufferSize): buffer(_buffer), bufferSize(_bufferSize) {}
 
@@ -61,42 +58,40 @@ public:
 
     uint8_t getSize() const;
 
+    inline uint8_t getReadAvailable() const {
+        return getSize();
+    }
+
+    uint8_t getSpace() const;
+
     inline uint8_t getCapacity() const {
         return bufferSize - 1;
     }
 
     uint8_t peek() const;
 
-    inline void markWrite() {
-        writeMark = writePos;
-    }
 
-    inline bool isWriteMarked() {
-        return writeMark != NO_MARK;
-    }
+    void writeStart();
 
-    inline void commitWrite() {
-        writeMark = NO_MARK;
-    }
+    void writeEnd();
 
-    void resetWrite();
+    void writeAbort();
 
-    inline void markRead() {
-        readMark = readPos;
-    }
+    void readStart();
 
-    inline bool isReading() {
-        return readMark != NO_MARK;
-    }
+    void readEnd();
 
-    inline void commitRead() {
-        readMark = NO_MARK;
-    }
-
-    void resetRead();
+    void readAbort();
 
     /** Returns whether the value was appended (true), or false if the Fifo was full. */
-    bool append(uint8_t b);
+    bool write(uint8_t b);
+
+    /**
+     * Appends the given element, assuming there is space for it. May only be called after having
+     * previously confirmed enough space by checking getAvailable(), and calling markWrite(). That
+     * also makes sure that no interrupt code can get confused while unchecked appends are being made.
+     */
+    void uncheckedWrite(uint8_t b);
 
     /** Valid to call between markWrite() and commitWrite(), to reserve a spot in the queue,
      * with the actual value being set later. The caller must NOT write to [ptr] after
@@ -110,11 +105,25 @@ public:
     /** Returns whether a value was removed and updated in b (true), or false if the Fifo was empty */
     bool read(uint8_t &b);
 
+    /**
+     * Reads a value from the fifo, assuming that previously a check to getSize() was made,
+     * and nothing else was read in the meantime.
+     */
+    void uncheckedRead(uint8_t &b);
+
     void clear();
 
-    Writer out();
+    //Writer out();
 
-    Reader in();
+    //Reader in();
+
+    inline Streams::Writer<AbstractFifo> out() {
+        return Streams::Writer<AbstractFifo>(*this);
+    }
+
+    inline Streams::Reader<AbstractFifo> in() {
+        return Streams::Reader<AbstractFifo>(*this);
+    }
 
     /** Only for use in interrupts. Inlined, and does not disable interrupt flag. */
     inline bool fastread(uint8_t &b) {

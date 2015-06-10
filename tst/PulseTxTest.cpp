@@ -5,11 +5,13 @@
  *      Author: jan
  */
 
-#include "PulseTx.hpp"
-#include "SimplePulseTx.hpp"
+#include "Serial/PulseTx.hpp"
+#include "Serial/SimplePulseTx.hpp"
 #include <gtest/gtest.h>
 
 namespace PulseTxTest {
+
+using namespace Serial;
 
 struct MockComparator {
     typedef uint8_t value_t;

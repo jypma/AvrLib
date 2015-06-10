@@ -1,6 +1,79 @@
 #include <gtest/gtest.h>
-#include "Writer.hpp"
+#include "Streams/Writer.hpp"
 
+namespace WriterTest {
+
+using namespace Streams;
+
+struct MockFifo {
+    uint8_t buffer[200];
+    uint8_t length = 0;
+    uint8_t space = 200;
+
+    bool started = false;
+    bool ended = false;
+    bool aborted = false;
+
+    void writeStart() {
+        started = true;
+    }
+    void writeEnd() {
+        ended = true;
+    }
+    void writeAbort() {
+        aborted = true;
+    }
+    uint8_t getSpace() const {
+        return space;
+    }
+    void uncheckedWrite(uint8_t ch) {
+        buffer[length] = ch;
+        length++;
+        space--;
+    }
+
+};
+
+TEST(WriterTest, write_const_string_should_not_include_terminating_zero) {
+    MockFifo f;
+    auto out = Writer<MockFifo>(f);
+    out << "hello";
+    EXPECT_EQ(5, f.length);
+}
+
+TEST(WriterTest, blocking_semantics_writer_should_immediately_commit_all_writes) {
+    MockFifo f;
+    auto out = Writer<MockFifo, BlockingWriteSemantics<MockFifo>>(f);
+    EXPECT_FALSE(f.started);
+    EXPECT_FALSE(f.ended);
+    EXPECT_FALSE(f.aborted);
+
+    out << uint8_t(42);
+    EXPECT_FALSE(f.started);
+    EXPECT_FALSE(f.ended);
+    EXPECT_FALSE(f.aborted);
+}
+
+TEST(WriterTest, noblocking_semantics_are_default_and_dont_commit_writes_until_writer_goes_out_of_scope) {
+    MockFifo f;
+    {
+        auto out = Writer<MockFifo>(f);
+        EXPECT_TRUE(f.started);
+        EXPECT_FALSE(f.ended);
+        EXPECT_FALSE(f.aborted);
+
+        out << uint8_t(42);
+        EXPECT_FALSE(f.ended);
+        EXPECT_FALSE(f.aborted);
+    }
+
+    EXPECT_TRUE(f.ended);
+    EXPECT_FALSE(f.aborted);
+}
+
+}
+
+/*
 struct MockOut {
 
     uint8_t buffer[200];
@@ -226,3 +299,5 @@ TEST(WriterTest, decimal_uint32_t_is_handled) {
     EXPECT_EQ('5', out.buffer[14]);
     EXPECT_EQ(15, out.length);
 }
+
+*/

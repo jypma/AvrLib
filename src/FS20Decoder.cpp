@@ -1,4 +1,6 @@
-#include "FS20Decoder.hpp"
+#include "FS20/FS20Decoder.hpp"
+
+using namespace FS20;
 
 bool FS20Packet::hasCommandExt() const {
     return (command & (1 << 5)) != 0;

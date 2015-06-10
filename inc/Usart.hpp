@@ -14,8 +14,6 @@
 #include <avr/pgmspace.h>
 #include <avr/interrupt.h>
 
-constexpr const char *endl = "\n\r";
-
 extern AbstractFifo *usart0writeFifo;
 
 ISR(USART_UDRE_vect);
@@ -44,24 +42,48 @@ public:
     }
 };
 
+template<typename info, uint8_t Capacity>
+class UsartFifo: public Fifo<Capacity> {
+public:
+    void uncheckedWrite(uint8_t b) {
+        AtomicScope _;
+
+        Fifo<Capacity>::uncheckedWrite(b);
+        *info::ucsrb |= _BV(UDRIE0);
+        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
+        *info::ucsra |= _BV(TXC0);
+    }
+
+    bool write(uint8_t b) {
+        AtomicScope _;
+        bool result = Fifo<Capacity>::write(b);
+        *info::ucsrb |= _BV(UDRIE0);
+        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
+        *info::ucsra |= _BV(TXC0);
+        return result;
+    }
+
+    inline Streams::Writer<UsartFifo, Streams::BlockingWriteSemantics<UsartFifo>> out() {
+        return Streams::Writer<UsartFifo, Streams::BlockingWriteSemantics<UsartFifo>>(*this);
+    }
+};
+
 template <typename info, uint8_t writeFifoCapacity>
 class UsartTx {
-    Fifo<writeFifoCapacity> writeFifo;
+    typedef UsartFifo<info, writeFifoCapacity> fifo_t;
+    fifo_t writeFifo;
 public:
     UsartTx() {
         AtomicScope::SEI _;
         info::fifo = &writeFifo;
     }
 
-    static void write (uint8_t c) {
-        if (info::fifo == nullptr) return;
-        while (info::fifo->isFull()) ;
+    inline Streams::Writer<fifo_t, Streams::BlockingWriteSemantics<fifo_t>> out() {
+        return writeFifo.out();
+    }
 
-        AtomicScope _;
-        info::fifo->append(c);
-        *info::ucsrb |= _BV(UDRIE0);
-        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
-        *info::ucsra |= _BV(TXC0);
+    inline void write(char ch) {
+        writeFifo.write(ch);
     }
 
     static void flush() {

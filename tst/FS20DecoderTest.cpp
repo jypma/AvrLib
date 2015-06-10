@@ -1,14 +1,18 @@
 #include <gtest/gtest.h>
 #include <type_traits>
-#include "FS20Decoder.hpp"
+#include "FS20/FS20Decoder.hpp"
+
+using namespace FS20;
 
 struct FS20MockPulseCounter {
     typedef uint8_t count_t;
+
     struct comparator_t {
+        typedef uint8_t value_t;
         static constexpr uint8_t prescalerPower2 = 6;
 
-        template <uint32_t usecs>
-        static constexpr uint16_t microseconds2counts() {
+        template <uint32_t usecs,typename return_t>
+        static constexpr return_t microseconds2counts() {
             return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
         }
     };

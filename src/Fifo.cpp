@@ -1,81 +1,24 @@
 #include "Fifo.hpp"
 
-const Writer::VTable AbstractFifo::writerVTable = {
-        &AbstractFifo::writeStart,
-        &AbstractFifo::writeCommit,
-        &AbstractFifo::writeRollback,
-        &AbstractFifo::write,
-        &AbstractFifo::isWriting };
-
-const Reader::VTable AbstractFifo::readerVTable = {
-        &AbstractFifo::readStart,
-        &AbstractFifo::readCommit,
-        &AbstractFifo::readRollback,
-        &AbstractFifo::readByte,
-        &AbstractFifo::getRemaining,
-        &AbstractFifo::isReading
-};
-
-void AbstractFifo::writeStart(void *delegate) {
-    ((AbstractFifo*)delegate)->markWrite();
-}
-
-void AbstractFifo::writeCommit(void *delegate) {
-    ((AbstractFifo*)delegate)->commitWrite();
-}
-
-void AbstractFifo::writeRollback(void *delegate) {
-    ((AbstractFifo*)delegate)->resetWrite();
-}
-
-bool AbstractFifo::write(void *delegate, uint8_t b) {
-    return ((AbstractFifo*)delegate)->append(b);
-}
-
-bool AbstractFifo::isWriting(void *delegate) {
-    return ((AbstractFifo*)delegate)->isWriteMarked();
-}
-
-void AbstractFifo::readStart(void *delegate) {
-    ((AbstractFifo*)delegate)->markRead();
-}
-
-void AbstractFifo::readCommit(void *delegate) {
-    ((AbstractFifo*)delegate)->commitRead();
-}
-
-void AbstractFifo::readRollback(void *delegate) {
-    ((AbstractFifo*)delegate)->resetRead();
-}
-
-bool AbstractFifo::readByte(void *delegate, uint8_t &target) {
-    return ((AbstractFifo*)delegate)->read(target);
-}
-
-uint8_t AbstractFifo::getRemaining(void *delegate) {
-    return ((AbstractFifo*)delegate)->getSize();
-}
-
-bool AbstractFifo::isReading(void *delegate) {
-    return ((AbstractFifo*)delegate)->isReading();
-}
-/*
-uint8_t AbstractFifo::markedOrWritePos() const {
-    return (writeMark == NO_MARK) ? writePos : writeMark;
-}
-
-uint8_t AbstractFifo::markedOrReadPos() const {
-    return (readMark == NO_MARK) ? readPos : readMark;
-}
-*/
 uint8_t AbstractFifo::getSize() const {
     AtomicScope _;
-    return (markedOrWritePos() > markedOrReadPos()) ? markedOrWritePos() - markedOrReadPos() :
-           (markedOrWritePos() < markedOrReadPos()) ? bufferSize - markedOrReadPos() + markedOrWritePos() :
+    const auto write_pos = markedOrWritePos();
+    const auto read_pos = markedOrReadPos();
+    return (write_pos > read_pos) ? write_pos - read_pos :
+           (write_pos < read_pos) ? bufferSize - read_pos + write_pos :
            0;
 }
 
-bool AbstractFifo::append(uint8_t b) {
+uint8_t AbstractFifo::getSpace() const {
+    AtomicScope _;
+    const auto write_pos = writePos;  // an on-going write DOES count to eating up space
+    const auto read_pos = markedOrReadPos();
+    return (write_pos > read_pos) ? bufferSize - write_pos + read_pos - 1 :
+           (write_pos < read_pos) ? read_pos - write_pos - 1 :
+           bufferSize - 1;
+}
+
+bool AbstractFifo::write(uint8_t b) {
     AtomicScope _;
 
     if (hasSpace()) {
@@ -90,9 +33,17 @@ bool AbstractFifo::append(uint8_t b) {
     }
 }
 
+void AbstractFifo::uncheckedWrite(uint8_t b) {
+    buffer[writePos] = b;
+    writePos++;
+    if (writePos >= bufferSize) {
+        writePos -= bufferSize;
+    }
+}
+
 bool AbstractFifo::reserve(volatile uint8_t * &ptr) {
     AtomicScope _;
-    if (isWriteMarked() && hasSpace()) {
+    if (isWriting() && hasSpace()) {
         ptr = buffer + writePos;
         writePos++;
         if (writePos >= bufferSize) {
@@ -119,19 +70,23 @@ bool AbstractFifo::read(uint8_t &b) {
     }
 }
 
+void AbstractFifo::uncheckedRead(uint8_t &b) {
+    b = buffer[readPos];
+    readPos++;
+    if (readPos >= bufferSize) {
+        readPos -= bufferSize;
+    }
+}
+
 void AbstractFifo::clear() {
+    AtomicScope _;
+
     readPos = 0;
     writePos = 0;
     writeMark = NO_MARK;
     readMark = NO_MARK;
-}
-
-Writer AbstractFifo::out() {
-    return Writer(&writerVTable, this);
-}
-
-Reader AbstractFifo::in() {
-    return Reader(&readerVTable, this);
+    readMarkInvocations = 0;
+    writeMarkInvocations = 0;
 }
 
 bool AbstractFifo::isEmpty() const {
@@ -158,22 +113,59 @@ uint8_t AbstractFifo::peek() const {
     }
 }
 
-void AbstractFifo::resetWrite() {
-    AtomicScope _;
+void AbstractFifo::writeStart() {
+    if (writeMarkInvocations == 0) {
+       writeMark = writePos;
+    }
+    writeMarkInvocations++;
+}
 
-    if (writeMark != NO_MARK) {
-        writePos = writeMark;
-        writeMark = NO_MARK;
+void AbstractFifo::writeEnd() {
+    if (writeMarkInvocations > 0) {
+        writeMarkInvocations--;
+        if (writeMarkInvocations == 0) {
+            writeMark = NO_MARK;
+        }
     }
 }
 
-void AbstractFifo::resetRead() {
+void AbstractFifo::writeAbort() {
     AtomicScope _;
 
-    if (readMark != NO_MARK) {
-        readPos = readMark;
-        readMark = NO_MARK;
+    if (writeMarkInvocations > 0) {
+        writeMarkInvocations--;
+        if (writeMarkInvocations == 0) {
+            writePos = writeMark;
+            writeMark = NO_MARK;
+        }
     }
 }
 
+void AbstractFifo::readStart() {
+    if (readMarkInvocations == 0) {
+        readMark = readPos;
+    }
+    readMarkInvocations++;
+}
+
+void AbstractFifo::readEnd()  {
+    if (readMarkInvocations > 0) {
+        readMarkInvocations--;
+        if (readMarkInvocations == 0) {
+            readMark = NO_MARK;
+        }
+    }
+}
+
+void AbstractFifo::readAbort() {
+    AtomicScope _;
+
+    if (readMarkInvocations > 0) {
+        readMarkInvocations--;
+        if (readMarkInvocations == 0) {
+            readPos = readMark;
+            readMark = NO_MARK;
+        }
+    }
+}
 

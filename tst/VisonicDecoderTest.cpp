@@ -1,17 +1,22 @@
 #include <gtest/gtest.h>
 #include <type_traits>
-#include "VisonicDecoder.hpp"
+#include "Visonic/VisonicDecoder.hpp"
 #include <iostream>
 
 namespace VisonicDecoderTest {
 
+using namespace Serial;
+using namespace Visonic;
+
 struct MockPulseCounter {
     typedef uint16_t count_t;
     struct comparator_t {
+        typedef uint16_t value_t;
+
         static constexpr uint8_t prescalerPower2 = 3; // prescaler of 2^3 = 8
 
-        template <uint32_t usecs>
-        static constexpr uint16_t microseconds2counts() {
+        template <uint32_t usecs, typename return_t>
+        static constexpr return_t microseconds2counts() {
             return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
         }
     };
@@ -50,6 +55,7 @@ TEST(VisonicDecoderTest, visonic_decoder_can_decode_correct_bit_sequences) {
     // 111, 194, 43, 221, 6
 }
 
+/*
 TEST(VisonicDecoderTest, visonic_decoder_can_decode_long_bit_sequences) {
     VisonicDecoder<MockPulseCounter> decoder;
 
@@ -61,7 +67,7 @@ TEST(VisonicDecoderTest, visonic_decoder_can_decode_long_bit_sequences) {
 
     std::cout << int(pkt.data[0]) << ", " << int(pkt.data[1]) << ", " << int(pkt.data[2]) << ", " << int(pkt.data[3]) << ", " << int(pkt.data[4]) << std::endl;
 }
-
+*/
 
 
 }

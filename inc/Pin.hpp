@@ -11,7 +11,6 @@
 #include "gcc_type_traits.h"
 #include "InterruptHandler.hpp"
 #include "Usart.hpp"
-#include "Writer.hpp"
 #include "ExternalInterrupt.hpp"
 #include "Timer.hpp"
 
@@ -61,35 +60,10 @@ public:
 };
 
 template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
-class UsartTxPin: public Pin<pinInfo>, public UsartTx<usartInfo, writeFifoCapacity> {
-    const static Writer::VTable writerVTable;
-    static void noop(void *delegate) {}
-    static bool alwaysTrue(void *delegate) { return true; }
-    static bool write(void *delegate, uint8_t b) {
-        // TODO move blocking behavior into Writer constructor
-        UsartTx<usartInfo,writeFifoCapacity>::write(b);
-        return true;
-    }
-public:
-    UsartTxPin(): UsartTx<usartInfo, writeFifoCapacity>() {}
-    Writer out() {
-        return Writer(&writerVTable, this);
-    }
-};
-
-template <typename pinInfo, typename usartInfo, uint8_t writeFifoCapacity>
-const Writer::VTable UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::writerVTable = {
-        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::noop,
-        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::noop,
-        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::noop,
-        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::write,
-        &UsartTxPin<pinInfo,usartInfo,writeFifoCapacity>::alwaysTrue };
-
+class UsartTxPin: public Pin<pinInfo>, public UsartTx<usartInfo, writeFifoCapacity> {};
 
 template <typename pinInfo, typename extInterruptInfo, InterruptChain &_interrupt>
-class ExtInterruptPin: public Pin<pinInfo>, public ExtInterrupt<extInterruptInfo, _interrupt> {
-
-};
+class ExtInterruptPin: public Pin<pinInfo>, public ExtInterrupt<extInterruptInfo, _interrupt> {};
 
 
 ISR(PCINT1_vect);

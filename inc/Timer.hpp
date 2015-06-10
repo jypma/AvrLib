@@ -44,18 +44,18 @@ namespace TimeUnits {
         MultipliedTimeUnit() {
             static_assert(percentage > 0, "percentage must be larger than zero");
         }
-        template <typename prescaled_t, uint32_t value = Base::to_uint32>
-        static constexpr uint16_t toCounts() {
-            return Base::template toCounts<prescaled_t, uint32_t(value) * percentage / 100>();
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint32_t value = Base::to_uint32>
+        static constexpr return_t toCounts() {
+            return Base::template toCounts<prescaled_t, return_t, uint32_t(value) * percentage / 100>();
         }
     };
 
     template <char... cv>
     class Microseconds: public TimeUnit<cv...> {
     public:
-        template <typename prescaled_t, uint32_t value = TimeUnit<cv...>::to_uint32>
-        static constexpr uint16_t toCounts() {
-            return prescaled_t::template microseconds2counts<value>();
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint32_t value = TimeUnit<cv...>::to_uint32>
+        static constexpr return_t toCounts() {
+            return prescaled_t::template microseconds2counts<value,return_t>();
         }
 
         template <int percentage>
@@ -67,9 +67,9 @@ namespace TimeUnits {
     template <char... cv>
     class Milliseconds: public TimeUnit<cv...> {
     public:
-        template <typename prescaled_t, uint32_t value = TimeUnit<cv...>::to_uint32>
-        static constexpr uint16_t toCounts() {
-            return prescaled_t::template milliseconds2counts<value>();
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint32_t value = TimeUnit<cv...>::to_uint32>
+        static constexpr return_t toCounts() {
+            return prescaled_t::template milliseconds2counts<value,return_t>();
         }
 
         template <int percentage>
@@ -185,20 +185,22 @@ public:
     typedef _prescaler_t prescaler_t;
     static constexpr _prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;
-    template <uint32_t usecs>
-    static constexpr _value_t microseconds2counts() {
+
+    template <uint32_t usecs, typename return_t = _value_t>
+    static constexpr return_t microseconds2counts() {
         static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 > 1,
                 "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<_value_t>::max(),
-                "Number of counts for microseconds does not fit in value_t, you might want to increase the timer prescaler.");
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<return_t>::max(),
+                "Number of counts for microseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
         return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
     }
-    template <uint32_t msecs>
-    static constexpr _value_t milliseconds2counts() {
+
+    template <uint32_t msecs, typename return_t = _value_t>
+    static constexpr return_t milliseconds2counts() {
         static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs > 1,
                 "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<_value_t>::max(),
-                "Number of counts for milliseconds does not fit in value_t, you might want to increase the timer prescaler.");
+        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<return_t>::max(),
+                "Number of counts for milliseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
         return (F_CPU >> prescalerPower2) / 1000 * msecs;
     }
 };

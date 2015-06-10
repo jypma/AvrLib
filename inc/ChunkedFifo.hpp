@@ -9,25 +9,8 @@
 #define CHUNKEDFIFO_HPP_
 
 #include "Fifo.hpp"
-#include "Reader.hpp"
-#include "Writer.hpp"
 
 class ChunkedFifo {
-    const static Writer::VTable writerVTable;
-    static void writeStart(void *delegate);
-    static void writeCommit(void *delegate);
-    static void writeRollback(void *delegate);
-    static bool write(void *delegate, uint8_t b);
-    static bool isWriting(void *delegate);
-
-    const static Reader::VTable readerVTable;
-    static void readStart(void *delegate);
-    static void readCommit(void *delegate);
-    static void readRollback(void *delegate);
-    static bool read(void *delegate, uint8_t &b);
-    static uint8_t getAvailable(void *delegate);
-    static bool isReading(void *delegate);
-
     AbstractFifo *data;
 
     volatile uint8_t *writeLengthPtr = nullptr;
@@ -35,6 +18,9 @@ class ChunkedFifo {
 
     uint8_t readLength = 0;
     bool readValid = false;
+
+    uint8_t readInvocations = 0;
+    uint8_t writeInvocations = 0;
 
 public:
     ChunkedFifo(AbstractFifo *_data): data(_data) {}
@@ -47,24 +33,32 @@ public:
         return data->hasContent();
     }
 
+    inline uint8_t getSpace() const {
+        return data->getSpace();
+    }
+
+    inline uint8_t getSize() const {
+        return data->getSize();
+    }
+
     void writeStart();
 
     inline bool isWriting() const {
-        return data->isWriteMarked();
+        return writeInvocations > 0;
     }
 
     bool write (uint8_t b);
 
+    void uncheckedWrite(uint8_t b);
+
     void writeEnd();
 
-    inline void writeAbort() {
-        data->resetWrite();
-    }
+    void writeAbort();
 
     void readStart();
 
     inline bool isReading() const {
-        return data->isReading();
+        return readInvocations > 0;
     }
 
     /** returns the number of bytes available in the current chunk, just after readStart() has been called. */
@@ -84,13 +78,19 @@ public:
 
     bool read(uint8_t &ch);
 
+    void uncheckedRead(uint8_t &ch);
+
     void readEnd();
 
     void readAbort();
 
-    Writer out();
+    inline Streams::Writer<ChunkedFifo> out() {
+        return Streams::Writer<ChunkedFifo>(*this);
+    }
 
-    Reader in();
+    inline Streams::Reader<ChunkedFifo> in() {
+        return Streams::Reader<ChunkedFifo>(*this);
+    }
 };
 
 #endif /* CHUNKEDFIFO_HPP_ */

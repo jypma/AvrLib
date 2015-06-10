@@ -10,8 +10,10 @@
 
 #include <util/parity.h>
 #include "InterruptHandler.hpp"
-#include "PulseTx.hpp"
+#include "Serial/PulseTx.hpp"
 #include "ChunkedFifo.hpp"
+
+namespace Serial {
 
 enum class SerialParity {
     NONE, EVEN, ODD
@@ -109,5 +111,7 @@ public:
 
     Pulse getNextPulse();
 };
+
+}
 
 #endif /* SERIALTX_HPP_ */

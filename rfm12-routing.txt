@@ -1,0 +1,16 @@
+- Topology packet
+    - ID[2]
+    - LENGTH[1]
+        - OTHER_ID[2]
+        - OTHER_STRENGTH[1]
+        - LENGTH[1]
+          *
+    
+    contains N strongest, latest nodes we have received Topology from in the last day
+    we only keep the shortest path to a node
+    we might only keep paths to nodes we actually need to send to
+    consider sending more packets if we see many different nodes
+    consider forwarding a packet if we only have it in a non-direct route
+      forward after random delay
+      
+    actual routing table with gateway per target node, only send via 1 node,

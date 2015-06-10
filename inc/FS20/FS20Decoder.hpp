@@ -1,8 +1,8 @@
 #ifndef FS20DECODER_H
 #define FS20DECODER_H
 
-#include "PulseCounter.hpp"
-#include "FS20Packet.hpp"
+#include "Serial/PulseCounter.hpp"
+#include "FS20/FS20Packet.hpp"
 #include <util/parity.h>
 
 namespace FS20 {
@@ -158,7 +158,7 @@ public:
         }
     }
 
-    inline Reader in() {
+    inline Reader<AbstractFifo> in() {
         return fifo.in();
     }
 };

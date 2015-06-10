@@ -1,5 +1,10 @@
 #include <gtest/gtest.h>
 #include "ChunkedFifo.hpp"
+#include "Streams/Streamable.hpp"
+
+namespace ChunkedFifoTest {
+
+using namespace Streams;
 
 TEST(ChunkedFifoTest, empty_chunked_fifo_ignores_reads) {
     Fifo<16> data;
@@ -15,7 +20,15 @@ TEST(ChunkedFifoTest, chunked_fifo_ignores_too_big_writes) {
     ChunkedFifo f(&data);
 
     uint8_t a = 1, b = 2, c = 3;
-    EXPECT_FALSE(f.out() << a << b << c);
+    {
+        auto writer = f.out();
+        EXPECT_EQ(1, f.getSpace());
+        writer << a;
+        EXPECT_EQ(0, f.getSpace());
+        writer << b;
+        writer << c;
+        EXPECT_FALSE(writer);
+    }
     EXPECT_EQ(0, data.getSize());
 }
 
@@ -38,7 +51,7 @@ TEST(ChunkedFifoTest, chunked_fifo_ignores_too_big_reads) {
     EXPECT_TRUE(data.isEmpty());
 }
 
-TEST(ChunkedFifoTest, starting_write_twice_aborts_previous_start) {
+TEST(ChunkedFifoTest, write_can_be_nested) {
     Fifo<3> data;
     ChunkedFifo f(&data);
 
@@ -47,21 +60,26 @@ TEST(ChunkedFifoTest, starting_write_twice_aborts_previous_start) {
     f.writeStart();
     f.write(84);
     f.writeEnd();
+    EXPECT_TRUE(f.isWriting());
+    f.writeEnd();
+    EXPECT_FALSE(f.isWriting());
 
-    EXPECT_EQ(2, data.getSize());
+    EXPECT_EQ(3, data.getSize());
 
-    uint8_t out = 123;
-    EXPECT_TRUE(f.in() >> out);
-    EXPECT_EQ(84, out);
+    uint8_t out1, out2;
+    EXPECT_TRUE(f.in() >> out1 >> out2);
+    EXPECT_EQ(42, out1);
+    EXPECT_EQ(84, out2);
     EXPECT_TRUE(data.isEmpty());
 }
 
-TEST(ChunkedFifoTest, starting_read_twice_aborts_previous_read) {
-    Fifo<2> data;
+TEST(ChunkedFifoTest, read_can_be_nested) {
+    Fifo<3> data;
     ChunkedFifo f(&data);
 
     f.writeStart();
     f.write(42);
+    f.write(84);
     f.writeEnd();
 
     uint8_t out1 = 123;
@@ -70,7 +88,12 @@ TEST(ChunkedFifoTest, starting_read_twice_aborts_previous_read) {
     uint8_t out2 = 123;
     f.readStart();
     f.read(out2);
-    EXPECT_EQ(42, out2);
+    EXPECT_EQ(42, out1);
+    EXPECT_EQ(84, out2);
+    f.readEnd();
+    EXPECT_TRUE(f.isReading());
+    f.readEnd();
+    EXPECT_FALSE(f.isReading());
 }
 
 TEST(ChunkedFifoTest, ending_write_twice_has_no_ill_effects) {
@@ -242,4 +265,37 @@ TEST(ChunkedFifoTest, early_ended_reader_skips_over_remaining_data) {
 
     EXPECT_FALSE(fifo.hasContent());
     EXPECT_TRUE(data.isEmpty());
+}
+
+struct TestStruct: public Streamable<TestStruct> {
+    uint8_t a = 0, b = 0;
+    TestStruct() {}
+    TestStruct(uint8_t _a, uint8_t _b): a(_a), b(_b) {}
+
+    typedef Format<
+        Scalar<uint8_t, &TestStruct::b>,
+        Scalar<uint8_t, &TestStruct::a>
+    > Proto;
+};
+
+TEST(ChunkedFifoTest, chunked_fifo_is_stream_api_compatible) {
+
+    Fifo<16> data;
+    ChunkedFifo fifo(&data);
+    {
+        Writer<ChunkedFifo> out(fifo);
+        out << uint8_t(42);
+        out << TestStruct(1, 2);
+    }
+
+    {
+        uint8_t a;
+        TestStruct foo;
+        Reader<ChunkedFifo> in(fifo);
+        in >> a;
+        in >> foo;
+        EXPECT_TRUE(in);
+    }
+}
+
 }

@@ -12,9 +12,13 @@
 #include "InterruptHandler.hpp"
 #include "Timer.hpp"
 #include "Fifo.hpp"
-#include "Debug.hpp"
+#include "Streams/Streamable.hpp"
 
-class Pulse {
+namespace Serial {
+
+using namespace Streams;
+
+class Pulse: public Streamable<Pulse> {
     bool high;
     uint16_t duration;
 public:
@@ -38,12 +42,10 @@ public:
         return Pulse();
     }
 
-    static void write(Writer &out, const Pulse &pulse) {
-        out << pulse.high << pulse.duration;
-    }
-    static void read(Reader &in, Pulse &pulse) {
-        in >> pulse.high >> pulse.duration;
-    }
+    typedef Format<
+        Scalar<bool, &Pulse::high>,
+        Scalar<uint16_t, &Pulse::duration>
+    > Proto;
 };
 
 template <typename Value, bool high>
@@ -293,5 +295,6 @@ inline ComparatorPinPulseTx<pin_t, source_t> pulseTx(pin_t &pin, source_t &sourc
     return ComparatorPinPulseTx<pin_t, source_t>(pin, source);
 }
 
+}
 
 #endif /* PULSETX_HPP_ */

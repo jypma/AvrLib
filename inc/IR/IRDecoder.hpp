@@ -1,11 +1,16 @@
 #ifndef IRDECODER_H
 #define IRDECODER_H
 
-#include "PulseCounter.hpp"
+#include "Serial/PulseCounter.hpp"
+
+namespace IR {
+
+using namespace Streams;
+using namespace Serial;
 
 enum IRType: uint8_t { Command, Repeat };
 
-class IRCode {
+class IRCode: public Streamable<IRCode> {
     IRType type;
     uint32_t command;
 public:
@@ -20,19 +25,17 @@ public:
         return command;
     }
 
-    static void write(Writer &out, const IRCode &code) {
-        out << code.type;
-        if (code.type == IRType::Command) {
-            out << code.command;
-        }
+    inline bool isCommand() const {
+        return type == IRType::Command;
     }
-    static void read(Reader &in, IRCode &code) {
-        if (in >> code.type) {
-            if (code.type == IRType::Command) {
-                in >> code.command;
-            }
-        }
-    }
+
+    typedef Format<
+        Scalar<IRType, &IRCode::type>,
+        Conditional<&IRCode::isCommand,
+            Scalar<uint32_t, &IRCode::command>
+        >
+    > Proto;
+
 };
 
 template <typename pulsecounter_t>
@@ -162,7 +165,7 @@ public:
         }
     }
 
-    inline Reader in() {
+    inline Streams::Reader<AbstractFifo> in() {
         return fifo.in();
     }
 };
@@ -258,10 +261,17 @@ public:
         }
     }
 
-    inline Reader in() {
+    inline Reader<AbstractFifo> in() {
         return fifo.in();
     }
 };
+
+}
+
+using IR::IRCode;
+using IR::IRDecoder_NEC;
+using IR::IRDecoder_Samsung;
+using IR::IRType;
 
 
 #endif

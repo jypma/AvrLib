@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include "Fifo.hpp"
+#include "Streams/Streamable.hpp"
+
+using namespace Streams;
 
 TEST(FifoTest, empty_fifo_reports_as_empty) {
     Fifo<16> fifo;
@@ -15,7 +18,7 @@ TEST(FifoTest, empty_fifo_reports_as_empty) {
 
 TEST(FifoTest, fifo_size_1_can_be_used_twice) {
     Fifo<1> fifo;
-    fifo.append(42);
+    fifo.write(42);
 
     EXPECT_FALSE(fifo.isEmpty());
     EXPECT_TRUE(fifo.isFull());
@@ -33,7 +36,7 @@ TEST(FifoTest, fifo_size_1_can_be_used_twice) {
     EXPECT_FALSE(fifo.hasContent());
     EXPECT_EQ(0, fifo.getSize());
 
-    fifo.append(84);
+    fifo.write(84);
 
     EXPECT_FALSE(fifo.isEmpty());
     EXPECT_TRUE(fifo.isFull());
@@ -53,7 +56,7 @@ TEST(FifoTest, fifo_size_1_can_be_used_twice) {
 
 TEST(FifoTest, fifo_size_2_can_be_used_twice) {
     Fifo<2> fifo;
-    fifo.append(42);
+    fifo.write(42);
 
     EXPECT_FALSE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -71,7 +74,7 @@ TEST(FifoTest, fifo_size_2_can_be_used_twice) {
     EXPECT_FALSE(fifo.hasContent());
     EXPECT_EQ(0, fifo.getSize());
 
-    fifo.append(84);
+    fifo.write(84);
 
     EXPECT_FALSE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -90,7 +93,7 @@ TEST(FifoTest, fifo_size_2_can_be_used_twice) {
 
 TEST(FifoTest, fifo_size_2_is_full_after_two_elements) {
     Fifo<2> fifo;
-    fifo.append(42);
+    fifo.write(42);
 
     EXPECT_FALSE(fifo.isEmpty());
     EXPECT_FALSE(fifo.isFull());
@@ -99,7 +102,7 @@ TEST(FifoTest, fifo_size_2_is_full_after_two_elements) {
     EXPECT_EQ(1, fifo.getSize());
     EXPECT_EQ(2, fifo.getCapacity());
 
-    fifo.append(84);
+    fifo.write(84);
 
     EXPECT_FALSE(fifo.isEmpty());
     EXPECT_TRUE(fifo.isFull());
@@ -131,7 +134,7 @@ TEST(FifoTest, fifo_size_2_is_full_after_two_elements) {
 
 TEST(FifoTest, peek_shows_first_element_without_removing) {
     Fifo<2> fifo;
-    fifo.append(42);
+    fifo.write(42);
 
     EXPECT_EQ(42, fifo.peek());
     EXPECT_EQ(1, fifo.getSize());
@@ -142,14 +145,14 @@ TEST(FifoTest, peek_shows_first_element_without_removing) {
 
 TEST(FifoTest, append_during_write_mark_cannot_be_read_until_committed) {
     Fifo<2> fifo;
-    fifo.markWrite();
-    fifo.append(42);
+    fifo.writeStart();
+    fifo.write(42);
 
     EXPECT_FALSE(fifo.hasContent());
     EXPECT_EQ(0, fifo.getSize());
     EXPECT_TRUE(fifo.isEmpty());
 
-    fifo.append(84);
+    fifo.write(84);
 
     EXPECT_TRUE(fifo.isFull());   // marked writes DO count towards used space
     EXPECT_FALSE(fifo.hasSpace());
@@ -157,7 +160,7 @@ TEST(FifoTest, append_during_write_mark_cannot_be_read_until_committed) {
     EXPECT_EQ(0, fifo.getSize());
     EXPECT_TRUE(fifo.isEmpty());
 
-    fifo.commitWrite();
+    fifo.writeEnd();
 
     EXPECT_TRUE(fifo.hasContent());
     EXPECT_EQ(2, fifo.getSize());
@@ -175,10 +178,10 @@ TEST(FifoTest, append_during_write_mark_cannot_be_read_until_committed) {
 
 TEST(FifoTest, writes_during_write_mark_disappear_after_reset) {
     Fifo<2> fifo;
-    fifo.markWrite();
-    fifo.append(2);
-    fifo.append(3);
-    fifo.resetWrite();
+    fifo.writeStart();
+    fifo.write(2);
+    fifo.write(3);
+    fifo.writeAbort();
 
     EXPECT_FALSE(fifo.isFull());
     EXPECT_TRUE(fifo.hasSpace());
@@ -186,8 +189,8 @@ TEST(FifoTest, writes_during_write_mark_disappear_after_reset) {
     EXPECT_EQ(0, fifo.getSize());
     EXPECT_TRUE(fifo.isEmpty());
 
-    fifo.append(42);
-    fifo.append(84);
+    fifo.write(42);
+    fifo.write(84);
 
     uint8_t b;
     EXPECT_TRUE(fifo.read(b));
@@ -201,9 +204,9 @@ TEST(FifoTest, writes_during_write_mark_disappear_after_reset) {
 
 TEST(FifoTest, remove_during_marked_read_does_not_free_up_space_until_committed) {
     Fifo<2> fifo;
-    fifo.append(42);
-    fifo.append(84);
-    fifo.markRead();
+    fifo.write(42);
+    fifo.write(84);
+    fifo.readStart();
 
     EXPECT_TRUE(fifo.isFull());
     uint8_t b;
@@ -219,7 +222,7 @@ TEST(FifoTest, remove_during_marked_read_does_not_free_up_space_until_committed)
     EXPECT_EQ(2, fifo.getSize());
     EXPECT_TRUE(fifo.isEmpty());
 
-    fifo.commitRead();
+    fifo.readEnd();
 
     EXPECT_FALSE(fifo.isFull());
     EXPECT_TRUE(fifo.hasSpace());
@@ -230,13 +233,13 @@ TEST(FifoTest, remove_during_marked_read_does_not_free_up_space_until_committed)
 
 TEST(FifoTest, remove_during_marked_read_can_be_repeated_after_reset) {
     Fifo<2> fifo;
-    fifo.append(42);
-    fifo.append(84);
-    fifo.markRead();
+    fifo.write(42);
+    fifo.write(84);
+    fifo.readStart();
     uint8_t dummy;
     fifo.read(dummy);
     fifo.read(dummy);
-    fifo.resetRead();
+    fifo.readAbort();
 
     EXPECT_TRUE(fifo.isFull());
     EXPECT_FALSE(fifo.hasSpace());
@@ -278,9 +281,9 @@ TEST(FifoTest, fifo_operates_rotating) {
         uint8_t out;
         int in = 1;
 
-        fifo.append(in++);
-        fifo.append(in++);
-        fifo.append(in++);
+        fifo.write(in++);
+        fifo.write(in++);
+        fifo.write(in++);
 
         EXPECT_TRUE(fifo.isFull());
         EXPECT_EQ(3, fifo.getSize());
@@ -291,7 +294,7 @@ TEST(FifoTest, fifo_operates_rotating) {
         EXPECT_FALSE(fifo.isFull());
         EXPECT_EQ(2, fifo.getSize());
 
-        EXPECT_TRUE(fifo.append(in++));
+        EXPECT_TRUE(fifo.write(in++));
 
         EXPECT_TRUE(fifo.isFull());
         EXPECT_EQ(3, fifo.getSize());
@@ -317,32 +320,29 @@ TEST(FifoTest, fifo_operates_rotating) {
 
 TEST(FifoTest, resetWrite_on_unmarked_fifo_has_no_effect) {
     Fifo<3> fifo;
-    fifo.resetWrite();
+    fifo.writeAbort();
     EXPECT_FALSE(fifo.hasContent());
     EXPECT_EQ(0, fifo.getSize());
 }
 
 TEST(FifoTest, resetRead_on_unmarked_fifo_has_no_effect) {
     Fifo<3> fifo;
-    fifo.resetRead();
+    fifo.readAbort();
     EXPECT_FALSE(fifo.hasContent());
     EXPECT_EQ(0, fifo.getSize());
 }
 
 enum class TestEnum: uint8_t { RED, GREEN, YELLOW };
 
-struct TestItem {
+struct TestItem: public Streamable<TestItem> {
     TestEnum color;
     uint16_t amount;
-    static void write(Writer &out, const TestItem &evt) {
-        out << evt.color;
-        out << evt.amount;
-    }
-    static void read(Reader &in, TestItem &evt) {
-        if (in >> evt.color) {
-            in >> evt.amount;
-        }
-    }
+
+    typedef Format<
+        Scalar<TestEnum, &TestItem::color>,
+        Scalar<uint16_t, &TestItem::amount>
+    > Proto;
+
 };
 
 TEST(FifoTest, writer_rolls_back_on_full_fifo) {
@@ -361,7 +361,7 @@ TEST(FifoTest, writer_rolls_back_on_full_fifo) {
 
 TEST(FifoTest, reader_rolls_back_on_incomplete_fifo) {
     Fifo<16> fifo;
-    fifo.out() << TestEnum::RED;
+    fifo.out() << uint8_t(1);
     TestItem item;
     EXPECT_EQ(1, fifo.getSize());
     EXPECT_FALSE(fifo.in() >> item);
@@ -370,11 +370,11 @@ TEST(FifoTest, reader_rolls_back_on_incomplete_fifo) {
 
 TEST(FifoTest, reservation_can_be_written_to) {
     Fifo<16> fifo;
-    fifo.markWrite();
+    fifo.writeStart();
     volatile uint8_t *ptr = nullptr;
     EXPECT_TRUE(fifo.reserve(ptr));
     *ptr = 42;
-    fifo.commitWrite();
+    fifo.writeEnd();
 
     EXPECT_EQ(1, fifo.getSize());
     uint8_t out;
@@ -390,9 +390,33 @@ TEST(FifoTest, reserve_outside_markWrite_returns_false) {
 
 TEST(FifoTest, reserve_on_full_fifo_returns_false) {
     Fifo<2> fifo;
-    fifo.append(1);
-    fifo.append(1);
-    fifo.markWrite();
+    fifo.write(1);
+    fifo.write(1);
+    fifo.writeStart();
     volatile uint8_t *ptr = nullptr;
     EXPECT_FALSE(fifo.reserve(ptr));
+}
+
+TEST(FifoTest, getSpace_does_not_count_marked_reads) {
+    Fifo<2> fifo;
+    EXPECT_EQ(2, fifo.getSpace());
+    EXPECT_EQ(0, fifo.getSize());
+    fifo.write(1);
+    EXPECT_EQ(1, fifo.getSpace());
+    EXPECT_EQ(1, fifo.getSize());
+    fifo.write(1);
+    EXPECT_EQ(0, fifo.getSpace());
+    EXPECT_EQ(2, fifo.getSize());
+    fifo.write(1);
+    EXPECT_EQ(0, fifo.getSpace());
+    EXPECT_EQ(2, fifo.getSize());
+    fifo.readStart();
+    EXPECT_EQ(0, fifo.getSpace());
+    uint8_t foo;
+    fifo.read(foo);
+    EXPECT_EQ(0, fifo.getSpace());
+    fifo.read(foo);
+    EXPECT_EQ(0, fifo.getSpace());
+    fifo.readEnd();
+    EXPECT_EQ(2, fifo.getSpace());
 }

@@ -10,7 +10,9 @@
 
 #include "ChunkedFifo.hpp"
 #include "CRC.hpp"
-#include "Reader.hpp"
+#include "Streams/Reader.hpp"
+
+namespace HopeRF{
 
 template <int fifoSize = 32, bool checkCrc = true>
 class RFM12RxFifo {
@@ -58,7 +60,7 @@ public:
         fifo.writeAbort();
     }
 
-    inline Reader in() {
+    inline Streams::Reader<ChunkedFifo> in() {
         return fifo.in();
     }
 
@@ -67,6 +69,6 @@ public:
     }
 };
 
-
+}
 
 #endif /* RFM12RXFIFO_HPP_ */

@@ -8,30 +8,30 @@
 #ifndef VISONICDECODER_HPP_
 #define VISONICDECODER_HPP_
 
-#include "PulseCounter.hpp"
-//#include <iostream>
-
-class VisonicPacket {
-public:
-    uint8_t data[5];
-
-    static void write(Writer &out, const VisonicPacket &packet) {
-        out << packet.data[0] << packet.data[1] << packet.data[2] << packet.data[3] << packet.data[4];
-    }
-    static void read(Reader &in, VisonicPacket &packet) {
-        in >> packet.data[0] >> packet.data[1] >> packet.data[2] >> packet.data[3] >> packet.data[4];
-    }
-};
+#include "Serial/PulseCounter.hpp"
+#include "Logging.hpp"
 
 namespace Visonic {
 
 using namespace TimeUnits;
+using namespace Streams;
+using namespace Serial;
+
+class VisonicPacket: public Streams::Streamable<VisonicPacket> {
+public:
+    uint8_t data[5];
+
+    typedef Format<
+        Array<uint8_t, 5, &VisonicPacket::data>
+    > Proto;
+};
 
 template <typename pulsecounter_t, uint8_t fifoSize = 50>
 class VisonicDecoder {
 public:
     uint16_t totalBits = 0;
 private:
+    static Logging::Log<Loggers::VisonicDecoder> log;
 
     typedef typename pulsecounter_t::comparator_t comparator_t;
     typedef typename pulsecounter_t::count_t count_t;
@@ -67,6 +67,12 @@ private:
         noisePulses = 0;
     }
 
+    void writePacket() {
+        log.timeStart();
+        fifo.out() << packet;
+        log.timeEnd();
+    }
+
     void handleBit(uint8_t value) {
 //        std::cout << "  got bit " << int(bit) << " of byte " << int(pos) << std::endl;
 
@@ -86,7 +92,7 @@ private:
         if (pos >= 4 && bit >= 16) {        // 36 bits = 4 1/2 bytes of data in one packet
             packet.data[4] &= 15;           // last 4  bits of byte 5 just stay 0
 //            std::cout << "  *** packet! " << std::endl;
-            fifo.out() << packet;
+            writePacket();
         }
     }
 
@@ -198,7 +204,7 @@ public:
         }
     }
 
-    inline Reader in() {
+    inline Reader<AbstractFifo> in() {
         return fifo.in();
     }
 

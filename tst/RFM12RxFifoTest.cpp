@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
-#include "RFM12RxFifo.hpp"
+#include "HopeRF/RFM12RxFifo.hpp"
+
+using namespace HopeRF;
 
 TEST(RFM12RxFifoTest, rx_receives_empty_packet_with_correct_crc) {
     RFM12RxFifo<32,true> fifo;
@@ -18,7 +20,7 @@ TEST(RFM12RxFifoTest, rx_receives_empty_packet_with_correct_crc) {
 
     {
         auto in = fifo.in();
-        EXPECT_EQ(0, in.getRemaining());
+        EXPECT_EQ(0, in.getReadAvailable());
     }
 }
 
@@ -59,7 +61,7 @@ TEST(RFM12RxFifoTest, rx_receives_1_byte_packet_with_correct_crc) {
     {
         uint8_t r = 123;
         auto in = fifo.in();
-        EXPECT_EQ(1, in.getRemaining());
+        EXPECT_EQ(1, in.getReadAvailable());
         in >> r;
         EXPECT_EQ(0x42, r);
         EXPECT_TRUE(bool(in));

@@ -2,7 +2,9 @@
 #define RFM12_STRENGTH_H
 
 #include "BitSet.hpp"
-#include "RFM12Status.hpp"
+#include "HopeRF/RFM12Status.hpp"
+
+namespace HopeRF {
 
 struct drssi_dec_t {
     uint8_t next_if_below_threshold;
@@ -65,5 +67,6 @@ public:
     }
 };
 
+}
 
 #endif

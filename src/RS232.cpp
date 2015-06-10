@@ -1,4 +1,6 @@
-#include "RS232.hpp"
+#include "Serial/RS232.hpp"
+
+using namespace Serial;
 
 // Start bit is always low
 const uint8_t RS232::prefix[] = { 0b0 };

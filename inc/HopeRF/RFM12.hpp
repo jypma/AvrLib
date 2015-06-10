@@ -15,13 +15,15 @@
 #include "Fifo.hpp"
 #include "CRC.hpp"
 #include "ChunkedFifo.hpp"
-#include "SerialTx.hpp"
-#include "RFM12TxFifo.hpp"
-#include "RFM12RxFifo.hpp"
-#include "RFM12Status.hpp"
-#include "RFM12Strength.hpp"
-#include "FS20Packet.hpp"
-#include "SerialTx.hpp"
+#include "Serial/SerialTx.hpp"
+#include "HopeRF/RFM12TxFifo.hpp"
+#include "HopeRF/RFM12RxFifo.hpp"
+#include "HopeRF/RFM12Status.hpp"
+#include "HopeRF/RFM12Strength.hpp"
+#include "FS20/FS20Packet.hpp"
+#include "Serial/SerialTx.hpp"
+
+namespace HopeRF {
 
 enum class RFM12Band: uint8_t {
     _433MHz = 1, _868Mhz = 2, _915MHz = 3
@@ -40,8 +42,6 @@ public:
     enum class Mode { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK };
 
 private:
-    static const Writer::VTable writerVTable;
-
     volatile Mode mode = Mode::IDLE;
     RFM12TxFifo<txFifoSize> txFifo;
     RFM12RxFifo<rxFifoSize, checkCrc> rxFifo;
@@ -205,17 +205,6 @@ private:
 
     InterruptHandler handler = { this, &This::interrupt };
 
-    static void writeStart(void *ctx) {
-        ((This*)(ctx))->txFifo.writeStart();
-    }
-    static void writeEnd(void *ctx) {
-        ((This*)(ctx))->txFifo.writeEnd();
-        ((This*)(ctx))->sendOrListen();
-    }
-    static bool write(void *ctx, uint8_t b) {
-        return ((This*)(ctx))->txFifo.write(b);
-    }
-
     friend struct OOKTarget;
     struct OOKTarget {
         This *rfm12;
@@ -260,7 +249,7 @@ private:
     OOKTarget ookTarget = { this };
     OOKSource ookSource = { this, txFifo.getChunkedFifo() };
     CallbackPulseTx<comparator_t, OOKTarget, OOKSource> ookTx = pulseTx(*comparator, ookTarget, ookSource);
-    SerialConfig fs20SerialConfig = FS20Packet::serialConfig<comparator_t>();
+    SerialConfig fs20SerialConfig = FS20::FS20Packet::serialConfig<comparator_t>();
 public:
     RFM12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band):
         spi(&_spi), ss_pin(&_ss_pin), int_pin(&_int_pin), comparator(&_comparator) {
@@ -271,15 +260,15 @@ public:
         return mode;
     }
 
-    inline Reader in() {
+    inline Streams::Reader<ChunkedFifo> in() {
         return rxFifo.in();
     }
 
-    inline Writer out() {
+    inline Streams::Writer<ChunkedFifo> out() {
         return txFifo.out(nullptr);
     }
 
-    inline void out_fs20(const FS20Packet &packet) {
+    inline void out_fs20(const FS20::FS20Packet &packet) {
         txFifo.out(&fs20SerialConfig) << packet;
     }
 
@@ -289,13 +278,6 @@ public:
 
 };
 
-template <typename spi_t, typename ss_pin_t, typename int_pin_t, typename comparator_t,
-          bool checkCrc, int rxFifoSize, int txFifoSize>
-const Writer::VTable RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc,rxFifoSize,txFifoSize>::writerVTable = {
-    &RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc,rxFifoSize,txFifoSize>::writeStart,
-    &RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc,rxFifoSize,txFifoSize>::writeEnd,
-    &RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc,rxFifoSize,txFifoSize>::write
-};
-
+}
 
 #endif /* RFM12_HPP_ */

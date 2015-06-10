@@ -1,76 +1,30 @@
-#include "Writer.hpp"
+#include "Streams/Format.hpp"
 
-Writer::~Writer() {
-    if (!wasWriting) {
-        if (valid) {
-            vtable->writeCommit(delegate);
-        } else {
-            vtable->writeRollback(delegate);
-        }
-    }
-}
+using namespace Streams;
 
-void Writer::write(const uint8_t b) {
-    if (valid) {
-        valid = vtable->write(delegate, b);
-    }
-}
-
-Writer &Writer::operator << (const uint8_t b) {
-    write(b);
-    return *this;
-}
-
-Writer &Writer::operator << (const uint16_t i) {
-    write(i >> 8);
-    write(i);
-    return *this;
-}
-
-Writer &Writer::operator << (const uint32_t i) {
-    write(i >> 24);
-    write(i >> 16);
-    write(i >> 8);
-    write(i);
-    return *this;
-}
-
-void Writer::doWrite (char *string) {
-    if (string != nullptr) {
-        uint8_t c = *string;
-        while (c) {
-            write(c);
-            string++;
-            c = *string;
-        }
-    }
-}
-
-Writer &Writer::operator << (Decimal<uint8_t> v) {
+void Format::format(write_f write, void *ctx, Decimal<uint8_t> v) {
     if (v.value > 99) {
-        write('0' + (v.value / 100));
+        write(ctx, '0' + (v.value / 100));
         v.value %= 100;
-        write('0' + (v.value / 10));
+        write(ctx, '0' + (v.value / 10));
         v.value %= 10;
     } else if (v.value > 9) {
-        write('0' + (v.value / 10));
+        write(ctx, '0' + (v.value / 10));
         v.value %= 10;
     }
-    write('0' + v.value);
-    return *this;
+    write(ctx, '0' + v.value);
 }
 
-Writer &Writer::operator << (Decimal<int8_t> v) {
+void Format::format(write_f write, void *ctx, Decimal<int8_t> v) {
     if (v.value < 0) {
-        write('-');
-        *this << dec(uint8_t(-v.value));
+        write(ctx, '-');
+        format(write, ctx, dec(uint8_t(-v.value)));
     } else {
-        *this << dec(uint8_t(v.value));
+        format(write, ctx, dec(uint8_t(v.value)));
     }
-    return *this;
 }
 
-Writer &Writer::operator << (const Decimal<uint16_t> v) {
+void Format::format(write_f write, void *ctx, Decimal<uint16_t> v) {
     const uint16_t n = v.value;
 
     uint8_t d4, d3, d2, d1, q;
@@ -103,30 +57,27 @@ Writer &Writer::operator << (const Decimal<uint16_t> v) {
                 d4 = q;
 
                 if (d4 != 0) {
-                    write( d4 + '0' );
+                    write(ctx, d4 + '0' );
                 }
-                write( d3 + '0' );
+                write(ctx, d3 + '0' );
             }
-            write( d2 + '0' );
+            write(ctx, d2 + '0' );
         }
-        write( d1 + '0' );
+        write(ctx, d1 + '0' );
     }
-    write( d0 + '0' );
-
-    return *this;
+    write(ctx, d0 + '0' );
 }
 
-Writer &Writer::operator << (Decimal<int16_t> v) {
+void Format::format(write_f write, void *ctx, Decimal<int16_t> v) {
     if (v.value < 0) {
-        write('-');
-        *this << dec(uint16_t(-v.value));
+        write(ctx, '-');
+        format(write, ctx, dec(uint16_t(-v.value)));
     } else {
-        *this << dec(uint16_t(v.value));
+        format(write, ctx, dec(uint16_t(v.value)));
     }
-    return *this;
 }
 
-Writer &Writer::operator << (const Decimal<uint32_t> v) {
+void Format::format(write_f write, void *ctx, Decimal<uint32_t> v) {
     const uint32_t n = v.value;
 
     const uint8_t n0 = n & 0x1F;
@@ -178,56 +129,49 @@ Writer &Writer::operator << (const Decimal<uint32_t> v) {
 
     bool started = false;
     if (q != 0) {
-        write (q + '0');
+        write (ctx, q + '0');
         started = true;
     }
     if (started || d8 != 0) {
-        write (d8 + '0');
+        write (ctx, d8 + '0');
         started = true;
     }
     if (started || d7 != 0) {
-        write (d7 + '0');
+        write (ctx, d7 + '0');
         started = true;
     }
     if (started || d6 != 0) {
-        write (d6 + '0');
+        write (ctx, d6 + '0');
         started = true;
     }
     if (started || d5 != 0) {
-        write (d5 + '0');
+        write (ctx, d5 + '0');
         started = true;
     }
     if (started || d4 != 0) {
-        write (d4 + '0');
+        write (ctx, d4 + '0');
         started = true;
     }
     if (started || d3 != 0) {
-        write (d3 + '0');
+        write (ctx, d3 + '0');
         started = true;
     }
     if (started || d2 != 0) {
-        write (d2 + '0');
+        write (ctx, d2 + '0');
         started = true;
     }
     if (started || d1 != 0) {
-        write (d1 + '0');
+        write (ctx, d1 + '0');
         started = true;
     }
-    write(d0 + '0');
-    return *this;
+    write(ctx, d0 + '0');
 }
 
-Writer &Writer::operator << (Decimal<int32_t> v) {
+void Format::format(write_f write, void *ctx, Decimal<int32_t> v) {
     if (v.value < 0) {
-        write('-');
-        *this << dec(uint32_t(-v.value));
+        write(ctx, '-');
+        format(write, ctx, dec(uint32_t(-v.value)));
     } else {
-        *this << dec(uint32_t(v.value));
+        format(write, ctx, dec(uint32_t(v.value)));
     }
-    return *this;
-}
-
-Writer &Writer::operator<< (const bool b) {
-    write(b ? 1 : 0);
-    return *this;
 }

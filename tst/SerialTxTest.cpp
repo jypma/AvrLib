@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
-#include "SerialTx.hpp"
-#include "RS232.hpp"
+#include "Serial/SerialTx.hpp"
+#include "Serial/RS232.hpp"
 
 namespace SerialTxTest {
+
+using namespace Serial;
 
 struct MockComparator {
     typedef uint8_t value_t;

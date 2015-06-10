@@ -10,6 +10,8 @@
 
 #include "PulseTx.hpp"
 
+namespace Serial {
+
 constexpr int simplePulseTxDefaultQueueSize = 16;
 
 template <int fifoSize=simplePulseTxDefaultQueueSize>
@@ -68,7 +70,7 @@ inline SimpleComparatorPinPulseTx<pin_t, fifoSize> simplePulseTx(pin_t &pin, boo
     return SimpleComparatorPinPulseTx<pin_t, fifoSize>(pin.timerComparator(), pin, idleHigh);
 }
 
-
+}
 
 
 #endif /* SIMPLEPULSETX_HPP_ */

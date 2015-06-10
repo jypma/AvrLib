@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
-#include "RFM12.hpp"
+#include "HopeRF/RFM12.hpp"
 
 namespace RFM12Test {
+
+using namespace HopeRF;
 
 class MockSPIMaster {
 public:
@@ -75,9 +77,9 @@ struct MockComparator {
         return 5;
     }
 
-    template <uint32_t value>
-    static constexpr value_t microseconds2counts() {
-        return uint16_t(value);
+    template <uint32_t value, typename return_t>
+    static constexpr return_t microseconds2counts() {
+        return (return_t) value;
     }
 };
 

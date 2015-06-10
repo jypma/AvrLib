@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <type_traits>
-#include "IRDecoder.hpp"
+#include "IR/IRDecoder.hpp"
+
+using namespace Serial;
 
 struct MockPulseCounter {
     struct PulseEvent {
@@ -10,9 +12,11 @@ struct MockPulseCounter {
         uint16_t getLength() const { return length; }
     };
     struct Timer {
+        typedef uint16_t value_t;
+
         static constexpr uint8_t prescalerPower2 = 8;
-        template <uint32_t usecs>
-        static constexpr uint16_t microseconds2counts() {
+        template <uint32_t usecs, typename return_t>
+        static constexpr return_t microseconds2counts() {
             return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
         }
     };

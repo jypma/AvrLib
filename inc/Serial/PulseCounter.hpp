@@ -10,20 +10,23 @@
 
 #include "Fifo.hpp"
 #include "Timer.hpp"
-#include "Reader.hpp"
-#include "Writer.hpp"
+#include "Streams/Streamable.hpp"
+
+namespace Serial {
+
+using namespace Streams;
 
 enum class PulseType: uint8_t { TIMEOUT = 0, HIGH = 1, LOW = 2 };
 
+// TODO join with Pulse
 template <typename _value_t>
-struct PulseEvent: public Counting<_value_t> {
+class PulseEvent: public Streamable<PulseEvent<_value_t>>, public Counting<_value_t> {
+    typedef Streamable<PulseEvent<_value_t>> S;
+
     PulseType type;
     _value_t length;
 public:
-    PulseEvent() {
-        type = PulseType::TIMEOUT;
-        length = 0;
-    }
+    constexpr PulseEvent(): type(PulseType::TIMEOUT), length(0) {}
 
     PulseEvent(PulseType _type, _value_t _length): type(_type), length(_length) {}
 
@@ -40,38 +43,19 @@ public:
     inline _value_t getLength() const {
         return length;
     }
-
-    static void write(Writer &out, const PulseEvent &evt) {
-        if (evt.type == PulseType::TIMEOUT) {
-            out << uint8_t(0);
-        } else {
-            uint8_t marker = uint8_t(evt.type);
-            if (evt.length > 255) {
-                marker |= 128;
-                out << marker << evt.length;
-            } else {
-                out << marker << uint8_t(evt.length);
-            }
-        }
+    inline bool hasLength() const {
+        return type != PulseType::TIMEOUT;
     }
-    static void read(Reader &in, PulseEvent &evt) {
-        uint8_t type;
-        if (in >> type) {
-            if (type == 0) {
-                evt.type = PulseType::TIMEOUT;
-            } else {
-                evt.type = PulseType(type & 0b11);
-                if (type & 128) {
-                    in >> evt.length;
-                } else {
-                    uint8_t length;
-                    in >> length;
-                    evt.length = length;
-                }
-            }
-        } else {
-            evt.type = PulseType::TIMEOUT;
-        }
+
+    typedef typename S::template Format<
+        typename S::template Scalar<PulseType, &PulseEvent::type>,
+        typename S::template Conditional<&PulseEvent::hasLength,
+            typename S::template Scalar<_value_t, &PulseEvent::length>
+        >
+    > Proto;
+
+    static inline PulseEvent timeout() {
+        return PulseEvent();
     }
 };
 
@@ -107,7 +91,7 @@ private:
            lastWasTimeout = false;
         } else {
             if (!lastWasTimeout) {
-                fifo.out() << PulseType::TIMEOUT;
+                fifo.out() << PulseEvent<count_t>::timeout();
                 lastWasTimeout = true;
             }
         }
@@ -118,9 +102,9 @@ private:
 
     void onComparator() {
         if (wasEmptyPeriod) {
-            if (!(fifo.out() << PulseType::TIMEOUT)) {
+            if (!(fifo.out() << PulseEvent<count_t>::timeout())) {
                 fifo.clear();
-                fifo.out() << PulseType::TIMEOUT;
+                fifo.out() << PulseEvent<count_t>::timeout();
                 lastWasTimeout = true;
             }
             comparator->interruptOff();
@@ -151,7 +135,7 @@ public:
         pin->interrupt().detach();
     }
 
-    inline Reader in() {
+    inline Streams::Reader<AbstractFifo> in() {
         return fifo.in();
     }
 };
@@ -159,6 +143,8 @@ public:
 template <typename _comparator_t, typename pin_t, int fifo_length = 32>
 PulseCounter<_comparator_t,pin_t,fifo_length> pulseCounter(_comparator_t &comparator, pin_t &pin, int minimumLength = 15) {
     return PulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin, minimumLength);
+}
+
 }
 
 #endif /* PULSECOUNTER_HPP_ */

@@ -8,11 +8,15 @@
 #ifndef FS20PACKET_HPP_
 #define FS20PACKET_HPP_
 
-#include "Reader.hpp"
-#include "Writer.hpp"
-#include "SerialTx.hpp"
+#include "Serial/SerialTx.hpp"
+#include "Streams/Streamable.hpp"
 
-struct FS20Packet {
+namespace FS20 {
+
+using namespace Streams;
+using namespace Serial;
+
+struct FS20Packet: public Streamable<FS20Packet> {
     static const uint8_t prefix[];
     static const uint8_t postfix[];
 
@@ -50,20 +54,18 @@ struct FS20Packet {
     uint8_t getExpectedChecksum() const;
     bool isChecksumCorrect() const;
 
-    static void write(Writer &out, const FS20Packet &packet) {
-        out << packet.houseCodeHi << packet.houseCodeLo << packet.address << packet.command;
-        if (packet.hasCommandExt()) {
-            out << packet.commandExt;
-        }
-        out << packet.checksum;
-    }
-    static void read(Reader &in, FS20Packet &packet) {
-        in >> packet.houseCodeHi >> packet.houseCodeLo >> packet.address >> packet.command;
-        if (packet.hasCommandExt()) {
-            in >> packet.commandExt;
-        }
-        in >> packet.checksum;
-    }
+    typedef Format<
+        Scalar<uint8_t, &FS20Packet::houseCodeHi>,
+        Scalar<uint8_t, &FS20Packet::houseCodeLo>,
+        Scalar<uint8_t, &FS20Packet::address>,
+        Scalar<uint8_t, &FS20Packet::command>,
+        Conditional<&FS20Packet::hasCommandExt,
+            Scalar<uint8_t, &FS20Packet::commandExt>
+        >,
+        Scalar<uint8_t, &FS20Packet::checksum>
+    > Proto;
 };
+
+}
 
 #endif /* FS20PACKET_HPP_ */
