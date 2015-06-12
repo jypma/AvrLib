@@ -107,7 +107,7 @@ public:
     }
 
     template <uint8_t size>
-    Writer &operator << (const char (&string)[size]) {
+    inline Writer &operator << (const char (&string)[size]) {
         writeRange(string, size - 1);
         return *this;
     }
@@ -140,6 +140,12 @@ public:
 
     /** Writes a single uint16_t, LSB first (little endian) */
     inline Writer &operator << (const uint16_t value) {
+        writeLiteral(value);
+        return *this;
+    }
+
+    /** Writes a single uint32_t, LSB first (little endian) */
+    inline Writer &operator << (const uint32_t value) {
         writeLiteral(value);
         return *this;
     }

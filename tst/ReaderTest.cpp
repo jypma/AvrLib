@@ -1,77 +1,58 @@
 #include <gtest/gtest.h>
 #include "Streams/Reader.hpp"
-/*
+
+namespace ReaderTest {
+
+using namespace Streams;
+
 struct MockIn {
     uint8_t buffer[200];
-    uint8_t remaining;
+    uint8_t remaining = 0;
     uint8_t pos = 0;
-    bool hasStarted = false;
-    bool hasCommit = false;
-    bool hasRollback = false;
-    bool reading = false;
 
-    static void readStart(void * ctx) {
-        ((MockIn*)ctx)->hasStarted = true;
+    bool started = false;
+    bool ended = false;
+    bool aborted = false;
+
+    void readStart() {
+        started = true;
     }
-    static void readCommit(void *ctx) {
-        ((MockIn*)ctx)->hasCommit = true;
+    void readEnd() {
+        ended = true;
     }
-    static void readRollback(void *ctx) {
-        ((MockIn*)ctx)->hasRollback = true;
+    void readAbort() {
+        aborted = true;
     }
-    static bool read(void *ctx, uint8_t &target) {
-        MockIn *in = ((MockIn*)ctx);
-        target = in->buffer[in->pos];
-        in->pos++;
-        in->remaining--;
-        return true;
+    void uncheckedRead(uint8_t &ch) {
+        ch = buffer[pos];
+        pos++;
+        remaining--;
     }
-    static uint8_t getRemaining(void *ctx) {
-        return ((MockIn*)ctx)->remaining;
-    }
-    static bool isReading(void *ctx) {
-        return ((MockIn*)ctx)->reading;
+    uint8_t getReadAvailable() const {
+        return remaining;
     }
 };
 
-
 enum class ReaderTestEnum: uint8_t {ONE, TWO};
 
-TEST(ReaderTest, does_not_commit_if_constructed_on_input_that_was_already_reading) {
-    MockIn in;
-    in.reading = true;
-    {
-        Reader r(&vtable, &in);
-    }
-    EXPECT_FALSE(in.hasCommit);
-}
-
-TEST(ReaderTest, does_commit_if_constructed_on_input_that_was_not_reading) {
-    MockIn in;
-    in.reading = false;
-    {
-        Reader r(&vtable, &in);
-    }
-    EXPECT_TRUE(in.hasCommit);
-}
-
-TEST(ReaderTest, raw_bytes_and_enums_are_read_correctly) {
+TEST(ReaderTest, raw_bytes_are_read_correctly) {
     MockIn in;
     in.buffer[0] = 42;
     in.buffer[1] = 1;
     in.remaining = 2;
     {
-        Reader r(&vtable, &in);
-        EXPECT_TRUE(in.hasStarted);
-        EXPECT_EQ(2, r.getRemaining());
+        auto r = Reader<MockIn>(in);
+        EXPECT_TRUE(in.started);
+        EXPECT_EQ(2, r.getReadAvailable());
         uint8_t inbyte;
         r >> inbyte;
         EXPECT_EQ(42, inbyte);
-        ReaderTestEnum inenum;
-        r >> inenum;
-        EXPECT_EQ(ReaderTestEnum::TWO, inenum);
-        EXPECT_FALSE(in.hasCommit);
+        //ReaderTestEnum inenum;
+        //r >> inenum;
+        //EXPECT_EQ(ReaderTestEnum::TWO, inenum);
+        EXPECT_FALSE(in.ended);
     }
-    EXPECT_TRUE(in.hasCommit);
+    EXPECT_TRUE(in.ended);
 }
-*/
+
+}
