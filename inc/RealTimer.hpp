@@ -185,6 +185,7 @@ template <typename rt_t, typename value>
 class Periodic {
     static constexpr uint16_t countsDelay = value::template toCounts<rt_t, uint16_t>();
 
+protected:
     uint32_t nextCounts;
     rt_t *rt;
 
@@ -215,4 +216,23 @@ template <typename rt_t, typename value_t>
 Periodic<rt_t,value_t> periodic(rt_t &rt, value_t value) {
     return Periodic<rt_t,value_t>(rt);
 }
+
+template <typename rt_t, typename value>
+class Deadline: public Periodic<rt_t, value> {
+    typedef Periodic<rt_t, value> Super;
+    using Super::rt;
+    using Super::nextCounts;
+public:
+    Deadline(rt_t &_rt): Super(&_rt) {}
+
+    bool isNow() {
+        return rt->counts() >= nextCounts;
+    }
+};
+
+template <typename rt_t, typename value_t>
+Deadline<rt_t,value_t> deadline(rt_t &rt, value_t value) {
+    return Periodic<rt_t,value_t>(rt);
+}
+
 #endif /* REALTIMER_HPP_ */
