@@ -81,6 +81,36 @@ public:
         return *this;
     }
 
+    Reader & operator >> (const char *token) {
+        if (token == nullptr) {
+            return *this;
+        }
+
+        bool foundToken = false;
+        while (valid && *token != '\0') {
+            if (fifo->getReadAvailable() >= 1) {
+                uint8_t incoming;
+                fifo->uncheckedRead(incoming);
+                if (foundToken) {
+                    if (incoming == *token) {
+                        token++;
+                    } else {
+                        valid = false;
+                    }
+                } else {
+                    if (incoming == *token) {
+                        foundToken = true;
+                        token++;
+                    }
+                }
+            } else {
+                valid = false;
+            }
+        }
+
+        return *this;
+    }
+
 };
 
 }
