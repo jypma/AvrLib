@@ -42,6 +42,24 @@ private:
     inline uint8_t markedOrReadPos() const {
         return isReading() ? readMark : readPos;
     }
+    inline bool _isFull() const {
+        uint8_t lastWritePos = markedOrReadPos();
+        if (lastWritePos == 0) {
+            lastWritePos = bufferSize - 1;
+        } else {
+            lastWritePos--;
+        }
+        return writePos == lastWritePos;
+    }
+    inline bool _hasSpace() const {
+        uint8_t lastWritePos = markedOrReadPos();
+        if (lastWritePos == 0) {
+            lastWritePos = bufferSize - 1;
+        } else {
+            lastWritePos--;
+        }
+        return writePos != lastWritePos;
+    }
 
 public:
     AbstractFifo(uint8_t * const _buffer, const uint8_t _bufferSize): buffer(_buffer), bufferSize(_bufferSize) {}
@@ -136,6 +154,17 @@ public:
             }
         }
         return avail;
+    }
+
+    /** Only for use in interrupts. Inlined, and does not disable interrupt flag. */
+    inline void fastwrite(uint8_t b) {
+        if (hasSpace()) {
+            buffer[writePos] = b;
+            writePos++;
+            if (writePos >= bufferSize) {
+                writePos -= bufferSize;
+            }
+        }
     }
 };
 

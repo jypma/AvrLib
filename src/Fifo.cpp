@@ -101,7 +101,7 @@ bool AbstractFifo::hasContent() const {
 
 bool AbstractFifo::isFull() const {
     AtomicScope _;
-    return writePos == (( markedOrReadPos() - 1 + bufferSize) % bufferSize);
+    return _isFull();
 }
 
 uint8_t AbstractFifo::peek() const {

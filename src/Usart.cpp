@@ -1,7 +1,7 @@
 #include "Usart.hpp"
 
-const Usart<Usart0Info> usart0;
 AbstractFifo *usart0writeFifo = nullptr;
+AbstractFifo *usart0readFifo = nullptr;
 
 ISR(USART_UDRE_vect)
 {
@@ -18,3 +18,9 @@ ISR(USART_UDRE_vect)
     }
 }
 
+ISR(USART_RX_vect) {
+    if (usart0readFifo != nullptr) {
+        uint8_t ch = UDR0;
+        usart0readFifo->fastwrite(ch);
+    }
+}

@@ -15,8 +15,10 @@
 #include <avr/interrupt.h>
 
 extern AbstractFifo *usart0writeFifo;
+extern AbstractFifo *usart0readFifo;
 
 ISR(USART_UDRE_vect);
+ISR(USART_RXC_vect);
 
 /**
  * Configures the USART to use the given baud rate, and configures both pins (0 and 1) as transmitter
@@ -28,6 +30,8 @@ ISR(USART_UDRE_vect);
 template <typename info>
 class Usart {
 public:
+    typedef info usart_info_t;
+
     Usart(uint32_t baud = 57600) {
         uint16_t baud_setting = (F_CPU / 4 / baud - 1) / 2;
         if (baud_setting > 4095) {
@@ -39,6 +43,7 @@ public:
 
         *info::ubrr = baud_setting;
         *info::ucsrb = (*info::ucsrb | _BV(TXEN0) | _BV(RXEN0) | _BV(RXCIE0)) & ~_BV(UDRIE0);
+        *info::ucsrc = _BV(UCSZ00) | _BV(UCSZ01);
     }
 };
 
@@ -75,7 +80,7 @@ class UsartTx {
 public:
     UsartTx() {
         AtomicScope::SEI _;
-        info::fifo = &writeFifo;
+        info::writeFifo = &writeFifo;
     }
 
     inline Streams::Writer<fifo_t, Streams::BlockingWriteSemantics<fifo_t>> out() {
@@ -87,8 +92,8 @@ public:
     }
 
     static void flush() {
-        if (info::fifo != nullptr) {
-            while (info::fifo->hasContent()) ;
+        if (info::writeFifo != nullptr) {
+            while (info::writeFifo->hasContent()) ;
         }
 
         while (*info::ucsrb & _BV(UDRIE0)) ;
@@ -96,15 +101,31 @@ public:
     }
 };
 
+template <typename info, uint8_t readFifoCapacity>
+class UsartRx {
+    Fifo<readFifoCapacity> readFifo;
+public:
+    UsartRx() {
+        AtomicScope::SEI _;
+        info::readFifo = &readFifo;
+    }
+
+    inline Streams::Reader<AbstractFifo> in() {
+        return readFifo.in();
+    }
+};
+
 struct Usart0Info {
     static constexpr volatile uint8_t *ucsra = &UCSR0A;
     static constexpr volatile uint8_t *ucsrb = &UCSR0B;
+    static constexpr volatile uint8_t *ucsrc = &UCSR0C;
     static constexpr volatile uint16_t *ubrr = &UBRR0;
     static constexpr volatile uint8_t *udr = &UDR0;
-    static constexpr AbstractFifo *&fifo = usart0writeFifo;
+    static constexpr AbstractFifo *&writeFifo = usart0writeFifo;
+    static constexpr AbstractFifo *&readFifo = usart0readFifo;
 };
 
-extern const Usart<Usart0Info> usart0;
+typedef Usart<Usart0Info> Usart0;
 template <uint8_t writeFifoCapacity = 16> using Usart0Tx = UsartTx<Usart0Info, writeFifoCapacity>;
 
 #endif /* USART_HPP_ */
