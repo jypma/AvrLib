@@ -8,12 +8,15 @@
 #ifndef WRITER_HPP_
 #define WRITER_HPP_
 
+#include "Reader.hpp"
 #include "Streams/Format.hpp"
+#include "EEPROM.hpp"
 #include "gcc_type_traits.h"
 #include <stdint.h>
+#include "avr/eeprom.h"
 
 namespace Streams {
-constexpr const char endl[] = "\n\r";
+constexpr const char endl[] = "\r\n";
 
 template <typename fifo_t>
 class BlockingWriteSemantics {
@@ -102,6 +105,10 @@ public:
         sem::end(*fifo, valid);
     }
 
+    inline void uncheckedWrite(uint8_t b) {
+        fifo->uncheckedWrite(b);
+    }
+
     inline operator bool() const {
         return valid;
     }
@@ -116,8 +123,8 @@ public:
     inline Writer & operator << (const T &t) {
         typedef typename T::Proto P;
 
-        if (valid && sem::canWrite(*fifo, P::maximumSize)) {
-            P::writeFields(t, *fifo);
+        if (valid && sem::canWrite(*fifo, P::maximumUncheckedWriteSize)) {
+            P::writeFields(t, *this);
         } else {
             valid = false;
         }
@@ -172,6 +179,50 @@ public:
     }
     inline Writer &operator << (Decimal<int32_t> v) {
         Format::format(&This::writeByte, this, v);
+        return *this;
+    }
+
+    Writer &operator << (uint8_t EEPROM::*field) {
+        uint8_t value = read(field);
+        writeLiteral(value);
+        return *this;
+    }
+
+    template <uint8_t size>
+    Writer &operator << (char (EEPROM::*field)[size]) {
+        uint8_t count = size;
+        EEPROM *storage = (EEPROM *) 0;
+        uint8_t *pos = (uint8_t *) (storage->*field);
+        while (count > 0) {
+            uint8_t value = eeprom_read_byte(pos);
+            if (value == 0) {
+                return *this;
+            }
+            writeLiteral(value);
+            pos++;
+            count--;
+        }
+        return *this;
+    }
+
+    Writer &operator << (Decimal<uint8_t EEPROM::*> field) {
+        Format::format(&This::writeByte, this, dec(read(field.value)));
+        return *this;
+    }
+
+    Writer &operator << (Decimal<uint16_t EEPROM::*> field) {
+        Format::format(&This::writeByte, this, dec(read(field.value)));
+        return *this;
+    }
+
+    /** Writes the remaining bytes of the reader into this writer. */
+    template <typename reader_fifo_t>
+    Writer &operator << (Reader<reader_fifo_t> &&in) {
+        for (auto length = in.getReadAvailable(); length > 0; length--) {
+            uint8_t value;
+            in.uncheckedRead(value);
+            writeLiteral(value);
+        }
         return *this;
     }
 };

@@ -9,6 +9,15 @@ uint8_t AbstractFifo::getSize() const {
            0;
 }
 
+uint8_t AbstractFifo::getReadAvailable() const {
+    AtomicScope _;
+    const auto write_pos = markedOrWritePos();
+    const auto read_pos = readPos; // an on-going read DOES remove from the available bytes to read
+    return (write_pos > read_pos) ? write_pos - read_pos :
+           (write_pos < read_pos) ? bufferSize - read_pos + write_pos :
+           0;
+}
+
 uint8_t AbstractFifo::getSpace() const {
     AtomicScope _;
     const auto write_pos = writePos;  // an on-going write DOES count to eating up space

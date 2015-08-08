@@ -41,6 +41,10 @@ public:
         return data->getSize();
     }
 
+    inline uint8_t isEmpty() const {
+        return data->isEmpty();
+    }
+
     void writeStart();
 
     inline bool isWriting() const {

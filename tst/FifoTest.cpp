@@ -209,12 +209,18 @@ TEST(FifoTest, remove_during_marked_read_does_not_free_up_space_until_committed)
     fifo.readStart();
 
     EXPECT_TRUE(fifo.isFull());
+    EXPECT_EQ(2, fifo.getSize());
+    EXPECT_EQ(2, fifo.getReadAvailable());
     uint8_t b;
     EXPECT_TRUE(fifo.read(b));
     EXPECT_TRUE(fifo.isFull());
+    EXPECT_EQ(2, fifo.getSize());
+    EXPECT_EQ(1, fifo.getReadAvailable());
     EXPECT_EQ(42, b);
     EXPECT_TRUE(fifo.read(b));
     EXPECT_TRUE(fifo.isFull());
+    EXPECT_EQ(2, fifo.getSize());
+    EXPECT_EQ(0, fifo.getReadAvailable());
     EXPECT_EQ(84, b);
 
     EXPECT_FALSE(fifo.hasSpace());

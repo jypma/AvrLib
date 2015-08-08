@@ -56,6 +56,7 @@ TEST(ReaderTest, raw_bytes_are_read_correctly) {
     EXPECT_TRUE(in.ended);
 }
 
+/*
 TEST(ReaderTest, scanning_for_token_finds_token) {
     Fifo<16> fifo;
     fifo.out() << "abcde";
@@ -88,5 +89,5 @@ TEST(Readertest, scanning_for_token_longer_than_input_fails) {
     EXPECT_FALSE(fifo.in() >> "abcdef" >> i);
     EXPECT_EQ(5, fifo.getSize());
 }
-
+*/
 }

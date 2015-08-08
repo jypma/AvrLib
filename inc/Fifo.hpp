@@ -76,9 +76,7 @@ public:
 
     uint8_t getSize() const;
 
-    inline uint8_t getReadAvailable() const {
-        return getSize();
-    }
+    uint8_t getReadAvailable() const;
 
     uint8_t getSpace() const;
 
@@ -131,10 +129,6 @@ public:
 
     void clear();
 
-    //Writer out();
-
-    //Reader in();
-
     inline Streams::Writer<AbstractFifo> out() {
         return Streams::Writer<AbstractFifo>(*this);
     }
@@ -166,6 +160,17 @@ public:
             }
         }
     }
+
+    template <typename Proto, typename T>
+    inline Streams::ReaderState readAs(T &t) {
+        return in().readAs<Proto,T>(t);
+    }
+
+    template <typename Proto>
+    inline Streams::ReaderState expect() {
+        return in().expect<Proto>();
+    }
+
 };
 
 /**

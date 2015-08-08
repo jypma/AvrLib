@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "Fifo.hpp"
+#include "ChunkedFifo.hpp"
 #include "Streams/Reader.hpp"
 #include "Streams/Writer.hpp"
 #include "Streams/Streamable.hpp"
@@ -139,7 +140,7 @@ struct TestStruct3: public Streamable<TestStruct3> {
 TEST(StreamsTest, conditional_field_is_included_on_true) {
     constexpr int min = TestStruct3::Proto::minimumSize;
     EXPECT_EQ(1, min);
-    constexpr int max = TestStruct3::Proto::maximumSize;
+    constexpr int max = TestStruct3::Proto::maximumUncheckedWriteSize;
     EXPECT_EQ(2, max);
 
     auto fifo = Fifo<2>();
@@ -152,7 +153,7 @@ TEST(StreamsTest, conditional_field_is_included_on_true) {
     EXPECT_EQ(42, returned.b);
 }
 
-TEST(StreamTest, maximum_size_determines_whether_instance_is_written_to_fifo) {
+TEST(StreamsTest, maximum_size_determines_whether_instance_is_written_to_fifo) {
     auto fifo = Fifo<1>();
     EXPECT_EQ(1, fifo.getSpace());
     EXPECT_FALSE(fifo.out() << TestStruct3(0, 42));
@@ -168,6 +169,79 @@ TEST(StreamsTest, conditional_field_is_excluded_on_false) {
     EXPECT_TRUE(fifo.in() >> returned);
     EXPECT_EQ(99, returned.a);
     EXPECT_EQ(0, returned.b);
+}
+
+TEST(StreamsTest, conditional_field_aborts_read_if_fifo_would_run_out) {
+    struct T: public Streamable<T> {
+        uint8_t ch1 = 0, ch2 = 0;
+
+        bool isCh1A() const { return ch1 == 'a'; }
+
+        T() {
+            auto fifo = Fifo<16>();
+            fifo.out() << "a";
+
+            EXPECT_EQ(ReaderState::Incomplete, (fifo.readAs<Format<
+                Scalar<uint8_t, &T::ch1>,
+                Conditional<&T::isCh1A,
+                    Scalar<uint8_t, &T::ch2>
+                >
+            >>(*this)));
+
+            EXPECT_EQ('a', ch1);
+            EXPECT_EQ(0, ch2);
+        }
+    } t;
+}
+
+TEST(StreamsTest, absense_of_token_fails_reader) {
+    struct T: public Streamable<T> {
+        uint8_t ch = 0;
+
+        T() {
+            auto fifo = Fifo<16>();
+            fifo.out() << "abcdef";
+
+            EXPECT_EQ(ReaderState::Invalid, (fifo.readAs<Format<
+                Token<'a','a','a'>,
+                Scalar<uint8_t, &T::ch>
+            >>(*this)));
+
+            EXPECT_EQ(0, ch);
+        }
+    } t;
+}
+
+TEST(StreamsTest, char_after_token_is_read) {
+    struct T: public Streamable<T> {
+        uint8_t ch = 0;
+
+        T() {
+            auto fifo = Fifo<16>();
+            fifo.out() << "bcdef";
+
+            EXPECT_EQ(ReaderState::Valid, (fifo.readAs<Format<
+                Token<'b','c','d'>,
+                Scalar<uint8_t, &T::ch>
+            >>(*this)));
+
+            EXPECT_EQ('e', ch);
+        }
+    } t;
+
+}
+
+TEST(StreamTest, partially_present_token_marks_reader_as_incomplete) {
+    struct T: public Streamable<T> {
+        T() {
+            auto fifo = Fifo<16>();
+            fifo.out() << "ab";
+
+            EXPECT_EQ(ReaderState::Incomplete, (fifo.readAs<Format<
+                Token<'a','b','c'>
+            >>(*this)));
+        }
+    } t;
 }
 
 }

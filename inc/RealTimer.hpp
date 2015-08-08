@@ -223,7 +223,7 @@ class Deadline: public Periodic<rt_t, value> {
     using Super::rt;
     using Super::nextCounts;
 public:
-    Deadline(rt_t &_rt): Super(&_rt) {}
+    Deadline(rt_t &_rt): Super(_rt) {}
 
     bool isNow() {
         return rt->counts() >= nextCounts;
@@ -232,7 +232,7 @@ public:
 
 template <typename rt_t, typename value_t>
 Deadline<rt_t,value_t> deadline(rt_t &rt, value_t value) {
-    return Periodic<rt_t,value_t>(rt);
+    return Deadline<rt_t,value_t>(rt);
 }
 
 #endif /* REALTIMER_HPP_ */

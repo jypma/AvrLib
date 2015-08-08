@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include "Streams/Writer.hpp"
+#include "EEPROMTest.hpp"
+#include "ChunkedFifo.hpp"
 
 namespace WriterTest {
 
@@ -237,6 +239,32 @@ TEST(WriterTest, decimal_uint32_t_is_handled) {
     EXPECT_EQ('9', out.buffer[13]);
     EXPECT_EQ('5', out.buffer[14]);
     EXPECT_EQ(15, out.length);
+}
+
+TEST(WriterTest, decimal_from_eeprom_is_possible) {
+    MockFifo out;
+    {
+        auto w = Writer<MockFifo>(out);
+        w << dec(&EEPROM::data);
+        w << dec(&EEPROM::remotePort);
+    }
+}
+
+TEST(WriterTest, can_write_chunk_from_chunked_fifo_as_reader) {
+    Fifo<200> inputData;
+    ChunkedFifo input(&inputData);
+
+    input.out() << "hello";
+
+    MockFifo out;
+    {
+        auto w = Writer<MockFifo>(out);
+        w << input.in();
+    }
+
+    EXPECT_EQ(5, out.length);
+    EXPECT_EQ('h', out.buffer[0]);
+    EXPECT_EQ('o', out.buffer[4]);
 }
 
 }

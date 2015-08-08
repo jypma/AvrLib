@@ -113,6 +113,24 @@ public:
     inline Streams::Reader<AbstractFifo> in() {
         return readFifo.in();
     }
+
+    inline void clear() {
+        readFifo.clear();
+    }
+
+    inline void uncheckedRead(uint8_t &i) {
+        readFifo.uncheckedRead(i);
+    }
+
+    inline uint8_t getReadAvailable() {
+        return readFifo.getReadAvailable();
+    }
+
+    template <typename Proto>
+    inline Streams::ReaderState expect() {
+        return readFifo.expect<Proto>();
+    }
+
 };
 
 struct Usart0Info {

@@ -9,22 +9,25 @@
 #define READER_HPP_
 
 #include <stdint.h>
+#include <gcc_type_traits.h>
 
 namespace Streams {
+
+enum class ReaderState { Valid, Invalid, Incomplete };
 
 template <typename fifo_t>
 class Reader {
     fifo_t *fifo;
-    bool valid = true;
+    ReaderState state = ReaderState::Valid;
 
     template <typename T>
     inline void readLiteral(T &value) {
-        if (valid && (fifo->getReadAvailable() >= sizeof(T))) {
+        if (isValid() && (fifo->getReadAvailable() >= sizeof(T))) {
             for (uint8_t i = 0; i < sizeof(T); i++) {
                 fifo->uncheckedRead( ((uint8_t*)(&value))[i] );
             }
         } else {
-            valid = false;
+            markIncomplete();
         }
     }
 
@@ -33,15 +36,43 @@ public:
         fifo->readStart();
     }
     inline ~Reader() {
-        if (valid) {
+        if (isValid()) {
             fifo->readEnd();
         } else {
             fifo->readAbort();
         }
     }
 
+    void markIncomplete() {
+        if (state != ReaderState::Invalid) {
+            state = ReaderState::Incomplete;
+        }
+    }
+
+    void markInvalid() {
+        state = ReaderState::Invalid;
+    }
+
+    inline bool isValid() const {
+        return state == ReaderState::Valid;
+    }
+
     inline operator bool() const {
-        return valid;
+        return isValid();
+    }
+
+    inline operator ReaderState() const {
+        return state;
+    }
+
+    inline void uncheckedRead(uint8_t &b) {
+        if (isValid()) { // FIXME check if this might be too slow, then we can group sets of Scalar<> inside a Format<> in a direct way.
+            fifo->uncheckedRead(b);
+        }
+    }
+
+    inline uint8_t peek() const {
+        return fifo->peek();
     }
 
     /** Returns the amount of bytes available to be read. */
@@ -49,26 +80,35 @@ public:
         return fifo->getReadAvailable();
     }
 
+    template <typename Proto, typename T>
+    inline Reader &readAs(T &t) {
+        if (isValid()) {
+            Proto::read(*this, t);
+        }
+        return *this;
+    }
+
+    template <typename Proto>
+    inline Reader &expect() {
+        if (isValid()) {
+            Proto::read(*this);
+        }
+        return *this;
+    }
+
     /** Reads a struct that has a configured protocol by declaring a typedef of Streams::Format<...> Proto. */
     template <typename T, typename check = typename T::Proto>
     inline Reader & operator >> (T &t) {
-        typedef typename T::Proto P;
-
-        if (valid && fifo->getReadAvailable() >= P::minimumSize) {
-            P::readFields(*fifo, t);
-        } else {
-            valid = false;
-        }
-
+        readAs<typename T::Proto, T>(t);
         return *this;
     }
 
     /** Reads a single byte */
     inline Reader & operator >> (uint8_t &b) {
-        if (valid && fifo->getReadAvailable() >= 1) {
+        if (isValid() && fifo->getReadAvailable() >= 1) {
             fifo->uncheckedRead(b);
         } else {
-            valid = false;
+            markIncomplete();
         }
 
         return *this;
@@ -81,13 +121,15 @@ public:
         return *this;
     }
 
+    /*
+    // FIXME rewrite as scan<Token<...>>
     Reader & operator >> (const char *token) {
         if (token == nullptr) {
             return *this;
         }
 
         bool foundToken = false;
-        while (valid && *token != '\0') {
+        while (isValid() && *token != '\0') {
             if (fifo->getReadAvailable() >= 1) {
                 uint8_t incoming;
                 fifo->uncheckedRead(incoming);
@@ -95,7 +137,7 @@ public:
                     if (incoming == *token) {
                         token++;
                     } else {
-                        valid = false;
+                        markInvalid();
                     }
                 } else {
                     if (incoming == *token) {
@@ -104,13 +146,13 @@ public:
                     }
                 }
             } else {
-                valid = false;
+                markIncomplete();
             }
         }
 
         return *this;
     }
-
+    */
 };
 
 }

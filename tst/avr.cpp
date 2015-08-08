@@ -2,6 +2,7 @@
 #include "util/crc16.h"
 
 uint8_t sfr_mem[256];
+uint8_t eeprom_contents[1024];
 
 void cli() {
     SREG &= ~_BV(SREG_I);
