@@ -60,6 +60,8 @@ public:
             f();
         } else if (thisResult == ReaderState::Incomplete) {
             state = ReaderState::Incomplete;
+        } else if (thisResult == ReaderState::Partial) {
+            state = ReaderState::Partial;
         }
     }
 

@@ -64,116 +64,38 @@ namespace Streams {
         }
     };
 
-    /*
-    template <typename R, R _value, typename _format>
-    struct MatchCase {
-        static constexpr R value = _value;
-        typedef _format format;
-    };
+    template<char ch1, char ch2, char...others>
+    class Token<ch1, ch2, others...> {
+    public:
+        static constexpr uint8_t minimumSize = 1;
+        static constexpr uint8_t maximumUncheckedWriteSize = 1 + Token<others...>::maximumUncheckedWriteSize;
 
-    template <typename R, typename... cases>
-    struct MatchScanner {
-        template <typename fifo_t, typename T>
-        static ReaderState performMatch(fifo_t &fifo, T &t, R &result) {
-            return ReaderState::Invalid;
+        template <typename writer_t>
+        inline static void writeField(writer_t &out) {
+            out.uncheckedWrite(uint8_t(ch1));
+            Token<ch2,others...>::writeFields(out);
         }
 
-        template <typename fifo_t>
-        static ReaderState performMatch(fifo_t &fifo, R &result) {
-            return ReaderState::Invalid;
+        template <typename reader_t, typename T>
+        inline static void readField(reader_t &in, T &t) {
+            readField(in);
         }
-    };
 
-    template <typename R, typename thisCase, typename... nextCases>
-    struct MatchScanner<R, thisCase, nextCases...> {
-        template <typename fifo_t, typename T>
-        static ReaderState performMatch(fifo_t &fifo, T &t, R &result) {
-            ReaderState thisResult = fifo.template readAs<typename thisCase::format>(t);
-            if (thisResult == ReaderState::Valid) {
-                result = thisCase::value;
-                return ReaderState::Valid;
-            } else if (thisResult == ReaderState::Incomplete) {
-                // Try the others, but never mark us as Invalid, since at least one reader has reported Invalid.
-                ReaderState nextResult = MatchScanner<R, nextCases...>::performMatch(fifo, t, result);
-                return (nextResult == ReaderState::Valid) ? ReaderState::Valid : thisResult;
+        template <typename reader_t>
+        inline static void readField(reader_t &in) {
+            uint8_t input;
+            in.uncheckedRead(input);
+            if (input != ch1) {
+                in.markInvalid();
             } else {
-                return MatchScanner<R, nextCases...>::performMatch(fifo, t, result);
-            }
-        }
-
-        template <typename fifo_t>
-        static ReaderState performMatch(fifo_t &fifo, R &result) {
-            ReaderState thisResult = fifo.template expect<typename thisCase::format>();
-            if (thisResult == ReaderState::Valid) {
-                result = thisCase::value;
-                return ReaderState::Valid;
-            } else if (thisResult == ReaderState::Incomplete) {
-                // Try the others, but never mark us as Invalid, since at least one reader has reported Invalid.
-                ReaderState nextResult = MatchScanner<R, nextCases...>::performMatch(fifo, result);
-                return (nextResult == ReaderState::Valid) ? ReaderState::Valid : thisResult;
-            } else {
-                return MatchScanner<R, nextCases...>::performMatch(fifo, result);
-            }
-        }
-
-    };
-
-    template <typename R, R defaultValue, typename... cases>
-    struct Match {
-        template <R value, typename format>
-        using as = Match<R, defaultValue, cases..., MatchCase<R, value, format>>;
-
-        template <typename fifo_t, typename T>
-        static R scan(fifo_t &fifo, T &t) {
-            uint8_t available = fifo.getReadAvailable();
-            while (available > 0) {
-                R result;
-                // if any format matched, then we have success
-                // if any format was incomplete (and the others invalid), then we return (since further characters might complete that format)
-                // if all formats are invalid (i.e. the current char isn't the starting char for any format), we eat a character and try again.
-                switch (MatchScanner<R, cases...>::performMatch(fifo, t, result)) {
-                    case ReaderState::Valid:
-                        return result;
-
-                    case ReaderState::Incomplete:
-                        return defaultValue;
-
-                    case ReaderState::Invalid:
-                        uint8_t dropped;
-                        fifo.uncheckedRead(dropped);
-                        available--;
-                        break;
+                if (in.getReadAvailable() >= Token<ch2,others...>::minimumSize) {
+                    Token<ch2,others...>::readField(in);
+                } else {
+                    in.markPartial();
                 }
             }
-            return defaultValue;
-        }
-
-        template <typename fifo_t>
-        static R scan(fifo_t &fifo) {
-            uint8_t available = fifo.getReadAvailable();
-            while (available > 0) {
-                R result;
-                // if any format matched, then we have success
-                // if any format was incomplete (and the others invalid), then we return (since further characters might complete that format)
-                // if all formats are invalid (i.e. the current char isn't the starting char for any format), we eat a character and try again.
-                switch (MatchScanner<R, cases...>::performMatch(fifo, result)) {
-                    case ReaderState::Valid:
-                        return result;
-
-                    case ReaderState::Incomplete:
-                        return defaultValue;
-
-                    case ReaderState::Invalid:
-                        uint8_t dropped;
-                        fifo.uncheckedRead(dropped);
-                        available--;
-                        break;
-                }
-            }
-            return defaultValue;
         }
     };
-    */
 
 namespace Parts {
 
@@ -437,6 +359,12 @@ struct Streamable {
     template <ChunkedFifo Type::*field, typename Separator = Format<Type>> using Chunk = Parts::Chunk<Type, field, Separator>;
 
 };
+
+struct NoType {};
+
+template <typename... Fields>
+class Seq: public Parts::Format<NoType, Fields...> {};
+
 
 } // end namespace Streams
 

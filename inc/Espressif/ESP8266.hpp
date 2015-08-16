@@ -14,6 +14,7 @@
 #include "ChunkedFifo.hpp"
 #include "EEPROM.hpp"
 #include "Streams/Scanner.hpp"
+#include <util/delay.h>
 
 namespace Espressif {
 
@@ -28,11 +29,12 @@ template<
     uint16_t EEPROM::*remotePort,
     typename tx_pin_t,
     typename rx_pin_t,
+    typename reset_pin_t,
     uint8_t txFifoSize = 64,
     uint8_t rxFifoSize = 64
 >
 class ESP8266 {
-    typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, txFifoSize, rxFifoSize> Type;
+    typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, txFifoSize, rxFifoSize> Type;
 
     template <typename... Fields> using Format = Parts::Format<Type, Fields...>;
     template <typename FieldType, FieldType Type::*field, class Check = void> using Scalar = Parts::Scalar<Type, FieldType, field, Check>;
@@ -49,19 +51,22 @@ class ESP8266 {
     State state = State::RESTARTING;
     tx_pin_t *tx;
     rx_pin_t *rx;
-
-    //TODO full reset
-    //TODO turn echo off
+    reset_pin_t *reset_pin;
 
     void restart() {
-        rx->clear();
-        tx->out() << endl << "AT+RST" << endl;
+        reset_pin->setLow();
+
+        reset_pin->setHigh();
+        _delay_ms(1);
+        reset_pin->setLow();
+        _delay_ms(1);
+        reset_pin->setHigh();
         state = State::RESTARTING;
     }
 
     void restarting() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'O','K','\r','\n'>>>(s, [this] {
+            on<Format<Token<'r','e','a','d','y'>>>(s, [this] {
                 tx->out() << "ATE0" << endl;
                 state = State::DISABLING_ECHO;
             });
@@ -145,7 +150,15 @@ class ESP8266 {
     }
 
     void connected() {
-        // TODO scan for incoming data
+        scan(*rx, this, [this] (auto s) {
+            on<Format<
+                Token<'+','I', 'P', 'D',','>,
+                Chunk<&This::rxFifo, Format<Token<':'>>>>
+            >(s, [this] {
+                // we got some data, it's already in rxFifo.
+            });
+        });
+        // TODO put in test that after the data, actually comes \r\nOK\r\n
 
         if (txFifo.hasContent()) {
             txFifo.readStart();
@@ -178,7 +191,8 @@ class ESP8266 {
 
 
 public:
-    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx): tx(&_tx), rx(&_rx) {
+    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, reset_pin_t &_reset): tx(&_tx), rx(&_rx), reset_pin(&_reset) {
+        reset_pin->configureAsOutput();
         restart();
     }
 
@@ -212,10 +226,11 @@ template<
     uint8_t txFifoSize = 64,
     uint8_t rxFifoSize = 64,
     typename tx_pin_t,
-    typename rx_pin_t
+    typename rx_pin_t,
+    typename reset_pin_t
 >
-ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, txFifoSize, rxFifoSize> esp8266(tx_pin_t &tx, rx_pin_t &rx) {
-    return ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, txFifoSize, rxFifoSize>(tx, rx);
+ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, txFifoSize, rxFifoSize> esp8266(tx_pin_t &tx, rx_pin_t &rx, reset_pin_t &reset_pin) {
+    return ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, txFifoSize, rxFifoSize>(tx, rx, reset_pin);
 }
 
 }

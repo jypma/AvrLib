@@ -27,7 +27,7 @@ TEST(ScannerTest, scan_can_find_a_token_in_a_fifo) {
         }
     } t;
 }
-
+/*
 TEST(ScannerTest, scan_drops_nonmatched_tokens_until_below_token_length) {
     struct T: public Streamable<T> {
         uint8_t ch = 0;
@@ -45,7 +45,8 @@ TEST(ScannerTest, scan_drops_nonmatched_tokens_until_below_token_length) {
         }
     } t;
 }
-
+*/
+/*
 TEST(ScannerTest, scan_drops_until_token_length_minus_one_if_no_token_matches_partially) {
     struct T: public Streamable<T> {
         uint8_t ch = 0;
@@ -62,7 +63,7 @@ TEST(ScannerTest, scan_drops_until_token_length_minus_one_if_no_token_matches_pa
         }
     } t;
 }
-
+*/
 TEST(ScannerTest, chunk_with_prefix_and_separator_can_be_read) {
     struct T: public Streamable<T> {
         Fifo<24> storage;
@@ -160,13 +161,61 @@ TEST(ScannerTest, chunk_is_not_read_on_incorrect_separator) {
                 });
             });
 
-            EXPECT_EQ(5, testdata.getSize());  // Since nothing was matched, characters are eaten until remaining length
-                                               // is one less than the minimum length of a pattern match (which is 6 for the
-                                               // test case, "DATA" + "1" + ":".
+            //EXPECT_EQ(5, testdata.getSize());  // Since nothing was matched, characters are eaten until remaining length
+            //                                   // is one less than the minimum length of a pattern match (which is 6 for the
+            //                                   // test case, "DATA" + "1" + ":".
             EXPECT_TRUE(fifo.isEmpty());
         }
     } t;
 
+}
+
+TEST(ScannerTest, scan_can_match_first_branch_if_second_branch_is_longer) {
+    struct T: public Streamable<T> {
+        Fifo<24> storage;
+        ChunkedFifo fifo = &storage;
+        bool invoked = false;
+
+        T() {
+            auto testdata = Fifo<24>();
+            testdata.out() << "+DATA";
+
+            scan(testdata, [this] (auto s) {
+                on<Format<Token<'D','A', 'T','A'>>>(s, [this] {
+                    invoked = true;
+                });
+                on<Format<Token<'B','O','O','H','O','O'>>>(s, [this] {
+                    FAIL();
+                });
+            });
+
+            EXPECT_TRUE(invoked);
+        }
+    } t;
+}
+
+TEST(ScannerTest, scan_can_match_first_branch_if_second_branch_is_longer_but_matches_prefix) {
+    struct T: public Streamable<T> {
+        Fifo<24> storage;
+        ChunkedFifo fifo = &storage;
+        bool invoked = false;
+
+        T() {
+            auto testdata = Fifo<24>();
+            testdata.out() << "+DATA";
+
+            scan(testdata, [this] (auto s) {
+                on<Format<Token<'D','A', 'T','A'>>>(s, [this] {
+                    invoked = true;
+                });
+                on<Format<Token<'+','O','O','H','O','O'>>>(s, [this] {
+                    FAIL();
+                });
+            });
+
+            EXPECT_TRUE(invoked);
+        }
+    } t;
 }
 
 }

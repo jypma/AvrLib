@@ -231,13 +231,13 @@ TEST(StreamsTest, char_after_token_is_read) {
 
 }
 
-TEST(StreamTest, partially_present_token_marks_reader_as_incomplete) {
+TEST(StreamTest, partially_present_token_marks_reader_as_partial) {
     struct T: public Streamable<T> {
         T() {
             auto fifo = Fifo<16>();
             fifo.out() << "ab";
 
-            EXPECT_EQ(ReaderState::Incomplete, (fifo.readAs<Format<
+            EXPECT_EQ(ReaderState::Partial, (fifo.readAs<Format<
                 Token<'a','b','c'>
             >>(*this)));
         }

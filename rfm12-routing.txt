@@ -14,3 +14,9 @@
       forward after random delay
       
     actual routing table with gateway per target node, only send via 1 node,
+
+    
+Reader usart_in  -->  ESP8266  -->  Writer<Fifo> usart_out
+                      ESP8266  -->  Writer<ChunkedFifo>   rfm12_out  -->   RFM12
+                      
+Reader<ChunkedFifo> rfm12_in  -->  ESP8266

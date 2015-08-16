@@ -13,7 +13,7 @@
 
 namespace Streams {
 
-enum class ReaderState { Valid, Invalid, Incomplete };
+enum class ReaderState { Valid, Invalid, Incomplete, Partial };
 
 template <typename fifo_t>
 class Reader {
@@ -46,6 +46,12 @@ public:
     void markIncomplete() {
         if (state != ReaderState::Invalid) {
             state = ReaderState::Incomplete;
+        }
+    }
+
+    void markPartial() {
+        if (state != ReaderState::Invalid) {
+            state = ReaderState::Partial;
         }
     }
 
