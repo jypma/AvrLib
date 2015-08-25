@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include "Streams/Format.hpp"
 #include "ChunkedFifo.hpp"
+#include "Logging.hpp"
+
 
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
     // uint16_t and up assumes little endian memory layout.
@@ -37,7 +39,9 @@ namespace Streams {
 
     template<char ch, char...others>
     class Token<ch, others...> {
+        typedef Logging::Log<Loggers::Streams> log;
     public:
+
         static constexpr uint8_t minimumSize = 1 + Token<others...>::minimumSize;
         static constexpr uint8_t maximumUncheckedWriteSize = 1 + Token<others...>::maximumUncheckedWriteSize;
 
@@ -56,6 +60,7 @@ namespace Streams {
         inline static void readField(reader_t &in) {
             uint8_t input;
             in.uncheckedRead(input);
+            log::debug("n: expecting %c, got %c\n", ch, input);
             if (input != ch) {
                 in.markInvalid();
             } else {
@@ -66,6 +71,7 @@ namespace Streams {
 
     template<char ch1, char ch2, char...others>
     class Token<ch1, ch2, others...> {
+        typedef Logging::Log<Loggers::Streams> log;
     public:
         static constexpr uint8_t minimumSize = 1;
         static constexpr uint8_t maximumUncheckedWriteSize = 1 + Token<others...>::maximumUncheckedWriteSize;
@@ -85,6 +91,7 @@ namespace Streams {
         inline static void readField(reader_t &in) {
             uint8_t input;
             in.uncheckedRead(input);
+            log::debug("1: expecting %c, got %c\n", ch1, input);
             if (input != ch1) {
                 in.markInvalid();
             } else {
@@ -181,7 +188,7 @@ namespace Parts {
 
         template <typename reader_t>
         inline static void readField(reader_t &in, Type &instance) {
-            uint8_t length;
+            uint8_t length = 0;
             uint8_t digit;
 
             in.uncheckedRead(digit); // digit 0
@@ -276,6 +283,7 @@ namespace Parts {
 
     template<typename Type, typename Field, typename... Others>
     class Format<Type, Field, Others...> {
+        typedef Logging::Log<Loggers::Streams> log;
     public:
         static constexpr uint8_t minimumSize = Field::minimumSize + Format<Type, Others...>::minimumSize;
         static constexpr uint8_t maximumUncheckedWriteSize = Field::maximumUncheckedWriteSize + Format<Type, Others...>::maximumUncheckedWriteSize;
@@ -288,18 +296,32 @@ namespace Parts {
 
         template <typename reader_t>
         inline static void readFields(reader_t &in, Type &instance) {
-            Field::readField(in, instance);
-            Format<Type, Others...>::readFields(in, instance);
+            if (in) {
+                if (in.getReadAvailable() >= minimumSize) {
+                    log::debug("  reading a field, available %d, minimum size %d, state %d\n", in.getReadAvailable(), minimumSize, (ReaderState) in);
+                    Field::readField(in, instance);
+                    Format<Type, Others...>::readFields(in, instance);
+                } else {
+                    in.markIncomplete();
+                }
+            }
         }
 
         template <typename reader_t>
         inline static void readFields(reader_t &in) {
-            Field::readField(in);
-            Format<Type, Others...>::readFields(in);
+            if (in) {
+                if (in.getReadAvailable() >= minimumSize) {
+                    Field::readField(in);
+                    Format<Type, Others...>::readFields(in);
+                } else {
+                    in.markIncomplete();
+                }
+            }
         }
 
         template <typename reader_t>
         inline static void read(reader_t &in, Type &instance) {
+            log::debug("Starting to read, available %d, minimum size %d, state %d\n", in.getReadAvailable(), minimumSize, (ReaderState) in);
             if (in.getReadAvailable() >= minimumSize) {
                 readFields(in, instance);
             } else {

@@ -3,7 +3,11 @@
 #define LOGGING_HPP_
 
 #include <avr/io.h>
-#include "Streams/Writer.hpp"
+
+#ifndef AVR
+#include <stdarg.h>
+#include <stdio.h>
+#endif
 
 extern uint16_t debugTimings[256];
 extern uint8_t debugTimingsCount;
@@ -12,14 +16,12 @@ static uint16_t debugStartTime;
 
 namespace Logging {
 
-class TimingDisabled {
-public:
+struct TimingDisabled {
     inline static void timeStart() {}
     inline static void timeEnd() {}
 };
 
-class TimingEnabled {
-public:
+struct TimingEnabled {
     inline static void timeStart() {
         debugStartTime = TCNT1;
     }
@@ -34,8 +36,27 @@ public:
     }
 };
 
+struct MessagesDisabled {
+    inline static void debug(const char *fmt, ...);
+};
+
+struct MessagesEnabled {
+#ifndef AVR
+    inline static void debug(const char *fmt, ...) {
+        va_list argp;
+        va_start(argp, fmt);
+        vprintf(fmt, argp);
+        va_end(argp);
+    }
+#else
+    inline static void debug(const char *fmt, ...) {
+        // TODO implement on-chip debug message mechanism, pluggable? wifi?
+    }
+#endif
+};
+
 template <typename T>
-class Log: public TimingDisabled {
+struct Log: public TimingDisabled {
 
 };
 
@@ -45,12 +66,15 @@ class Log: public TimingDisabled {
 
 template <typename pin_t>
 void debugTimePrint(pin_t pin) {
+    /*
+     * TODO route this to message logging instead
     if (debugTimingsCount > 0) {
         for (uint8_t i = 0; i < debugTimingsCount; i++) {
           pin.out() << Streams::dec(debugTimings[i]) << " ";
         }
         pin.out() << Streams::endl;
     }
+    */
 }
 
 #endif /* DEBUG_HPP_ */

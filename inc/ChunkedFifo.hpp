@@ -80,6 +80,8 @@ public:
         return readLength != 0;
     }
 
+    uint8_t peek();
+
     bool read(uint8_t &ch);
 
     void uncheckedRead(uint8_t &ch);
@@ -92,9 +94,7 @@ public:
         return Streams::Writer<ChunkedFifo>(*this);
     }
 
-    inline Streams::Reader<ChunkedFifo> in() {
-        return Streams::Reader<ChunkedFifo>(*this);
-    }
+    Streams::Reader<ChunkedFifo> in();
 };
 
 #endif /* CHUNKEDFIFO_HPP_ */

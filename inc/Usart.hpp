@@ -131,6 +131,10 @@ public:
         return readFifo.expect<Proto>();
     }
 
+    template <typename Proto, typename T>
+    inline Streams::ReaderState readAs(T &t) {
+        return readFifo.readAs<Proto,T>(t);
+    }
 };
 
 struct Usart0Info {

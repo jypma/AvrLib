@@ -9,6 +9,7 @@
 #define SCANNER_HPP_
 
 #include "Reader.hpp"
+#include "Logging.hpp"
 
 namespace Streams {
 
@@ -37,6 +38,8 @@ public:
 
 template <typename fifo_t, typename sem_t>
 class Scanner {
+    typedef Logging::Log<Loggers::Streams> log;
+
     fifo_t *fifo;
     uint8_t available;
     ReaderState state = ReaderState::Invalid;
@@ -69,6 +72,7 @@ public:
         if (available > 0 && state == ReaderState::Invalid) {
             uint8_t dropped;
             fifo->uncheckedRead(dropped);
+            log::debug("  state invalid, dropped %c\n", dropped);
             available--;
             return true;
         } else {

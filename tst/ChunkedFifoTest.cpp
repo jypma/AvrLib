@@ -11,6 +11,7 @@ TEST(ChunkedFifoTest, empty_chunked_fifo_ignores_reads) {
     ChunkedFifo f(&data);
 
     uint8_t a = 123;
+    EXPECT_FALSE(f.in());
     EXPECT_FALSE(f.in() >> a);
     EXPECT_EQ(123, a);
 }

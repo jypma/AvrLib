@@ -98,6 +98,16 @@ bool ChunkedFifo::read(uint8_t &ch) {
     }
 }
 
+uint8_t ChunkedFifo::peek() {
+    AtomicScope _;
+
+    if (readValid && readLength > 0) {
+        return data->peek();
+    } else {
+        return 0;
+    }
+}
+
 void ChunkedFifo::uncheckedRead(uint8_t &ch) {
     readLength--;
     data->uncheckedRead(ch);
@@ -135,4 +145,14 @@ void ChunkedFifo::readAbort() {
             readLength = 0;
         }
     }
+}
+
+Streams::Reader<ChunkedFifo> ChunkedFifo::in() {
+    AtomicScope _;
+
+    auto in = Streams::Reader<ChunkedFifo>(*this);
+    if (isEmpty()) {
+        in.markInvalid();
+    }
+    return in;
 }
