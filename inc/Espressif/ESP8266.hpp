@@ -149,14 +149,19 @@ class ESP8266 {
         });
     }
 
+    template <typename scanner_t>
+    inline void onReceivedData(scanner_t *s) {
+        on<Format<
+            Token<STR("+IPD,")>,
+            Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
+        >(s, [] {
+            // we got some data, it's already in rxFifo.
+        });
+    }
+
     void connected() {
-        scan(*rx, *this, [] (auto s) {
-            on<Format<
-                Token<STR("+IPD,")>,
-                Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
-            >(s, [] {
-                // we got some data, it's already in rxFifo.
-            });
+        scan(*rx, *this, [this] (auto s) {
+            this->onReceivedData(s);
         });
 
         if (txFifo.hasContent()) {
@@ -178,7 +183,8 @@ class ESP8266 {
     }
 
     void sending_data() {
-        scan(*rx, [this] (auto s) {
+        scan(*rx, *this, [this] (auto s) {
+            this->onReceivedData(s);
             on<Format<Token<STR("SEND OK")>>>(s, [this] {
                 state = State::CONNECTED;
             });

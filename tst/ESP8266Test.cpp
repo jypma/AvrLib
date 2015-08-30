@@ -89,6 +89,11 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     esp.loop();
     EXPECT_TRUE((tx.in().expect<Seq<Token<STR("cool")>>>()));
 
+    // Pretend more received data _while_ we're still waiting on the SEND OK
+    rx.out() << "\r\n+IPD,5:stuff\r\nOK";
+    esp.loop();
+    EXPECT_TRUE((esp.in().expect<Seq<Token<STR("stuff")>>>()));
+
     rx.out() << "\r\nSEND OK\r\n";
     esp.loop();
     EXPECT_TRUE(tx.isEmpty());
