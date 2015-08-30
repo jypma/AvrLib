@@ -32,31 +32,31 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
 
     rx.out() << "garbage#####\r\nready\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','E','0','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("ATE0\r\n")>>>()));
 
     rx.out() << "garbage###OK\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','W','M','O','D','E','_','C','U','R','=','1','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CWMODE_CUR=1\r\n")>>>()));
 
     rx.out() << "garbage##OK\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','W','L','A','P','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CWLAP\r\n")>>>()));
 
     rx.out() << "aplist\r\n##OK\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','W','J','A','P','_','C','U','R','=','"','a','p','n','"',',','"','p','s','s','"','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CWJAP_CUR=\"apn\",\"pss\"\r\n")>>>()));
 
     rx.out() << "\r\n##OK\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','I','P','M','U','X','=','0','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CIPMUX=0\r\n")>>>()));
 
     rx.out() << "\r\nOK\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','I','P','C','L','O','S','E','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CIPCLOSE\r\n")>>>()));
 
     rx.out() << "\r\nOK\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','I','P','S','T','A','R','T','=','\"','U','D','P','\"',',','\"','h','o','s','t','\"',',','1','2','3',',','4','1','2','3',',','2','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CIPSTART=\"UDP\",\"host\",123,4123,2\r\n")>>>()));
 
     rx.out() << "\r\nOK\r\n";
     esp.loop();
@@ -65,11 +65,11 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     // Send some data
     esp.out() << "hello";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','I','P','S','E','N','D','=','5','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CIPSEND=5\r\n")>>>()));
 
     rx.out() << "\r\nOK\r\n> ";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'h','e','l','l','o'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("hello")>>>()));
 
     rx.out() << "\r\nSEND OK\r\n";
     esp.loop();
@@ -78,16 +78,16 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     // Receive some data
     rx.out() << "\r\n+IPD,5:world\r\nOK";
     esp.loop();
-    EXPECT_TRUE((esp.in().expect<Seq<Token<'w','o','r','l','d'>>>()));
+    EXPECT_TRUE((esp.in().expect<Seq<Token<STR("world")>>>()));
 
     // Send some more data
     esp.out() << "cool";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'A','T','+','C','I','P','S','E','N','D','=','4','\r','\n'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CIPSEND=4\r\n")>>>()));
 
     rx.out() << "\r\nOK\r\n> ";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<'c','o','o','l'>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("cool")>>>()));
 
     rx.out() << "\r\nSEND OK\r\n";
     esp.loop();

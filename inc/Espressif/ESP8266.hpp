@@ -66,8 +66,8 @@ class ESP8266 {
 
     void restarting() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'r','e','a','d','y'>>>(s, [this] {
-                tx->out() << "ATE0" << endl;
+            on<Format<Token<STR("ready")>>>(s, [this] {
+                tx->out() << F("ATE0") << endl;
                 state = State::DISABLING_ECHO;
             });
         });
@@ -75,8 +75,8 @@ class ESP8266 {
 
     void disabling_echo() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'O','K','\r','\n'>>>(s, [this] {
-                tx->out() << "AT+CWMODE_CUR=1" << endl;
+            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+                tx->out() << F("AT+CWMODE_CUR=1") << endl;
                 state = State::SETTING_STATION_MODE;
             });
         });
@@ -84,8 +84,8 @@ class ESP8266 {
 
     void setting_station_mode() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'O','K','\r','\n'>>>(s, [this] {
-                tx->out() << "AT+CWLAP" << endl;
+            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+                tx->out() << F("AT+CWLAP") << endl;
                 state = State::LISTING_ACCESS_POINTS;
             });
         });
@@ -93,8 +93,8 @@ class ESP8266 {
 
     void listing_access_points() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'O','K','\r','\n'>>>(s, [this] {
-                tx->out() << "AT+CWJAP_CUR=\"" << accessPoint << "\",\"" << password << "\"" << endl;
+            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+                tx->out() << F("AT+CWJAP_CUR=\"") << accessPoint << F("\",\"") << password << F("\"") << endl;
                 state = State::CONNECTING_APN;
             });
         });
@@ -102,11 +102,11 @@ class ESP8266 {
 
     void connecting_apn() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'O','K','\r','\n'>>>(s, [this] {
-                tx->out() << "AT+CIPMUX=0" << endl;
+            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+                tx->out() << F("AT+CIPMUX=0") << endl;
                 state = State::DISABLING_MUX;
             });
-            on<Format<Token<'F','A','I','L','\r','n'>>>(s, [this] {
+            on<Format<Token<STR("FAIL\r\n")>>>(s, [this] {
                 // Failed to connect to wifi, restart
                 this->restart();
             });
@@ -115,8 +115,8 @@ class ESP8266 {
 
     void disabling_mux() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'O','K','\r','\n'>>>(s, [this] {
-                tx->out() << "AT+CIPCLOSE" << endl;
+            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+                tx->out() << F("AT+CIPCLOSE") << endl;
                 state = State::CLOSING_OLD_CONNECTION;
             });
         });
@@ -127,22 +127,22 @@ class ESP8266 {
             auto connect = [this] {
                 // local UDP port is always 4123
                 // mode 2 : any remote IP can send UDP packets to our local port 4123
-                tx->out() << "AT+CIPSTART=\"UDP\",\"" << remoteIP << "\"," << dec(remotePort) << ",4123,2" << endl;
+                tx->out() << F("AT+CIPSTART=\"UDP\",\"") << remoteIP << F("\",") << dec(remotePort) << F(",4123,2") << endl;
                 state = State::CONNECTING_UDP;
             };
 
-            on<Format<Token<'O','K','\r','\n'>>>(s, connect);
-            on<Format<Token<'E','R','R','O','R','\r','\n'>>>(s, connect);     // if deleting old conn fails, try to connect anyways.
-            on<Format<Token<'U','N','L','I','N','K','\r','\n'>>>(s, connect); // Datasheet: "Prints UNLINK when there is no connection"
+            on<Format<Token<STR("OK\r\n")>>>(s, connect);
+            on<Format<Token<STR("ERROR\r\n")>>>(s, connect);     // if deleting old conn fails, try to connect anyways.
+            on<Format<Token<STR("UNLINK\r\n")>>>(s, connect);    // Datasheet: "Prints UNLINK when there is no connection"
         });
     }
 
     void connecting_udp() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'O','K','\r','\n'>>>(s, [this] {
+            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 state = State::CONNECTED;
             });
-            on<Format<Token<'E','R','R','O','R','\r','n'>>>(s, [this] {
+            on<Format<Token<STR("ERROR\r\n")>>>(s, [this] {
                 // Could be "ALREADY CONNECTED"
                 this->restart();
             });
@@ -152,8 +152,8 @@ class ESP8266 {
     void connected() {
         scan(*rx, *this, [] (auto s) {
             on<Format<
-                Token<'+','I', 'P', 'D',','>,
-                Chunk<&This::rxFifo, Format<Token<':'>>>>
+                Token<STR("+IPD,")>,
+                Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
             >(s, [] {
                 // we got some data, it's already in rxFifo.
             });
@@ -163,14 +163,14 @@ class ESP8266 {
             txFifo.readStart();
             auto len = txFifo.getReadAvailable();
             txFifo.readAbort();
-            tx->out() << "AT+CIPSEND=" << dec(len) << endl;
+            tx->out() << F("AT+CIPSEND=") << dec(len) << endl;
             state = State::SENDING_LENGTH;
         }
     }
 
     void sending_length() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'>'>>>(s, [this] {
+            on<Format<Token<STR(">")>>>(s, [this] {
                 tx->out() << txFifo.in();
                 state = State::SENDING_DATA;
             });
@@ -179,10 +179,10 @@ class ESP8266 {
 
     void sending_data() {
         scan(*rx, [this] (auto s) {
-            on<Format<Token<'S','E','N','D',' ','O','K'>>>(s, [this] {
+            on<Format<Token<STR("SEND OK")>>>(s, [this] {
                 state = State::CONNECTED;
             });
-            on<Format<Token<'E','R','R','O','R'>>>(s, [this] {
+            on<Format<Token<STR("ERROR")>>>(s, [this] {
                 state = State::CONNECTED;
             });
         });

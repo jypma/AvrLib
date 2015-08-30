@@ -57,6 +57,7 @@ public:
         }
 
         ReaderState thisResult = semantics.template scan<format>(*fifo);
+        log::debug("one branch said %d\n", thisResult);
 
         if (thisResult == ReaderState::Valid) {
             state = ReaderState::Valid;

@@ -23,82 +23,62 @@
 
 namespace Streams {
 
-    template<char... tokenChars>
-    class Token {
-    public:
-        // Fall-through for tokenChars is empty
-        static constexpr uint8_t minimumSize = 0;
-        static constexpr uint8_t maximumUncheckedWriteSize = 0;
-
-        template <typename writer_t>
-        inline static void writeField(writer_t &out) {}
-
-        template <typename reader_t>
-        inline static void readField(reader_t &in) {}
-    };
-
-    template<char ch, char...others>
-    class Token<ch, others...> {
+    /**
+     * Represents a fixed set of characters in a format.
+     * @param str A typestring, returned by the STR macro in Strings.hpp
+     */
+    template<typename str>
+    struct Token {
         typedef Logging::Log<Loggers::Streams> log;
-    public:
 
-        static constexpr uint8_t minimumSize = 1 + Token<others...>::minimumSize;
-        static constexpr uint8_t maximumUncheckedWriteSize = 1 + Token<others...>::maximumUncheckedWriteSize;
+        static constexpr uint8_t fixedSize = 0; // disable the outer fixed size optimization, since we do want to read the first token when scanning.
+        static_assert(str::size() > 0, "Token must have non-empty STR as template argument.");
 
         template <typename writer_t>
-        inline static void writeField(writer_t &out) {
-            out.uncheckedWrite(uint8_t(ch));
-            Token<others...>::writeFields(out);
-        }
-
-        template <typename reader_t, typename T>
-        inline static void readField(reader_t &in, T &t) {
-            readField(in);
-        }
-
-        template <typename reader_t>
-        inline static void readField(reader_t &in) {
-            uint8_t input;
-            in.uncheckedRead(input);
-            log::debug("n: expecting %c, got %c\n", ch, input);
-            if (input != ch) {
-                in.markInvalid();
+        static void write (writer_t &out) {
+            if (out.hasSpace(str::size())) {
+                for (uint8_t i = 0; i < str::size(); i++) {
+                    out.writeUnchecked(str::charAt(i));
+                }
             } else {
-                Token<others...>::readField(in);
+                out.markInvalid();
             }
         }
-    };
 
-    template<char ch1, char ch2, char...others>
-    class Token<ch1, ch2, others...> {
-        typedef Logging::Log<Loggers::Streams> log;
-    public:
-        static constexpr uint8_t minimumSize = 1;
-        static constexpr uint8_t maximumUncheckedWriteSize = 1 + Token<others...>::maximumUncheckedWriteSize;
-
-        template <typename writer_t>
-        inline static void writeField(writer_t &out) {
-            out.uncheckedWrite(uint8_t(ch1));
-            Token<ch2,others...>::writeFields(out);
-        }
-
-        template <typename reader_t, typename T>
-        inline static void readField(reader_t &in, T &t) {
-            readField(in);
+        template <typename reader_t, typename Type>
+        inline static void read (reader_t &in, Type &instance) {
+            read(in);
         }
 
         template <typename reader_t>
-        inline static void readField(reader_t &in) {
-            uint8_t input;
-            in.uncheckedRead(input);
-            log::debug("1: expecting %c, got %c\n", ch1, input);
-            if (input != ch1) {
+        static void read (reader_t &in) {
+            uint8_t available = in.getReadAvailable();
+            if (available == 0) {
+                in.markIncomplete();
+            }
+            uint8_t first;
+            in.uncheckedRead(first);
+            available--;
+
+            log::debug("0: expecting %c, got %c\n", str::charAt(0), first);
+            if (first != str::charAt(0)) {
                 in.markInvalid();
-            } else {
-                if (in.getReadAvailable() >= Token<ch2,others...>::minimumSize) {
-                    Token<ch2,others...>::readField(in);
-                } else {
+                return;
+            }
+
+            for (uint8_t i = 1; i < str::size(); i++) {
+                if (available == 0) {
                     in.markPartial();
+                    return;
+                }
+                uint8_t ch;
+                in.uncheckedRead(ch);
+                available--;
+
+                log::debug("%d: expecting %c, got %c\n", i, str::charAt(i), first);
+                if (ch != str::charAt(i)) {
+                    in.markInvalid();
+                    return;
                 }
             }
         }
@@ -110,18 +90,17 @@ namespace Parts {
     class ScalarLiteral {
         static_assert(sizeof(CastedType) == sizeof(FieldType), "field type and casted type must have same size");
     public:
-        static constexpr uint8_t minimumSize = sizeof(CastedType);
-        static constexpr uint8_t maximumUncheckedWriteSize = minimumSize;
+        static constexpr uint8_t fixedSize = sizeof(CastedType);
 
         template <typename writer_t>
-        inline static void __attribute__((optimize("unroll-loops"))) writeField(const Type &instance, writer_t &out) {
+        inline static void __attribute__((optimize("unroll-loops"))) writeUnchecked(writer_t &out, const Type &instance) {
             for (uint8_t i = 0; i < sizeof(CastedType); i++) {
                 out.uncheckedWrite( ((uint8_t*)(&(instance.*field)))[i] );
             }
         }
 
         template <typename reader_t>
-        inline static void __attribute__((optimize("unroll-loops"))) readField(reader_t &in, Type &instance) {
+        inline static void __attribute__((optimize("unroll-loops"))) readUnchecked(reader_t &in, Type &instance) {
             for (uint8_t i = 0; i < sizeof(CastedType); i++) {
                 in.uncheckedRead( ((uint8_t*)(&(instance.*field)))[i] );
             }
@@ -152,44 +131,47 @@ namespace Parts {
     template<typename Type, uint8_t count, uint8_t (Type::*field)[count]>
     class Array<Type, uint8_t, count, field> {
     public:
-        static constexpr uint8_t minimumSize = count;
-        static constexpr uint8_t maximumUncheckedWriteSize = minimumSize;
+        static constexpr uint8_t fixedSize = count;
 
         template <typename writer_t>
-        inline static void __attribute__((optimize("unroll-loops"))) writeField(const Type &instance, writer_t &out) {
+        inline static void __attribute__((optimize("unroll-loops"))) writeUnchecked(writer_t &out, const Type &instance) {
             for (uint8_t i = 0; i < count; i++) {
                 out.uncheckedWrite((instance.*field)[i]);
             }
         }
 
         template <typename reader_t>
-        inline static void __attribute__((optimize("unroll-loops"))) readField(reader_t &in, Type &instance) {
+        inline static void __attribute__((optimize("unroll-loops"))) readUnchecked(reader_t &in, Type &instance) {
             for (uint8_t i = 0; i < count; i++) {
                 in.uncheckedRead((instance.*field)[i]);
             }
         }
     };
-
+/*
     template<typename Type, typename... Fields>
     class Format;
-
+*/
     /**
      * Reads or writes a chunk from/to a ChunkedFifo, prepended by writing
      * the length in decimal, and an optional token in between the length and the data.
      */
-    template<typename Type, ChunkedFifo Type::*field, typename Separator = Format<Type>>
+    template<typename Type, ChunkedFifo Type::*field, typename Separator/* = Format<Type>*/>
     struct Chunk {
-        static constexpr uint8_t minimumSize = 1 + Separator::minimumSize;
-        static constexpr uint8_t maximumUncheckedWriteSize = 0 + Separator::maximumUncheckedWriteSize;
+        static constexpr uint8_t fixedSize = 0;        // Chunk is not fixed size
 
         static bool isDigit(uint8_t digit) {
             return digit >= '0' && digit <= '9';
         }
 
         template <typename reader_t>
-        inline static void readField(reader_t &in, Type &instance) {
+        inline static void read(reader_t &in, Type &instance) {
             uint8_t length = 0;
             uint8_t digit;
+
+            if (in.getReadAvailable() < 1 + Separator::fixedSize) {
+                in.markIncomplete();
+                return;
+            }
 
             in.uncheckedRead(digit); // digit 0
             if (isDigit(digit)) {
@@ -231,7 +213,7 @@ namespace Parts {
             }
 
             // We got the length now. Reading separator.
-            Separator::readFields(in, instance);
+            Separator::read(in, instance);
 
             if (in) {
                 // Separator is OK, read the chunk.
@@ -264,6 +246,171 @@ namespace Parts {
 
     };
 
+    template <typename Field> struct IsFixedSize {
+        static constexpr bool value = Field::fixedSize > 0;
+    };
+
+    template<typename Type, typename check, typename... Fields>
+    struct F {
+        // fallback for empty
+        static constexpr uint8_t fixedSize = 0;
+
+        template <typename reader_t>
+        inline static void read(reader_t &in, Type &instance) {}
+
+        template <typename reader_t>
+        inline static void read(reader_t &in) {}
+
+        template <typename reader_t>
+        inline static void readUnchecked(reader_t &in, Type &instance) {}
+
+        template <typename reader_t>
+        inline static void readUnchecked(reader_t &in) {}
+
+        template <typename writer_t>
+        inline static void write(writer_t &out, const Type &instance) {}
+
+        template <typename writer_t>
+        inline static void writeUnchecked(writer_t &out, const Type &instance) {}
+    };
+
+    template<typename Type, typename... Fields>
+    using Format = F<Type, void, Fields...>;
+
+    template<typename Type, typename Field, typename... Fields>
+    struct F<Type, typename std::enable_if<IsFixedSize<Field>::value>::type, Field, Fields...> {
+        typedef Logging::Log<Loggers::Streams> log;
+        static constexpr uint8_t fixedSize = Field::fixedSize + Format<Type,Fields...>::fixedSize;
+        // first field is a fixed size
+
+        template <typename reader_t>
+        inline static void read(reader_t &in, Type &instance) {
+            if (in.getReadAvailable() >= fixedSize) {
+                Field::readUnchecked(in, instance);
+                Format<Type,Fields...>::readUnchecked(in, instance);
+            } else {
+                in.markIncomplete();
+            }
+        }
+
+        template <typename reader_t>
+        inline static void read(reader_t &in) {
+            if (in.getReadAvailable() >= fixedSize) {
+                Field::readUnchecked(in);
+                Format<Type,Fields...>::readUnchecked(in);
+            } else {
+                in.markIncomplete();
+            }
+        }
+
+        template <typename reader_t>
+        inline static void readUnchecked(reader_t &in, Type &instance) {
+            // We reached here, so the second field also was fixedSize, and has already been checked.
+            Field::readUnchecked(in, instance);
+            Format<Type,Fields...>::readUnchecked(in, instance);
+        }
+
+        template <typename reader_t>
+        inline static void readUnchecked(reader_t &in) {
+            // We reached here, so the second field also was fixedSize, and has already been checked.
+            Field::readUnchecked(in);
+            Format<Type,Fields...>::readUnchecked(in);
+        }
+
+        template <typename writer_t>
+        inline static void write(writer_t &out, const Type &instance) {
+            log::debug("Attemting to output %d bytes\n", fixedSize);
+            if (out.hasSpace(fixedSize)) {
+                log::debug("  OK.\n");
+                Field::writeUnchecked(out, instance);
+                Format<Type,Fields...>::writeUnchecked(out, instance);
+            } else {
+                out.markInvalid();
+            }
+        }
+
+        template <typename writer_t>
+        inline static void writeUnchecked(writer_t &out, const Type &instance) {
+            // We reached here, so the second field also was fixedSize, and has already been checked.
+            Field::writeUnchecked(out, instance);
+            Format<Type,Fields...>::writeUnchecked(out, instance);
+        }
+    };
+
+    template<typename Type, typename Field, typename... Fields>
+    struct F<Type, typename std::enable_if<!IsFixedSize<Field>::value>::type, Field, Fields...> {
+        // first field is not a fixed size
+        static constexpr uint8_t fixedSize = 0;
+
+        template <typename reader_t>
+        inline static void readUnchecked(reader_t &in, Type &instance) {
+            // No more unchecked read possible, since we've crossed into a non-fixed size field.
+            Field::read(in, instance);
+
+            if (in) {
+                // Treat the next field(s) possibly as fixed again.
+                Format<Type,Fields...>::read(in, instance);
+            }
+        }
+
+        template <typename reader_t>
+        inline static void readUnchecked(reader_t &in) {
+            // No more unchecked read possible, since we've crossed into a non-fixed size field.
+            Field::read(in);
+
+            if (in) {
+                // Treat the next field(s) possibly as fixed again.
+                Format<Type,Fields...>::read(in);
+            }
+        }
+
+        template <typename reader_t>
+        inline static void read(reader_t &in, Type &instance) {
+            // Format starts with a non-fixed size field, so we always read checked.
+            Field::read(in, instance);
+
+            if (in) {
+                // Treat the next field(s) possibly as fixed again.
+                Format<Type,Fields...>::read(in, instance);
+            }
+        }
+
+        template <typename reader_t>
+        inline static void read(reader_t &in) {
+            // Format starts with a non-fixed size field, so we always read checked.
+            Field::read(in);
+
+            if (in) {
+                // Treat the next field(s) possibly as fixed again.
+                Format<Type,Fields...>::read(in);
+            }
+        }
+
+        template <typename writer_t>
+        inline static void writeUnchecked(writer_t &out, const Type &instance) {
+            // No more unchecked write possible, since we've crossed into a non-fixed size field.
+            Field::write(out, instance);
+
+            if (out) {
+                // Treat the next field(s) possibly as fixed again.
+                Format<Type,Fields...>::write(out, instance);
+            }
+        }
+
+        template <typename writer_t>
+        inline static void write(writer_t &out, Type &instance) {
+            // Format starts with a non-fixed size field, so we always write checked.
+            Field::write(out, instance);
+
+            if (out) {
+                // Treat the next field(s) possibly as fixed again.
+                Format<Type,Fields...>::write(out, instance);
+            }
+        }
+
+
+    };
+/*
     template<typename Type, typename... Fields>
     class Format {
     public:
@@ -369,7 +516,26 @@ namespace Parts {
             }
         }
     };
+*/
+    template<typename Type, bool (Type::*condition)() const, typename... Fields>
+    struct Conditional {
+        typedef Format<Type,Fields...> inner;
+        static constexpr uint8_t fixedSize = 0; // Conditional doesn't have a fixed size, because it conditionally appears.
 
+        template <typename reader_t>
+        inline static void read(reader_t &in, Type &instance) {
+            if ((instance.*condition)()) {
+                inner::read(in, instance);
+            }
+        }
+
+        template <typename writer_t>
+        inline static void write(writer_t &out, const Type &instance) {
+            if ((instance.*condition)()) {
+                inner::write(out, instance);
+            }
+        }
+    };
 } // end namespace Parts
 
 template<class Type>

@@ -14,6 +14,7 @@
 #include "gcc_type_traits.h"
 #include <stdint.h>
 #include "avr/eeprom.h"
+#include "Strings.hpp"
 
 namespace Streams {
 constexpr const char endl[] = "\r\n";
@@ -113,22 +114,23 @@ public:
         return valid;
     }
 
+    inline void markInvalid() {
+        valid = false;
+    }
+
     template <uint8_t size>
     inline Writer &operator << (const char (&string)[size]) {
         writeRange(string, size - 1);
         return *this;
     }
 
+    inline bool hasSpace (uint8_t size) {
+        return sem::canWrite(*fifo, size);
+    }
+
     template <typename T, typename check = typename T::Proto>
     inline Writer & operator << (const T &t) {
-        typedef typename T::Proto P;
-
-        if (valid && sem::canWrite(*fifo, P::maximumUncheckedWriteSize)) {
-            P::writeFields(t, *this);
-        } else {
-            valid = false;
-        }
-
+        T::Proto::write(*this, t);
         return *this;
     }
 
@@ -141,6 +143,12 @@ public:
 
     /** Writes a single byte */
     inline Writer &operator << (const uint8_t value) {
+        writeLiteral(value);
+        return *this;
+    }
+
+    /** Writes a single byte */
+    inline Writer &operator << (const char value) {
         writeLiteral(value);
         return *this;
     }
@@ -222,6 +230,14 @@ public:
             uint8_t value;
             in.uncheckedRead(value);
             writeLiteral(value);
+        }
+        return *this;
+    }
+
+    template <uint8_t size>
+    Writer &operator << (StringInProgmem<size> *s) {
+        for (uint8_t i = 0; i < size; i++) {
+            writeLiteral(pgm_read_byte(  ((const char*)s) + i ));
         }
         return *this;
     }

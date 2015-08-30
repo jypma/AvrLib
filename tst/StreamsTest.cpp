@@ -51,6 +51,64 @@ TEST(StreamsTest, byte_fields_can_be_written) {
    EXPECT_EQ(42, b2);
 }
 
+struct MockFifo {
+    int getSpaceCount = 0;
+
+    inline void writeStart() {}
+    inline void writeEnd() {}
+    inline void writeAbort() {}
+
+    inline int getSpace() {
+        getSpaceCount++;
+        return 2;
+    }
+
+    inline void uncheckedWrite(uint8_t value) {}
+
+    int getReadAvailableCount = 0;
+
+    inline void readStart() {}
+    inline void readEnd() {}
+    inline void readAbort() {}
+
+    inline int getReadAvailable() {
+        getReadAvailableCount++;
+        return 2;
+    }
+
+    inline void uncheckedRead(uint8_t &target) {}
+};
+
+TEST(StreamsTest, writing_constant_size_format_only_checks_available_size_once) {
+    MockFifo fifo;
+    {
+        Writer<MockFifo> out(fifo);
+        out << TestStruct(42, 84);
+    }
+
+    EXPECT_EQ(1, fifo.getSpaceCount);
+}
+
+TEST(StreamsTest, format_consisting_of_only_literals_has_fixed_size) {
+    typedef Parts::Format<TestStruct,
+            Parts::Scalar<TestStruct,uint8_t, &TestStruct::b>,
+            Parts::Scalar<TestStruct,uint8_t, &TestStruct::a>
+        > P;
+
+    static_assert(P::fixedSize == 2, "two bytes hav esize 2");
+}
+
+TEST(StreamsTest, reading_constant_size_format_only_checks_available_size_once) {
+    MockFifo fifo;
+    {
+        Reader<MockFifo> in(fifo);
+        TestStruct s;
+        in >> s;
+    }
+
+    EXPECT_EQ(1, fifo.getReadAvailableCount);
+}
+
 TEST(StreamsTest, multiple_byte_fields_can_be_read) {
     auto fifo = Fifo<6>();
     fifo.write(uint8_t(84));
@@ -138,11 +196,6 @@ struct TestStruct3: public Streamable<TestStruct3> {
 };
 
 TEST(StreamsTest, conditional_field_is_included_on_true) {
-    constexpr int min = TestStruct3::Proto::minimumSize;
-    EXPECT_EQ(1, min);
-    constexpr int max = TestStruct3::Proto::maximumUncheckedWriteSize;
-    EXPECT_EQ(2, max);
-
     auto fifo = Fifo<2>();
     fifo.out() << TestStruct3(101, 42);
     EXPECT_EQ(2, fifo.getSize());
@@ -153,11 +206,12 @@ TEST(StreamsTest, conditional_field_is_included_on_true) {
     EXPECT_EQ(42, returned.b);
 }
 
-TEST(StreamsTest, maximum_size_determines_whether_instance_is_written_to_fifo) {
+TEST(StreamsTest, struct_with_absent_conditional_field_can_fit_in_fifo_even_if_couditional_would_not) {
     auto fifo = Fifo<1>();
     EXPECT_EQ(1, fifo.getSpace());
-    EXPECT_FALSE(fifo.out() << TestStruct3(0, 42));
-    EXPECT_EQ(0, fifo.getSize());
+    EXPECT_TRUE(fifo.out() << TestStruct3(0, 42));
+    EXPECT_EQ(0, fifo.getSpace());
+    EXPECT_EQ(1, fifo.getSize());
 }
 
 TEST(StreamsTest, conditional_field_is_excluded_on_false) {
@@ -203,7 +257,7 @@ TEST(StreamsTest, absense_of_token_fails_reader) {
             fifo.out() << "abcdef";
 
             EXPECT_EQ(ReaderState::Invalid, (fifo.readAs<Format<
-                Token<'a','a','a'>,
+                Token<STR("aaa")>,
                 Scalar<uint8_t, &T::ch>
             >>(*this)));
 
@@ -221,7 +275,7 @@ TEST(StreamsTest, char_after_token_is_read) {
             fifo.out() << "bcdef";
 
             EXPECT_EQ(ReaderState::Valid, (fifo.readAs<Format<
-                Token<'b','c','d'>,
+                Token<STR("bcd")>,
                 Scalar<uint8_t, &T::ch>
             >>(*this)));
 
@@ -238,7 +292,7 @@ TEST(StreamTest, partially_present_token_marks_reader_as_partial) {
             fifo.out() << "ab";
 
             EXPECT_EQ(ReaderState::Partial, (fifo.readAs<Format<
-                Token<'a','b','c'>
+                Token<STR("abc")>
             >>(*this)));
         }
     } t;

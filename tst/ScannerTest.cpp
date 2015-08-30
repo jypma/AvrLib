@@ -16,9 +16,9 @@ TEST(ScannerTest, scan_can_find_a_token_in_a_fifo) {
             fifo.out() << "abcdef";
 
             scan(fifo, *this, [this] (auto s) {
-                on<Format<Token<'a','b','d'>>>(s, [] { FAIL(); });
-                on<Format<Token<'c','d','e'>, Scalar<uint8_t, &T::ch>>>(s, [this] { invoked = true; });
-                on<Format<Token<'e'>>>(s, [] { FAIL(); });
+                on<Format<Token<STR("abd")>>>(s, [] { FAIL(); });
+                on<Format<Token<STR("cde")>, Scalar<uint8_t, &T::ch>>>(s, [this] { invoked = true; });
+                on<Format<Token<STR("e")>>>(s, [] { FAIL(); });
             });
 
             EXPECT_EQ('f', ch);
@@ -27,43 +27,8 @@ TEST(ScannerTest, scan_can_find_a_token_in_a_fifo) {
         }
     } t;
 }
-/*
-TEST(ScannerTest, scan_drops_nonmatched_tokens_until_below_token_length) {
-    struct T: public Streamable<T> {
-        uint8_t ch = 0;
 
-        T() {
-            auto fifo = Fifo<16>();
-            fifo.out() << "abc";
 
-            scan(fifo, *this, [this] (auto s) {
-                on<Format<Token<'c','d','e'>>>(s, [this] { FAIL(); });
-            });
-
-            EXPECT_EQ(2, fifo.getSize());
-            EXPECT_EQ('b', fifo.peek());
-        }
-    } t;
-}
-*/
-/*
-TEST(ScannerTest, scan_drops_until_token_length_minus_one_if_no_token_matches_partially) {
-    struct T: public Streamable<T> {
-        uint8_t ch = 0;
-
-        T() {
-            auto fifo = Fifo<16>();
-            fifo.out() << "abcde";
-
-            scan(fifo, *this, [this] (auto s) {
-                on<Format<Token<'c','a'>>>(s, [this] { FAIL(); });
-            });
-
-            EXPECT_EQ(1, fifo.getSize());
-        }
-    } t;
-}
-*/
 TEST(ScannerTest, chunk_with_prefix_and_separator_can_be_read) {
     struct T: public Streamable<T> {
         Fifo<24> storage;
@@ -76,8 +41,8 @@ TEST(ScannerTest, chunk_with_prefix_and_separator_can_be_read) {
 
             scan(testdata, *this, [this] (auto s) {
                 on<Format<
-                    Token<'D','A', 'T', 'A'>,
-                    Chunk<&T::fifo, Format<Token<':'>>>>
+                    Token<STR("DATA")>,
+                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
                 >(s, [this] {
                     invoked = true;
                 });
@@ -102,8 +67,8 @@ TEST(ScannerTest, chunk_with_two_digit_length_can_be_read) {
 
             scan(testdata, *this, [this] (auto s) {
                 on<Format<
-                    Token<'D','A', 'T', 'A'>,
-                    Chunk<&T::fifo, Format<Token<':'>>>>
+                    Token<STR("DATA")>,
+                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
                 >(s, [this] {
                     invoked = true;
                 });
@@ -129,8 +94,8 @@ TEST(ScannerTest, chunk_with_three_digit_length_thats_too_large_for_output_fifo_
 
             scan(testdata, *this, [this] (auto s) {
                 on<Format<
-                    Token<'D','A', 'T', 'A'>,
-                    Chunk<&T::fifo, Format<Token<':'>>>>
+                    Token<STR("DATA")>,
+                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
                 >(s, [this] {
                     invoked = true;
                 });
@@ -154,8 +119,8 @@ TEST(ScannerTest, chunk_is_not_read_on_incorrect_separator) {
 
             scan(testdata, *this, [this] (auto s) {
                 on<Format<
-                    Token<'D','A', 'T', 'A'>,
-                    Chunk<&T::fifo, Format<Token<':'>>>>
+                    Token<STR("DATA")>,
+                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
                 >(s, [this] {
                     FAIL();
                 });
@@ -174,8 +139,8 @@ TEST(ScannerTest, incomplete_chunk_is_ignored_until_data_is_available) {
         T() {
             auto matcher = [this] (auto s) {
                 on<Format<
-                    Token<'D','A', 'T', 'A'>,
-                    Chunk<&T::fifo, Format<Token<':'>>>>
+                    Token<STR("DATA")>,
+                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
                 >(s, [this] {
 
                 });
@@ -212,10 +177,10 @@ TEST(ScannerTest, scan_can_match_first_branch_if_second_branch_is_longer) {
             testdata.out() << "+DATA";
 
             scan(testdata, [this] (auto s) {
-                on<Format<Token<'D','A', 'T','A'>>>(s, [this] {
+                on<Format<Token<STR("DATA")>>>(s, [this] {
                     invoked = true;
                 });
-                on<Format<Token<'B','O','O','H','O','O'>>>(s, [this] {
+                on<Format<Token<STR("BOOHOO")>>>(s, [this] {
                     FAIL();
                 });
             });
@@ -231,7 +196,7 @@ TEST(ScannerTest, scan_does_not_eat_chars_that_are_correct_prefix) {
 
         T() {
             auto matcher = [this] (auto s) {
-                on<Format<Token<'D','A', 'T','A'>>>(s, [this] {
+                on<Format<Token<STR("DATA")>>>(s, [this] {
                     invoked = true;
                 });
             };
@@ -257,8 +222,8 @@ TEST(ScannerTest, scan_does_not_eat_chars_when_receiving_chunk_one_by_one) {
         void loop() {
             scan(testdata, *this, [this] (auto s) {
                 on<Format<
-                    Token<'D','A', 'T', 'A'>,
-                    Chunk<&T::fifo, Format<Token<':'>>>>
+                    Token<STR("DATA")>,
+                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
                 >(s, [this] {
                     invoked = true;
                 });
@@ -268,15 +233,15 @@ TEST(ScannerTest, scan_does_not_eat_chars_when_receiving_chunk_one_by_one) {
         T() {
             testdata.out() << "+";
             loop();
-            EXPECT_EQ(1, testdata.getSize());
+            EXPECT_EQ(0, testdata.getSize());
 
             testdata.out() << "D";
             loop();
-            EXPECT_EQ(2, testdata.getSize());
+            EXPECT_EQ(1, testdata.getSize());
 
             testdata.out() << "A";
             loop();
-            EXPECT_EQ(2, testdata.getSize());   // dropped "+"
+            EXPECT_EQ(2, testdata.getSize());
 
             testdata.out() << "T";
             loop();
@@ -320,10 +285,10 @@ TEST(ScannerTest, scan_can_match_first_branch_if_second_branch_is_longer_but_mat
             testdata.out() << "+DATA";
 
             scan(testdata, [this] (auto s) {
-                on<Format<Token<'D','A', 'T','A'>>>(s, [this] {
+                on<Format<Token<STR("DATA")>>>(s, [this] {
                     invoked = true;
                 });
-                on<Format<Token<'+','O','O','H','O','O'>>>(s, [this] {
+                on<Format<Token<STR("+OOHOO")>>>(s, [this] {
                     FAIL();
                 });
             });
