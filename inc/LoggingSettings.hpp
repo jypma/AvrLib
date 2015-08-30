@@ -8,5 +8,5 @@ namespace Loggers {
 namespace Logging {
     // Enabled loggers go here, default is disabled.
     template<> class Log<Loggers::VisonicDecoder>: public TimingEnabled {};
-    template<> class Log<Loggers::Streams>: public MessagesEnabled {};
+    template<> class Log<Loggers::Streams>: public MessagesEnabled<STR("Streams")> {};
 }

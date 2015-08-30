@@ -2,6 +2,8 @@
 #ifndef LOGGING_HPP_
 #define LOGGING_HPP_
 
+#include "Strings.hpp"
+
 #include <avr/io.h>
 
 #ifndef AVR
@@ -40,9 +42,11 @@ struct MessagesDisabled {
     inline static void debug(const char *fmt, ...);
 };
 
+template <typename loggerName = STR("")>
 struct MessagesEnabled {
 #ifndef AVR
     inline static void debug(const char *fmt, ...) {
+        printf("[%9s ] ", loggerName::data());
         va_list argp;
         va_start(argp, fmt);
         vprintf(fmt, argp);

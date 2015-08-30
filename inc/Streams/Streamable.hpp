@@ -23,6 +23,50 @@
 
 namespace Streams {
 
+    template <typename reader_t>
+    void Token__readFromFlash(reader_t &in, const char *addr, uint8_t length) {
+        uint8_t available = in.getReadAvailable();
+        if (available == 0) {
+            in.markIncomplete();
+        }
+        uint8_t first;
+        in.uncheckedRead(first);
+        available--;
+
+        if (first != pgm_read_byte(addr)) {
+            in.markInvalid();
+            return;
+        }
+
+        for (uint8_t i = 1; i < length; i++) {
+            if (available == 0) {
+                in.markPartial();
+                return;
+            }
+            uint8_t ch;
+            in.uncheckedRead(ch);
+            available--;
+
+            addr++;
+            if (ch != pgm_read_byte(addr)) {
+                in.markInvalid();
+                return;
+            }
+        }
+    }
+
+    template <typename writer_t>
+    void Token__writeFromFlash(writer_t &out, const char *addr, uint8_t length) {
+        if (out.hasSpace(length)) {
+            for (uint8_t i = 0; i < length; i++) {
+                out.writeUnchecked(addr);
+                addr++;
+            }
+        } else {
+            out.markInvalid();
+        }
+    }
+
     /**
      * Represents a fixed set of characters in a format.
      * @param str A typestring, returned by the STR macro in Strings.hpp
@@ -36,13 +80,7 @@ namespace Streams {
 
         template <typename writer_t>
         static void write (writer_t &out) {
-            if (out.hasSpace(str::size())) {
-                for (uint8_t i = 0; i < str::size(); i++) {
-                    out.writeUnchecked(str::charAt(i));
-                }
-            } else {
-                out.markInvalid();
-            }
+            Token__writeFromFlash(out, str::data(), str::size());
         }
 
         template <typename reader_t, typename Type>
@@ -52,35 +90,7 @@ namespace Streams {
 
         template <typename reader_t>
         static void read (reader_t &in) {
-            uint8_t available = in.getReadAvailable();
-            if (available == 0) {
-                in.markIncomplete();
-            }
-            uint8_t first;
-            in.uncheckedRead(first);
-            available--;
-
-            log::debug("0: expecting %c, got %c\n", str::charAt(0), first);
-            if (first != str::charAt(0)) {
-                in.markInvalid();
-                return;
-            }
-
-            for (uint8_t i = 1; i < str::size(); i++) {
-                if (available == 0) {
-                    in.markPartial();
-                    return;
-                }
-                uint8_t ch;
-                in.uncheckedRead(ch);
-                available--;
-
-                log::debug("%d: expecting %c, got %c\n", i, str::charAt(i), first);
-                if (ch != str::charAt(i)) {
-                    in.markInvalid();
-                    return;
-                }
-            }
+            Token__readFromFlash(in, str::data(), str::size());
         }
     };
 
