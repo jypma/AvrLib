@@ -21,7 +21,7 @@ class Reader {
     ReaderState state = ReaderState::Valid;
 
     template <typename T>
-    inline void readLiteral(T &value) {
+    inline void __attribute__((optimize("unroll-loops"))) readLiteral(T &value) {
         if (isValid() && (fifo->getReadAvailable() >= sizeof(T))) {
             for (uint8_t i = 0; i < sizeof(T); i++) {
                 fifo->uncheckedRead( ((uint8_t*)(&value))[i] );
@@ -111,12 +111,25 @@ public:
 
     /** Reads a single byte */
     inline Reader & operator >> (uint8_t &b) {
-        if (isValid() && fifo->getReadAvailable() >= 1) {
-            fifo->uncheckedRead(b);
-        } else {
-            markIncomplete();
-        }
+        readLiteral(b);
+        return *this;
+    }
 
+    /** Reads a single char */
+    inline Reader & operator >> (char &b) {
+        readLiteral(b);
+        return *this;
+    }
+
+    /** Reads a single uint16_t, LSB first (little endian) */
+    inline Reader & operator >> (uint16_t &b) {
+        readLiteral(b);
+        return *this;
+    }
+
+    /** Reads a single uint32_t, LSB first (little endian) */
+    inline Reader & operator >> (uint32_t &b) {
+        readLiteral(b);
         return *this;
     }
 
@@ -127,38 +140,6 @@ public:
         return *this;
     }
 
-    /*
-    // FIXME rewrite as scan<Token<...>>
-    Reader & operator >> (const char *token) {
-        if (token == nullptr) {
-            return *this;
-        }
-
-        bool foundToken = false;
-        while (isValid() && *token != '\0') {
-            if (fifo->getReadAvailable() >= 1) {
-                uint8_t incoming;
-                fifo->uncheckedRead(incoming);
-                if (foundToken) {
-                    if (incoming == *token) {
-                        token++;
-                    } else {
-                        markInvalid();
-                    }
-                } else {
-                    if (incoming == *token) {
-                        foundToken = true;
-                        token++;
-                    }
-                }
-            } else {
-                markIncomplete();
-            }
-        }
-
-        return *this;
-    }
-    */
 };
 
 }

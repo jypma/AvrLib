@@ -3,6 +3,10 @@
 #include <chrono>
 #include <thread>
 
+namespace RealTimerTest {
+
+using namespace TimeUnits;
+
 struct MockTimer {
     typedef uint8_t value_t;
     typedef uint8_t prescaler_t;
@@ -78,4 +82,111 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparoun
     background.join();
 
     EXPECT_TRUE(waited3);
+}
+
+struct MockRealTimer {
+    uint32_t count = 0;
+    uint32_t tick = 0;
+    uint32_t counts() const {
+        return count;
+    }
+
+    uint32_t ticks() const {
+        return tick;
+    }
+
+    template <uint64_t msecs, typename return_t = uint8_t>
+    static constexpr return_t milliseconds2counts() {
+        return (return_t) msecs;
+    }
+
+    template <uint64_t msecs, typename return_t = uint8_t>
+    static constexpr return_t microseconds2counts() {
+        return (return_t) msecs * 1000000000ll;
+    }
+
+    template <uint64_t msecs, typename return_t = uint8_t>
+    static constexpr return_t microseconds2ticks() {
+        return (return_t) msecs * 100;
+    }
+};
+
+TEST(RealTimerTest, periodic_catches_up_after_long_invocation) {
+    auto rt = MockRealTimer();
+    auto p = periodic(rt, 200_ms);
+
+    EXPECT_FALSE(p.isNow());
+    EXPECT_FALSE(p.isNow());
+
+    rt.count = 201;
+
+    EXPECT_TRUE(p.isNow());
+    EXPECT_FALSE(p.isNow());
+    EXPECT_FALSE(p.isNow());
+
+    rt.count = 601;
+
+    EXPECT_TRUE(p.isNow());
+    EXPECT_TRUE(p.isNow());
+    EXPECT_FALSE(p.isNow());
+    EXPECT_FALSE(p.isNow());
+}
+
+TEST(RealTimerTest, deadline_only_fires_once) {
+    auto rt = MockRealTimer();
+    auto d = deadline(rt, 200_ms);
+
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    rt.count = 201;
+
+    EXPECT_TRUE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    rt.count = 601;
+
+    EXPECT_FALSE(d.isNow());
+}
+
+TEST(RealTimerTest, deadline_can_be_reset) {
+    auto rt = MockRealTimer();
+    auto d = deadline(rt, 200_ms);
+    rt.count = 100;
+    d.reset();
+
+    rt.count = 201;
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    rt.count = 301;
+    EXPECT_TRUE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    d.reset();
+    EXPECT_FALSE(d.isNow());
+
+    rt.count = 502;
+    EXPECT_TRUE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+}
+
+TEST(RealTimerTest, deadline_picks_ticks_instead_of_counts_when_interval_doesnt_fit_32bit) {
+    auto rt = MockRealTimer();
+    auto d = deadline(rt, 6_us);
+
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    rt.tick = 601;
+
+    EXPECT_TRUE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    rt.tick = 1201;
+
+    EXPECT_FALSE(d.isNow());
+}
 }

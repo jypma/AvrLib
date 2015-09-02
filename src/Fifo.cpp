@@ -146,6 +146,7 @@ void AbstractFifo::writeAbort() {
         if (writeMarkInvocations == 0) {
             writePos = writeMark;
             writeMark = NO_MARK;
+            abortedWrites++;
         }
     }
 }

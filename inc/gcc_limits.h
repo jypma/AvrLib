@@ -3,6 +3,7 @@
 #else
 
 #ifndef GCC_LIMITS_H
+#define GCC_LIMITS_H
 
 namespace std {
 
@@ -22,6 +23,18 @@ namespace std {
   struct numeric_limits<uint16_t>
   {
       static constexpr uint16_t max() { return 65535; }
+  };
+
+  template<>
+  struct numeric_limits<uint32_t>
+  {
+      static constexpr uint32_t max() { return 4294967295l; }
+  };
+
+  template<>
+  struct numeric_limits<uint64_t>
+  {
+      static constexpr uint64_t max() { return 9223372036854775807ll; }
   };
 
 }

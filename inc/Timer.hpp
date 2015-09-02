@@ -22,10 +22,10 @@ namespace TimeUnits {
 
     template <char...> struct literal;
     template <> struct literal<> {
-      static constexpr uint32_t to_uint32 = 0;
+      static constexpr uint64_t to_uint64 = 0;
     };
     template <char c, char ...cv> struct literal<c, cv...> {
-      static constexpr uint32_t to_uint32 = (c - '0') * pow(10, sizeof...(cv)) + literal<cv...>::to_uint32;
+      static constexpr uint64_t to_uint64 = (c - '0') * pow(uint64_t(10), sizeof...(cv)) + literal<cv...>::to_uint64;
     };
 
     template<typename Base, int percentage>
@@ -35,7 +35,7 @@ namespace TimeUnits {
     class TimeUnit {
         typedef literal<cv...> value;
     public:
-        static constexpr uint32_t to_uint32 = value::to_uint32;
+        static constexpr uint64_t to_uint64 = value::to_uint64;
     };
 
     template<typename Base, int percentage>
@@ -44,18 +44,27 @@ namespace TimeUnits {
         MultipliedTimeUnit() {
             static_assert(percentage > 0, "percentage must be larger than zero");
         }
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint32_t value = Base::to_uint32>
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = Base::to_uint64>
         static constexpr return_t toCounts() {
-            return Base::template toCounts<prescaled_t, return_t, uint32_t(value) * percentage / 100>();
+            return Base::template toCounts<prescaled_t, return_t, uint64_t(value) * percentage / 100>();
+        }
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = Base::to_uint64>
+        static constexpr return_t toTicks() {
+            return Base::template toTicks<prescaled_t, return_t, uint64_t(value) * percentage / 100>();
         }
     };
 
     template <char... cv>
     class Microseconds: public TimeUnit<cv...> {
     public:
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint32_t value = TimeUnit<cv...>::to_uint32>
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
         static constexpr return_t toCounts() {
             return prescaled_t::template microseconds2counts<value,return_t>();
+        }
+
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+        static constexpr return_t toTicks() {
+            return prescaled_t::template microseconds2ticks<value,return_t>();
         }
 
         template <int percentage>
@@ -67,9 +76,14 @@ namespace TimeUnits {
     template <char... cv>
     class Milliseconds: public TimeUnit<cv...> {
     public:
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint32_t value = TimeUnit<cv...>::to_uint32>
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
         static constexpr return_t toCounts() {
             return prescaled_t::template milliseconds2counts<value,return_t>();
+        }
+
+        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+        static constexpr return_t toTicks() {
+            return prescaled_t::template milliseconds2ticks<value,return_t>();
         }
 
         template <int percentage>
@@ -181,28 +195,48 @@ public:
 template <typename _value_t, typename _prescaler_t, _prescaler_t _prescaler>
 class Prescaled: public Counting<_value_t> {
     typedef PrescalerMeta<_prescaler_t,_prescaler> Meta;
+    using Counting<_value_t>::maximum;
 public:
     typedef _prescaler_t prescaler_t;
     static constexpr _prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;
 
-    template <uint32_t usecs, typename return_t = _value_t>
+    template <uint64_t usecs, typename return_t = _value_t>
     static constexpr return_t microseconds2counts() {
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 > 1,
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 > 1,
                 "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<return_t>::max(),
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<return_t>::max(),
                 "Number of counts for microseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
         return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
     }
 
-    template <uint32_t msecs, typename return_t = _value_t>
+    template <uint64_t usecs, typename return_t = _value_t>
+    static constexpr return_t microseconds2ticks() {
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * usecs / 1000 > 1,
+                "Number of ticks for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * usecs / 1000 <= std::numeric_limits<return_t>::max(),
+                "Number of ticks for microseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
+        return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
+    }
+
+    template <uint64_t msecs, typename return_t = _value_t>
     static constexpr return_t milliseconds2counts() {
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs > 1,
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * msecs > 1,
                 "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint32_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<return_t>::max(),
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<return_t>::max(),
                 "Number of counts for milliseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
         return (F_CPU >> prescalerPower2) / 1000 * msecs;
     }
+
+    template <uint64_t msecs, typename return_t = _value_t>
+    static constexpr return_t milliseconds2ticks() {
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * msecs > 1,
+                "Number of ticks for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * msecs <= std::numeric_limits<return_t>::max(),
+                "Number of ticks for milliseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
+        return (F_CPU >> prescalerPower2) / 1000 * msecs;
+    }
+
 };
 
 template <typename info>

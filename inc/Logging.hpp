@@ -11,7 +11,9 @@
 #include <stdio.h>
 #endif
 
-extern uint16_t debugTimings[256];
+constexpr uint8_t debugTimingCount = 32;
+
+extern uint16_t debugTimings[debugTimingCount];
 extern uint8_t debugTimingsCount;
 
 static uint16_t debugStartTime;
@@ -31,7 +33,7 @@ struct TimingEnabled {
     inline static void timeEnd() {
         uint16_t duration = TCNT1 - debugStartTime;
 
-        if (debugTimingsCount < 254) {
+        if (debugTimingsCount < debugTimingCount) {
             debugTimings[debugTimingsCount] = duration;
             debugTimingsCount++;
         }

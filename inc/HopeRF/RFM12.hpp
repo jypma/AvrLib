@@ -163,12 +163,12 @@ private:
     }
 
     void enable(RFM12Band band) {
-        cli();
         ss_pin->configureAsOutput();
         ss_pin->setHigh();
         int_pin->configureAsInputWithPullup();
-        int_pin->interrupt().attach(handler);
         int_pin->interruptOnLow();
+
+        cli();
 
         command(0x0000); // initial SPI transfer added to avoid power-up problem
         command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
@@ -253,6 +253,12 @@ private:
 public:
     RFM12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band):
         spi(&_spi), ss_pin(&_ss_pin), int_pin(&_int_pin), comparator(&_comparator) {
+        int_pin->interrupt().attach(handler);
+
+        enable(band);
+    }
+
+    void reset(RFM12Band band) {
         enable(band);
     }
 
@@ -277,6 +283,16 @@ public:
     }
 
 };
+
+template <typename spi_t,
+          typename ss_pin_t,
+          typename int_pin_t,
+          typename comparator_t,
+          bool checkCrc = true,
+          int rxFifoSize = 32, int txFifoSize = 32>
+RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize> rfm12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band) {
+    return RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize>(_spi, _ss_pin, _int_pin, _comparator, band);
+}
 
 }
 

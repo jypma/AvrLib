@@ -65,9 +65,35 @@ public:
     }
 };
 
+template <typename writer_t, typename T, typename check = void>
+struct TypedLiteralWrite {};
+
+template <typename writer_t, typename T>
+struct TypedLiteralWrite<writer_t, T, typename std::enable_if<std::is_pointer<T>::value>::type> {
+    inline static void write(writer_t &out, T value) {
+        out.writeLiteral(value);
+    }
+};
+
+template <typename writer_t, typename T>
+struct TypedLiteralWrite<writer_t, T, typename std::enable_if<std::is_enum<T>::value>::type> {
+    inline static void write(writer_t &out, T value) {
+        out.writeLiteral(value);
+    }
+};
+/*
+template <typename writer_t, typename T>
+struct TypedLiteralWrite<writer_t, T, typename T::Proto> {
+    inline static void write(writer_t &out, T value) {
+        T::Proto::write(out, value);
+    }
+};
+*/
+
 template <typename fifo_t, typename sem = NonblockingWriteSemantics<fifo_t>>
 class Writer {
     typedef Writer<fifo_t, sem> This;
+    template<typename,typename,typename> friend class TypedLiteralWrite;
 
     fifo_t *fifo;
     bool valid = true;
@@ -76,7 +102,7 @@ class Writer {
     inline void writeLiteral(const T value) {
         if (valid && sem::canWrite(*fifo, sizeof(T))) {
             for (uint8_t i = 0; i < sizeof(T); i++) {
-                fifo->uncheckedWrite( ((uint8_t*)(&value))[i] );
+                sem::write(*fifo, ((uint8_t*)(&value))[i] );
             }
         } else {
             valid = false;
@@ -86,7 +112,7 @@ class Writer {
     void writeRange(const void * const ptr, const uint8_t length) {
         if (valid && sem::canWrite(*fifo, length)) {
             for (uint8_t i = 0; i < length; i++) {
-                fifo->uncheckedWrite( ((uint8_t*)ptr)[i] );
+                sem::write(*fifo, ((uint8_t*)ptr)[i] );
             }
         } else {
             valid = false;
@@ -134,10 +160,10 @@ public:
         return *this;
     }
 
-    /** Writes a literal pointer (the actual address), LSB first (little endian) */
-    template<typename T, typename check = typename std::enable_if<std::is_pointer<T>::value>::type>
+    /** Writes the given literal value as little-endian (LSB first), according to one of the TypedLiteralWrite templates. */
+    template <typename T, typename check = typename std::enable_if<std::is_enum<T>::value || std::is_pointer<T>::value>::type>
     inline Writer &operator << (const T t) {
-        writeLiteral(t);
+        TypedLiteralWrite<This,T>::write(*this, t);
         return *this;
     }
 
@@ -162,6 +188,16 @@ public:
     /** Writes a single uint32_t, LSB first (little endian) */
     inline Writer &operator << (const uint32_t value) {
         writeLiteral(value);
+        return *this;
+    }
+
+    /** Writes the string "true" or "false", depending on the value */
+    inline Writer &operator << (const bool value) {
+        if (value) {
+            *this << F("true");
+        } else {
+            *this << F("false");
+        }
         return *this;
     }
 

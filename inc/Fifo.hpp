@@ -26,6 +26,7 @@ class AbstractFifo {
     uint8_t readMark = NO_MARK;
     uint8_t readMarkInvocations = 0;
     uint8_t writeMarkInvocations = 0;
+    uint8_t abortedWrites = 0;
 
 public:
     inline bool isWriting() const {
@@ -63,6 +64,10 @@ private:
 
 public:
     AbstractFifo(uint8_t * const _buffer, const uint8_t _bufferSize): buffer(_buffer), bufferSize(_bufferSize) {}
+
+    inline uint8_t getAbortedWrites() const {
+        return abortedWrites;
+    }
 
     bool isEmpty() const;
 

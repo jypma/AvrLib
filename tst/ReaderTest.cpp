@@ -56,38 +56,16 @@ TEST(ReaderTest, raw_bytes_are_read_correctly) {
     EXPECT_TRUE(in.ended);
 }
 
-/*
-TEST(ReaderTest, scanning_for_token_finds_token) {
-    Fifo<16> fifo;
-    fifo.out() << "abcde";
-    uint8_t i;
-    EXPECT_TRUE(fifo.in() >> "bc" >> i);
-    EXPECT_EQ('d', i);
-    EXPECT_EQ(1, fifo.getSize());
+TEST(ReaderTest, multibyte_ints_are_read_correctly) {
+    MockIn in;
+    in.buffer[0] = 0xDE;
+    in.buffer[1] = 0xAD;
+    in.remaining = 2;
+    {
+        auto r = Reader<MockIn>(in);
+        uint16_t inbyte;
+        r >> inbyte;
+        EXPECT_EQ(0xADDE, inbyte);
+    }
 }
-
-TEST(ReaderTest, scanning_for_token_fails_if_not_present) {
-    Fifo<16> fifo;
-    fifo.out() << "abcde";
-    uint8_t i;
-    EXPECT_FALSE(fifo.in() >> "bz" >> i);
-    EXPECT_EQ(5, fifo.getSize());
-}
-
-TEST(ReaderTest, scanning_for_nullptr_is_ignored_but_does_not_fail_parsing) {
-    Fifo<16> fifo;
-    fifo.out() << "abcde";
-    EXPECT_TRUE(fifo.in() >> (const char *)(nullptr));
-    EXPECT_EQ(5, fifo.getSize());
-
-}
-
-TEST(Readertest, scanning_for_token_longer_than_input_fails) {
-    Fifo<16> fifo;
-    fifo.out() << "abcde";
-    uint8_t i;
-    EXPECT_FALSE(fifo.in() >> "abcdef" >> i);
-    EXPECT_EQ(5, fifo.getSize());
-}
-*/
 }

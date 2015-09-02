@@ -11,11 +11,22 @@ struct MockFifo {
     uint8_t buffer[200];
     uint8_t length = 0;
     uint8_t space = 200;
+    uint8_t pretendFull = 0;
+    uint8_t isFullInvocations = 0;
 
     bool started = false;
     bool ended = false;
     bool aborted = false;
 
+    inline bool isFull() {
+        if (pretendFull > 0) {
+            pretendFull--;
+            isFullInvocations++;
+            return true;
+        } else {
+            return false;
+        }
+    }
     void writeStart() {
         started = true;
     }
@@ -82,15 +93,15 @@ TEST(WriterTest, raw_bytes_and_enums_are_output_correctly) {
         EXPECT_TRUE(out.started);
         w << uint8_t(42);
         w << uint8_t(84);
-        //w << TestEnum::ONE;
-        //w << TestEnum::TWO;
+        w << TestEnum::ONE;
+        w << TestEnum::TWO;
         EXPECT_FALSE(out.ended);
     }
+    EXPECT_EQ(4, out.length);
     EXPECT_EQ(42, out.buffer[0]);
     EXPECT_EQ(84, out.buffer[1]);
-    //EXPECT_EQ(0, out.buffer[2]);
-    //EXPECT_EQ(1, out.buffer[3]);
-    EXPECT_EQ(2, out.length);
+    EXPECT_EQ(0, out.buffer[2]);
+    EXPECT_EQ(1, out.buffer[3]);
     EXPECT_TRUE(out.ended);
 }
 
@@ -148,6 +159,18 @@ TEST(WriterTest, decimal_uint8_is_handled) {
     EXPECT_EQ('5', out.buffer[7]);
     EXPECT_EQ('5', out.buffer[8]);
     EXPECT_EQ(9, out.length);
+}
+
+TEST(WriterTest, pointers_can_be_written) {
+    uint8_t i = 42;
+    uint8_t *ptr = &i;
+
+    MockFifo out;
+    {
+        auto w = Writer<MockFifo>(out);
+        w << ptr;
+    }
+    EXPECT_TRUE(out.length > 1);
 }
 
 TEST(WriterTest, decimal_int8_is_handled) {
@@ -265,6 +288,21 @@ TEST(WriterTest, can_write_chunk_from_chunked_fifo_as_reader) {
     EXPECT_EQ(5, out.length);
     EXPECT_EQ('h', out.buffer[0]);
     EXPECT_EQ('o', out.buffer[4]);
+}
+
+TEST(WriterTest, blocking_write_semantics_block_until_fifo_no_longer_full) {
+    MockFifo out;
+    out.pretendFull = 10;
+    {
+        auto w = Writer<MockFifo,BlockingWriteSemantics<MockFifo>>(out);
+        w << dec(uint8_t(102));
+    }
+
+    EXPECT_EQ(10, out.isFullInvocations);
+    EXPECT_EQ(3, out.length);
+    EXPECT_EQ('1', out.buffer[0]);
+    EXPECT_EQ('0', out.buffer[1]);
+    EXPECT_EQ('2', out.buffer[2]);
 }
 
 }

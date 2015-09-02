@@ -41,9 +41,9 @@ class ESP8266 {
     template <bool (This::*condition)() const, typename... Fields> using Conditional = Parts::Conditional<This, condition, Fields...>;
     template <typename ElementType, uint8_t count, ElementType (This::*field)[count]> using Array = Parts::Array<This, ElementType, count, field>;
     template <ChunkedFifo This::*field, typename Separator = Format<This>> using Chunk = Parts::Chunk<This, field, Separator>;
-
-    enum class State { RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
-
+public:
+    enum class State: uint8_t { RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
+private:
     Fifo<txFifoSize> txFifoData;
     ChunkedFifo txFifo = &txFifoData;
     Fifo<rxFifoSize> rxFifoData;
@@ -199,6 +199,10 @@ public:
     ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, reset_pin_t &_reset): tx(&_tx), rx(&_rx), reset_pin(&_reset) {
         reset_pin->configureAsOutput();
         restart();
+    }
+
+    State getState() {
+        return state;
     }
 
     void loop() {

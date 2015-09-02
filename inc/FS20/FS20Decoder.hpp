@@ -7,19 +7,18 @@
 
 namespace FS20 {
 
+enum class State { SYNC, RECEIVING };
+
 using namespace TimeUnits;
 
 template <typename pulsecounter_t, uint8_t fifoSize = 32>
 class FS20Decoder {
     typedef typename pulsecounter_t::comparator_t comparator_t;
     typedef typename pulsecounter_t::count_t count_t;
-    typedef PulseEvent<count_t> Event;
 
 public:
     static constexpr count_t zero_length  = (400_us).template toCounts<comparator_t>();
     static constexpr count_t one_length  = (600_us).template toCounts<comparator_t>();
-
-    enum class State { SYNC, RECEIVING };
 
     static inline bool isZero(count_t length) {
         return length > count_t(0.75*zero_length) && length <= count_t((zero_length + one_length) / 2);
@@ -36,32 +35,17 @@ public:
     bool parityError = false;
     Fifo<fifoSize> fifo;
 
-    uint8_t log[255] = {};
-    uint8_t logIdx = 0;
-    bool logOn = true;
-
     inline uint8_t *currentByte() {
         return (uint8_t *)(&packet) + byteCount;
     }
 
     void reset() {
-        if (byteCount > 0) {
-            logOn = false;
-            if (logIdx < 250) {
-                log[logIdx] = uint8_t(state);
-                logIdx++;
-                log[logIdx] = byteCount;
-                logIdx++;
-                log[logIdx] = bitCount;
-            }
-        }
         lastLength = 0;
         bitCount = -1;
         byteCount = 0;
         packet = FS20Packet();
         parityError = false;
         state = State::SYNC;
-        logIdx = 0;
     }
 
     void checkParity(uint8_t value, uint8_t bit) {
@@ -121,40 +105,29 @@ public:
     }
 
 public:
-    void apply(const Event &evt) {
-        if (logOn) {
-            log[logIdx] = evt.getLength();
-            logIdx++;
-            if (logIdx > 250) {
-                logOn = false;
-            }
-        }
-        switch(evt.getType()) {
-        case PulseType::LOW:
-            if (isZero(evt.getLength())) {
-                if (isZero(lastLength)) {
-                    applyBit(0);
-                } else {
-                    reset();
-                }
-            } else if (isOne(evt.getLength())) {
-                if (isOne(lastLength)) {
-                    applyBit(1);
-                } else {
-                    reset();
-                }
+    void apply(const Pulse &pulse) {
+        if (pulse.isDefined()) {
+            if (pulse.isHigh()) {
+                lastLength = pulse.getDuration();
             } else {
-                reset();
+                if (isZero(pulse.getDuration())) {
+                    if (isZero(lastLength)) {
+                        applyBit(0);
+                    } else {
+                        reset();
+                    }
+                } else if (isOne(pulse.getDuration())) {
+                    if (isOne(lastLength)) {
+                        applyBit(1);
+                    } else {
+                        reset();
+                    }
+                } else {
+                    reset();
+                }
             }
-            break;
-
-        case PulseType::HIGH:
-            lastLength = evt.getLength();
-            break;
-
-        case PulseType::TIMEOUT:
+        } else {
             reset();
-            break;
         }
     }
 

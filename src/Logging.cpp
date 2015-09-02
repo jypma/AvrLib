@@ -1,5 +1,5 @@
 #include "Logging.hpp"
 
-uint16_t debugTimings[256];
+uint16_t debugTimings[debugTimingCount];
 uint8_t debugTimingsCount = 0;
 

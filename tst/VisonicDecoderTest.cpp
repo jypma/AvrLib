@@ -24,14 +24,13 @@ struct MockPulseCounter {
 
 template <typename T>
 void sendData(T &decoder, const uint16_t *seq, uint16_t length) {
-    PulseType type = PulseType::HIGH;
+    bool high = true;
     for (uint8_t i = 0; i < length; i++) {
-        PulseEvent<MockPulseCounter::count_t> event = { type, seq[i] };
+        Pulse event = { high, seq[i] };
         decoder.apply(event);
-        type = (type == PulseType::HIGH) ? PulseType::LOW : PulseType::HIGH;
+        high = !high;
     }
-    PulseEvent<MockPulseCounter::count_t> event = { PulseType::TIMEOUT, 0 };
-    decoder.apply(event);
+    decoder.apply(Pulse::empty());
 }
 
 TEST(VisonicDecoderTest, visonic_decoder_can_decode_correct_bit_sequences) {

@@ -11,11 +11,13 @@
 #include "Fifo.hpp"
 #include "Timer.hpp"
 #include "Streams/Streamable.hpp"
+#include "Serial/Pulse.hpp"
 
 namespace Serial {
 
 using namespace Streams;
 
+/*
 enum class PulseType: uint8_t { TIMEOUT = 0, HIGH = 1, LOW = 2 };
 
 // TODO join with Pulse
@@ -49,15 +51,16 @@ public:
 
     typedef typename S::template Format<
         typename S::template Scalar<PulseType, &PulseEvent::type>,
-        typename S::template Conditional<&PulseEvent::hasLength,
+        //typename S::template Conditional<&PulseEvent::hasLength,
             typename S::template Scalar<_value_t, &PulseEvent::length>
-        >
+       // >
     > Proto;
 
     static inline PulseEvent timeout() {
         return PulseEvent();
     }
 };
+*/
 
 /**
  * Counts up/down pulse lengths on a pin by using a timer. The longest reported length is
@@ -68,32 +71,39 @@ template <typename _comparator_t,
           int fifo_length = 32>
 class PulseCounter {
 public:
-    typedef PulseCounter<_comparator_t,pin_t> This;
+    typedef PulseCounter<_comparator_t,pin_t,fifo_length> This;
     typedef _comparator_t comparator_t;
     typedef typename comparator_t::value_t count_t;
 
 private:
 
     Fifo<fifo_length> fifo;
-    count_t start = comparator->getValue();
-    bool wasEmptyPeriod = true;
-    bool lastWasTimeout = false;
+    volatile count_t start = comparator->getValue();
+    volatile bool wasEmptyPeriod = true;
+    bool lastWasHigh;
 
     _comparator_t *const comparator;
     pin_t *const pin;
     const count_t minimumLength;
 
+    /*
     void onPinChanged() {
         const count_t end = comparator->getValue();
-        const PulseEvent<count_t> evt(start, end, pin->isHigh());
-        if (evt.getLength() > minimumLength) {
-           fifo.out() << evt;
-           lastWasTimeout = false;
-        } else {
-            if (!lastWasTimeout) {
-                fifo.out() << PulseEvent<count_t>::timeout();
-                lastWasTimeout = true;
-            }
+        const count_t length = (end == start) ? 1 :
+                                (end > start) ? end - start :
+                               Counting<count_t>::maximum - (start - end);
+        fifo.out() << length;
+        wasEmptyPeriod = false;
+        comparator->interruptOn();
+        start = end;
+    }
+    */
+    void onPinChanged() {
+        const count_t end = comparator->getValue();
+        const count_t length = (end > start) ? end - start :
+                               Counting<count_t>::maximum - (start - end);
+        if (length > minimumLength) {
+            fifo.out() << length;
         }
         wasEmptyPeriod = false;
         comparator->interruptOn();
@@ -102,10 +112,9 @@ private:
 
     void onComparator() {
         if (wasEmptyPeriod) {
-            if (!(fifo.out() << PulseEvent<count_t>::timeout())) {
+            if (!(fifo.out() << ((count_t) 0))) {
                 fifo.clear();
-                fifo.out() << PulseEvent<count_t>::timeout();
-                lastWasTimeout = true;
+                fifo.out() << ((count_t) 0);
             }
             comparator->interruptOff();
         } else {
@@ -124,8 +133,11 @@ public:
         comparator->interrupt().attach(comp);
         comparator->setTarget(0);
 
+        pin->configureAsInputWithPullup();
         pin->interrupt().attach(chng);
         pin->interruptOnChange();
+
+        lastWasHigh = pin->isHigh();
     }
 
     ~PulseCounter() {
@@ -135,13 +147,35 @@ public:
         pin->interrupt().detach();
     }
 
-    inline Streams::Reader<AbstractFifo> in() {
-        return fifo.in();
+    inline uint8_t getOverflows() {
+        return fifo.getAbortedWrites();
+    }
+
+    template <typename Body>
+    inline void on(Body body) {
+        count_t length ;
+        if (fifo.in() >> length) {
+            body(Pulse(lastWasHigh, length));
+            lastWasHigh = !lastWasHigh;
+        }
+    }
+
+    template <typename Body>
+    inline void onMax(uint8_t maxPulses, Body body) {
+        for (uint8_t i = maxPulses; i > 0; i--) {
+            count_t length ;
+            if (fifo.in() >> length) {
+                body(Pulse(lastWasHigh, length));
+                lastWasHigh = !lastWasHigh;
+            } else {
+                return;
+            }
+        }
     }
 };
 
 template <typename _comparator_t, typename pin_t, int fifo_length = 32>
-PulseCounter<_comparator_t,pin_t,fifo_length> pulseCounter(_comparator_t &comparator, pin_t &pin, int minimumLength = 15) {
+PulseCounter<_comparator_t,pin_t,fifo_length> pulseCounter(_comparator_t &comparator, pin_t &pin, typename _comparator_t::value_t minimumLength = 15) {
     return PulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin, minimumLength);
 }
 

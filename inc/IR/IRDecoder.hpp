@@ -41,13 +41,12 @@ public:
 template <typename pulsecounter_t>
 class IRUtils {
 public:
-    typedef typename pulsecounter_t::PulseEvent Event;
     typedef typename pulsecounter_t::Timer Timer;
 
-    static bool isMatch(const Event &event, const PulseType type, const uint16_t minLength, const uint16_t maxLength) {
-        return event.getType() == type &&
-               event.getLength() >= minLength &&
-               event.getLength() <= maxLength;
+    static bool isMatch(const Pulse &pulse, const bool high, const uint16_t minLength, const uint16_t maxLength) {
+        return pulse.isHigh() == high &&
+               pulse.getDuration() >= minLength &&
+               pulse.getDuration() <= maxLength;
     }
 
     template <typename Value>
@@ -61,13 +60,13 @@ public:
     }
 
     template <typename Value>
-    static bool isHigh(const Event &event, Value value) {
-        return isMatch(event, PulseType::LOW, min<Value>(), max<Value>());
+    static bool isHigh(const Pulse &event, Value value) {
+        return isMatch(event, false, min<Value>(), max<Value>());
     }
 
     template <typename Value>
-    static bool isLow(const Event &event, Value value) {
-        return isMatch(event, PulseType::HIGH,  min<Value>(), max<Value>());
+    static bool isLow(const Pulse &event, Value value) {
+        return isMatch(event, true,  min<Value>(), max<Value>());
     }
 
     void reset() {
@@ -76,7 +75,6 @@ public:
 
 template <typename pulsecounter_t, uint8_t fifoSize = 32>
 class IRDecoder_NEC: public IRUtils<pulsecounter_t> {
-    typedef typename pulsecounter_t::PulseEvent Event;
     typedef typename pulsecounter_t::Timer Timer;
 public:
     enum class State: uint8_t { Receiving, Repeat };
@@ -97,13 +95,13 @@ public:
         reset();
     }
 
-    void onReceiving(const Event &event) {
+    void onReceiving(const Pulse &event) {
         using namespace TimeUnits;
 
         count++;
 
         if (count == 0) {
-            if (event.getType() == PulseType::HIGH) {
+            if (event.isDefined() && event.isHigh()) {
                 return;
             } else {
                 count = -1;
@@ -147,7 +145,7 @@ public:
         }
     }
 
-    void onRepeat(const Event &event) {
+    void onRepeat(const Pulse &event) {
         using namespace TimeUnits;
 
         if (this->isHigh(event, 560_us)) {
@@ -158,7 +156,7 @@ public:
     }
 
 public:
-    void apply(const Event &event) {
+    void apply(const Pulse &event) {
         switch(state) {
           case State::Receiving: onReceiving(event); break;
           case State::Repeat: onRepeat(event); break;
@@ -173,7 +171,6 @@ public:
 
 template <typename pulsecounter_t, uint8_t fifoSize = 32>
 class IRDecoder_Samsung: public IRUtils<pulsecounter_t> {
-    typedef typename pulsecounter_t::PulseEvent Event;
     typedef typename pulsecounter_t::Timer Timer;
 public:
     enum class State: uint8_t { Receiving, Repeat };
@@ -194,12 +191,12 @@ public:
         reset();
     }
 
-    void onReceiving(const Event &event) {
+    void onReceiving(const Pulse &event) {
         using namespace TimeUnits;
 
         count++;
         if (count == 0) {
-            if (event.getType() == PulseType::HIGH) {
+            if (event.isDefined() && event.isHigh()) {
                 return;
             } else {
                 count = -1;
@@ -243,7 +240,7 @@ public:
         }
     }
 
-    void onRepeat(const Event &event) {
+    void onRepeat(const Pulse &event) {
         using namespace TimeUnits;
 
         if (this->isHigh(event, 560_us)) {
@@ -254,7 +251,7 @@ public:
     }
 
 public:
-    void apply(const Event &event) {
+    void apply(const Pulse &event) {
         switch(state) {
           case State::Receiving: onReceiving(event); break;
           case State::Repeat: onRepeat(event); break;

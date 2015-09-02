@@ -35,7 +35,6 @@ private:
 
     typedef typename pulsecounter_t::comparator_t comparator_t;
     typedef typename pulsecounter_t::count_t count_t;
-    typedef PulseEvent<count_t> Event;
 
     enum class State { UNKNOWN, PREVIOUS_LONG, PREVIOUS_SHORT };
 
@@ -162,15 +161,11 @@ private:
     count_t noiseLength = 0;
     uint8_t noisePulses = 0;
 public:
-    void apply(const Event &evt) {
-        switch (evt.getType()) {
-        case PulseType::TIMEOUT:
-            reset();
-            return;
-
-        default: // TODO investigate whether these are actually LOw or HIGH
+    void apply(const Pulse &pulse) {
+        if (pulse.isDefined()) {
+            // TODO investigate whether these are actually LOw or HIGH
             //std::cout << int(evt.getType()) << " : " << int(evt.getLength()) << " , noise: " << int(noiseLength) << std::endl;
-            uint16_t length = evt.getLength();
+            uint16_t length = pulse.getDuration();
             if (noisePulses == 2) {
                 //std::cout << "  applying noise spike" << std::endl;
                 length += noiseLength;
@@ -190,7 +185,7 @@ public:
                     if (noisePulses < 2) {
                         //std::cout << "  considering noise spike " << int(noisePulses) << std::endl;
                         noisePulses++;
-                        noiseLength += evt.getLength();
+                        noiseLength += pulse.getDuration();
                     } else {
                         //std::cout << "  too short" << std::endl;
                         reset();
@@ -200,7 +195,8 @@ public:
                 //std::cout << "  too long" << std::endl;
                 reset();
             }
-            return;
+        } else {
+            reset();
         }
     }
 

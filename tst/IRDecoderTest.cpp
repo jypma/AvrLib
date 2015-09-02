@@ -5,12 +5,6 @@
 using namespace Serial;
 
 struct MockPulseCounter {
-    struct PulseEvent {
-        PulseType type;
-        uint16_t length;
-        PulseType getType() const { return type; }
-        uint16_t getLength() const { return length; }
-    };
     struct Timer {
         typedef uint16_t value_t;
 
@@ -24,14 +18,13 @@ struct MockPulseCounter {
 
 template <typename T>
 void sendData(T &decoder, const uint16_t *seq, uint16_t length) {
-    PulseType type = PulseType::HIGH;
+    bool high = true;
     for (uint16_t i = 0; i < length; i++) {
-        MockPulseCounter::PulseEvent event = { type, seq[i] };
+        Pulse event = { high, seq[i] };
         decoder.apply(event);
-        type = (type == PulseType::HIGH) ? PulseType::LOW : PulseType::HIGH;
+        high = !high;
     }
-    MockPulseCounter::PulseEvent event = { PulseType::TIMEOUT, 0 };
-    decoder.apply(event);
+    decoder.apply(Pulse::empty());
 }
 
 TEST(IRDecoderTest, nec_decoder_can_decode_yamaha_at_prescaler_256) {

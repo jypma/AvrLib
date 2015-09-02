@@ -347,7 +347,20 @@ class ADCOnlyPin {
 template <typename usart_t = NoUsart, uint8_t readFifoCapacity = 32> using PinD0 = UsartRxPin<PinD0Info, usart_t, readFifoCapacity>;
 template <typename usart_t = NoUsart, uint8_t writeFifoCapacity = 16> using PinD1 = UsartTxPin<PinD1Info, usart_t, writeFifoCapacity>;
 typedef ExtInterruptPin<PinD2Info,Int0Info,extInt0> PinD2;
-template <typename timer2_t> class PinD3: public PinOnComparatorB<PinD3Info,timer2_t>, public ExtInterrupt<Int1Info,extInt1> {
+
+template <typename timer2_t = NoTimer, class Enable=void>
+class PinD3 {
+    typename timer2_t::fail error_wrong_timer_template_argument;
+};
+
+template <typename timer2_t>
+class PinD3<timer2_t, typename std::enable_if<std::is_same<timer2_t, NoTimer>::value>::type>: public Pin<PinD3Info>, public ExtInterrupt<Int1Info,extInt1>  {
+    // If NoTimer is provided as timer_t, the pin will be defined without timer capability.
+};
+
+template <typename timer2_t>
+class PinD3<timer2_t, typename std::enable_if<std::is_same<typename timer2_t::timer_info_t, typename PinD3Info::timer_info_t>::value>::type>:
+         public PinOnComparatorB<PinD3Info,timer2_t>, public ExtInterrupt<Int1Info,extInt1> {
 public:
     inline PinD3(timer2_t &_timer): PinOnComparatorB<PinD3Info,timer2_t>(_timer) {}
 };

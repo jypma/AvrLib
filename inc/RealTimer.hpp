@@ -11,6 +11,8 @@
 #include "Timer.hpp"
 #include <util/atomic.h>
 #include <avr/sleep.h>
+#include <gcc_limits.h>
+#include <gcc_type_traits.h>
 
 inline void noop() {
 
@@ -180,31 +182,75 @@ RealTimer<timer_t,initialTicks,wait> realTimer(timer_t &timer) {
     return RealTimer<timer_t,initialTicks,wait>(timer);
 }
 
-
 template <typename rt_t, typename value>
+struct Overflow {
+    static constexpr bool largerThanUint32 = value::template toCounts<rt_t, uint64_t>() > std::numeric_limits<uint32_t>::max();
+};
+
+
+template <typename rt_t, typename value, typename check = void>
 class Periodic {
-    static constexpr uint16_t countsDelay = value::template toCounts<rt_t, uint16_t>();
+    static constexpr uint32_t delay = value::template toCounts<rt_t, uint32_t>();
 
 protected:
-    uint32_t nextCounts;
+    volatile uint32_t next;
     rt_t *rt;
 
+    inline uint32_t currentTime() {
+        return rt->counts();
+    }
+
     void calculateNextCounts(uint32_t startTime) {
-        if (uint32_t(0xFFFFFFFF) - startTime < countsDelay) {
+        if (uint32_t(0xFFFFFFFF) - startTime < delay) {
             // we expect an integer wraparound.
             // first, wait for the int to overflow (with some margin)
-            while (rt->counts() > 5) ;
+            while (currentTime() > 5) ;
         }
-        nextCounts = startTime + countsDelay;
+        next = startTime + delay;
     }
 public:
     Periodic(rt_t &_rt): rt(&_rt) {
-        calculateNextCounts(rt->counts());
+        calculateNextCounts(currentTime());
     }
 
     bool isNow() {
-        if (rt->counts() >= nextCounts) {
-            calculateNextCounts(nextCounts);
+        if (currentTime() >= next) {
+            calculateNextCounts(next);
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
+
+template <typename rt_t, typename value>
+class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type> {
+    static constexpr uint32_t delay = value::template toTicks<rt_t, uint32_t>();
+
+protected:
+    volatile uint32_t next;
+    rt_t *rt;
+
+    inline uint32_t currentTime() {
+        return rt->ticks();
+    }
+
+    void calculateNextCounts(uint32_t startTime) {
+        if (uint32_t(0xFFFFFFFF) - startTime < delay) {
+            // we expect an integer wraparound.
+            // first, wait for the int to overflow (with some margin)
+            while (currentTime() > 5) ;
+        }
+        next = startTime + delay;
+    }
+public:
+    Periodic(rt_t &_rt): rt(&_rt) {
+        calculateNextCounts(currentTime());
+    }
+
+    bool isNow() {
+        if (currentTime() >= next) {
+            calculateNextCounts(next);
             return true;
         } else {
             return false;
@@ -220,13 +266,29 @@ Periodic<rt_t,value_t> periodic(rt_t &rt, value_t value) {
 template <typename rt_t, typename value>
 class Deadline: public Periodic<rt_t, value> {
     typedef Periodic<rt_t, value> Super;
-    using Super::rt;
-    using Super::nextCounts;
+    using Super::currentTime;
+    using Super::next;
+
+    volatile bool elapsed = false;
 public:
     Deadline(rt_t &_rt): Super(_rt) {}
 
     bool isNow() {
-        return rt->counts() >= nextCounts;
+        if (!elapsed) {
+            if (currentTime() >= next) {
+                elapsed = true;
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    void reset() {
+        elapsed = false;
+        Super::calculateNextCounts(currentTime());
     }
 };
 
