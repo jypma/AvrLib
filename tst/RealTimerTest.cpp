@@ -1,11 +1,13 @@
-#include "RealTimer.hpp"
+#include <avr/common.h>
+#include "Time/RealTimer.hpp"
+#include "Time/Units.hpp"
 #include <gtest/gtest.h>
 #include <chrono>
 #include <thread>
 
 namespace RealTimerTest {
 
-using namespace TimeUnits;
+using namespace Time;
 
 struct MockTimer {
     typedef uint8_t value_t;
@@ -85,6 +87,8 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparoun
 }
 
 struct MockRealTimer {
+    static constexpr uint64_t maximum = 10000000000;
+
     uint32_t count = 0;
     uint32_t tick = 0;
     uint32_t counts() const {
@@ -95,25 +99,11 @@ struct MockRealTimer {
         return tick;
     }
 
-    template <uint64_t msecs, typename return_t = uint8_t>
-    static constexpr return_t milliseconds2counts() {
-        return (return_t) msecs;
-    }
-
-    template <uint64_t msecs, typename return_t = uint8_t>
-    static constexpr return_t microseconds2counts() {
-        return (return_t) msecs * 1000000000ll;
-    }
-
-    template <uint64_t msecs, typename return_t = uint8_t>
-    static constexpr return_t microseconds2ticks() {
-        return (return_t) msecs * 100;
-    }
 };
 
 TEST(RealTimerTest, periodic_catches_up_after_long_invocation) {
     auto rt = MockRealTimer();
-    auto p = periodic(rt, 200_ms);
+    auto p = periodic(rt, 200_counts);
 
     EXPECT_FALSE(p.isNow());
     EXPECT_FALSE(p.isNow());
@@ -134,7 +124,7 @@ TEST(RealTimerTest, periodic_catches_up_after_long_invocation) {
 
 TEST(RealTimerTest, deadline_only_fires_once) {
     auto rt = MockRealTimer();
-    auto d = deadline(rt, 200_ms);
+    auto d = deadline(rt, 200_counts);
 
     EXPECT_FALSE(d.isNow());
     EXPECT_FALSE(d.isNow());
@@ -152,7 +142,7 @@ TEST(RealTimerTest, deadline_only_fires_once) {
 
 TEST(RealTimerTest, deadline_can_be_reset) {
     auto rt = MockRealTimer();
-    auto d = deadline(rt, 200_ms);
+    auto d = deadline(rt, 200_counts);
     rt.count = 100;
     d.reset();
 
@@ -174,7 +164,7 @@ TEST(RealTimerTest, deadline_can_be_reset) {
 
 TEST(RealTimerTest, deadline_picks_ticks_instead_of_counts_when_interval_doesnt_fit_32bit) {
     auto rt = MockRealTimer();
-    auto d = deadline(rt, 6_us);
+    auto d = deadline(rt, 40000000000_counts);
 
     EXPECT_FALSE(d.isNow());
     EXPECT_FALSE(d.isNow());
@@ -188,5 +178,9 @@ TEST(RealTimerTest, deadline_picks_ticks_instead_of_counts_when_interval_doesnt_
     rt.tick = 1201;
 
     EXPECT_FALSE(d.isNow());
+}
+
+TEST(RealTimerTest, variable_deadline_can_be_set_to_varying_timeouts) {
+
 }
 }

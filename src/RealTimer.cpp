@@ -1,7 +1,11 @@
-#include "RealTimer.hpp"
+#include "Time/RealTimer.hpp"
+
+namespace Time {
 
 uint8_t _watchdogCounter;
 
+}
+
 ISR(WDT_vect) {
-    _watchdogCounter++;
+    Time::_watchdogCounter++;
 }

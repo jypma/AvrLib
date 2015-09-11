@@ -48,9 +48,9 @@ public:
         Super::sendFromSource();
     }
 
-    template <typename Value, bool high>
-    inline void send(const PulseIn<Value, high> pulse) {
-        send(pulse.template on<comparator_t>());
+    template <typename Value>
+    inline void sendHigh(Value duration) {
+        send(Pulse(true, toCountsOn<comparator_t>(duration)));
     }
 };
 

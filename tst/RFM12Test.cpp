@@ -53,6 +53,7 @@ public:
 };
 
 struct MockComparator {
+    static constexpr uint8_t prescalerPower2 = 8;
     typedef uint8_t value_t;
     InterruptChain i;
     value_t target = 0;

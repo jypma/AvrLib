@@ -184,7 +184,7 @@ class PinOnComparatorB<pinInfo, timer_t, typename std::enable_if<std::is_same<ti
 template <typename pinInfo, typename timer_t>
 class PinOnComparatorB<pinInfo, timer_t, typename std::enable_if<std::is_same<typename timer_t::timer_info_t, typename pinInfo::timer_info_t>::value>::type>:
     public Pin<pinInfo>,
-    public Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
+    public Time::Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
     timer_t *t;
 public:
     typedef typename timer_t::comparatorB_t comparator_t;

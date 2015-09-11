@@ -9,7 +9,7 @@ namespace FS20 {
 
 enum class State { SYNC, RECEIVING };
 
-using namespace TimeUnits;
+using namespace Time;
 
 template <typename pulsecounter_t, uint8_t fifoSize = 32>
 class FS20Decoder {

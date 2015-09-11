@@ -8,20 +8,24 @@
 #ifndef REALTIMER_HPP_
 #define REALTIMER_HPP_
 
-#include "Timer.hpp"
+#include "Time/Prescaled.hpp"
 #include <util/atomic.h>
 #include <avr/sleep.h>
 #include <gcc_limits.h>
 #include <gcc_type_traits.h>
+#include "InterruptHandler.hpp"
+#include "AtomicScope.hpp"
 
 inline void noop() {
 
 }
 
+namespace Time {
+
 extern uint8_t _watchdogCounter;
 
 template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = noop>
-class RealTimer: public Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
+class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
     typedef RealTimer<timer_t,initialTicks,wait> This;
 
     volatile uint32_t _ticks = initialTicks;
@@ -287,14 +291,44 @@ public:
     }
 
     void reset() {
-        elapsed = false;
         Super::calculateNextCounts(currentTime());
+        elapsed = false;
+    }
+};
+
+template <typename rt_t>
+class VariableDeadline {
+    rt_t *rt;
+    uint32_t next = 0;
+    volatile bool elapsed = true;
+
+public:
+    VariableDeadline(rt_t &_rt): rt(&_rt) {}
+
+    template <typename value>
+    void reset(value v) {
+        constexpr uint32_t delay = value::template toCounts<rt_t, uint32_t>();
+        uint32_t startTime = rt->counts();
+        if (uint32_t(0xFFFFFFFF) - startTime < delay) {
+            // we expect an integer wraparound.
+            // first, wait for the int to overflow (with some margin)
+            while (rt->counts() > 5) ;
+        }
+        next = startTime + delay;
+        elapsed = false;
     }
 };
 
 template <typename rt_t, typename value_t>
 Deadline<rt_t,value_t> deadline(rt_t &rt, value_t value) {
     return Deadline<rt_t,value_t>(rt);
+}
+
+template <typename rt_t>
+VariableDeadline<rt_t> deadline(rt_t &rt) {
+    return VariableDeadline<rt_t>(rt);
+}
+
 }
 
 #endif /* REALTIMER_HPP_ */

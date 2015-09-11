@@ -7,6 +7,7 @@ namespace IR {
 
 using namespace Streams;
 using namespace Serial;
+using namespace Time;
 
 enum IRType: uint8_t { Command, Repeat };
 
@@ -60,12 +61,12 @@ public:
     }
 
     template <typename Value>
-    static bool isHigh(const Pulse &event, Value value) {
+    static inline bool isHigh(const Pulse &event, Value value) {
         return isMatch(event, false, min<Value>(), max<Value>());
     }
 
     template <typename Value>
-    static bool isLow(const Pulse &event, Value value) {
+    static inline bool isLow(const Pulse &event, Value value) {
         return isMatch(event, true,  min<Value>(), max<Value>());
     }
 
@@ -96,8 +97,6 @@ public:
     }
 
     void onReceiving(const Pulse &event) {
-        using namespace TimeUnits;
-
         count++;
 
         if (count == 0) {
@@ -146,8 +145,6 @@ public:
     }
 
     void onRepeat(const Pulse &event) {
-        using namespace TimeUnits;
-
         if (this->isHigh(event, 560_us)) {
             decoded(IRType::Repeat);
         } else {
@@ -192,8 +189,6 @@ public:
     }
 
     void onReceiving(const Pulse &event) {
-        using namespace TimeUnits;
-
         count++;
         if (count == 0) {
             if (event.isDefined() && event.isHigh()) {
@@ -241,8 +236,6 @@ public:
     }
 
     void onRepeat(const Pulse &event) {
-        using namespace TimeUnits;
-
         if (this->isHigh(event, 560_us)) {
             decoded(IRType::Repeat);
         } else {

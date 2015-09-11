@@ -15,10 +15,12 @@
 #include "EEPROM.hpp"
 #include "Streams/Scanner.hpp"
 #include <util/delay.h>
+#include "Time/RealTimer.hpp"
+#include "Time/Units.hpp"
 
 namespace Espressif {
 
-using namespace TimeUnits;
+using namespace Time;
 using namespace Streams;
 
 // TODO add timeouts
@@ -30,11 +32,12 @@ template<
     typename tx_pin_t,
     typename rx_pin_t,
     typename reset_pin_t,
+    typename rt_t,
     uint8_t txFifoSize = 64,
     uint8_t rxFifoSize = 64
 >
 class ESP8266 {
-    typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, txFifoSize, rxFifoSize> This;
+    typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, rt_t, txFifoSize, rxFifoSize> This;
 
     template <typename... Fields> using Format = Parts::Format<This, Fields...>;
     template <typename FieldType, FieldType This::*field, class Check = void> using Scalar = Parts::Scalar<This, FieldType, field, Check>;
@@ -52,16 +55,18 @@ private:
     tx_pin_t *tx;
     rx_pin_t *rx;
     reset_pin_t *reset_pin;
+    Deadline<rt_t,decltype (10000_ms)> watchdog;
 
     void restart() {
         reset_pin->setLow();
-
+        _delay_ms(1);
         reset_pin->setHigh();
         _delay_ms(1);
         reset_pin->setLow();
         _delay_ms(1);
         reset_pin->setHigh();
         state = State::RESTARTING;
+        watchdog.reset();
     }
 
     void restarting() {
@@ -69,6 +74,7 @@ private:
             on<Format<Token<STR("ready")>>>(s, [this] {
                 tx->out() << F("ATE0") << endl;
                 state = State::DISABLING_ECHO;
+                watchdog.reset();
             });
         });
     }
@@ -78,6 +84,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CWMODE_CUR=1") << endl;
                 state = State::SETTING_STATION_MODE;
+                watchdog.reset();
             });
         });
     }
@@ -87,6 +94,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CWLAP") << endl;
                 state = State::LISTING_ACCESS_POINTS;
+                watchdog.reset();
             });
         });
     }
@@ -96,6 +104,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CWJAP_CUR=\"") << accessPoint << F("\",\"") << password << F("\"") << endl;
                 state = State::CONNECTING_APN;
+                watchdog.reset();
             });
         });
     }
@@ -105,6 +114,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CIPMUX=0") << endl;
                 state = State::DISABLING_MUX;
+                watchdog.reset();
             });
             on<Format<Token<STR("FAIL\r\n")>>>(s, [this] {
                 // Failed to connect to wifi, restart
@@ -118,6 +128,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CIPCLOSE") << endl;
                 state = State::CLOSING_OLD_CONNECTION;
+                watchdog.reset();
             });
         });
     }
@@ -129,6 +140,7 @@ private:
                 // mode 2 : any remote IP can send UDP packets to our local port 4123
                 tx->out() << F("AT+CIPSTART=\"UDP\",\"") << remoteIP << F("\",") << dec(remotePort) << F(",4123,2") << endl;
                 state = State::CONNECTING_UDP;
+                watchdog.reset();
             };
 
             on<Format<Token<STR("OK\r\n")>>>(s, connect);
@@ -141,6 +153,7 @@ private:
         scan(*rx, [this] (auto s) {
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 state = State::CONNECTED;
+                watchdog.reset();
             });
             on<Format<Token<STR("ERROR\r\n")>>>(s, [this] {
                 // Could be "ALREADY CONNECTED"
@@ -154,8 +167,9 @@ private:
         on<Format<
             Token<STR("+IPD,")>,
             Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
-        >(s, [] {
+        >(s, [this] {
             // we got some data, it's already in rxFifo.
+            watchdog.reset();
         });
     }
 
@@ -178,6 +192,7 @@ private:
             on<Format<Token<STR(">")>>>(s, [this] {
                 tx->out() << txFifo.in();
                 state = State::SENDING_DATA;
+                watchdog.reset();
             });
         });
     }
@@ -187,16 +202,18 @@ private:
             this->onReceivedData(s);
             on<Format<Token<STR("SEND OK")>>>(s, [this] {
                 state = State::CONNECTED;
+                watchdog.reset();
             });
             on<Format<Token<STR("ERROR")>>>(s, [this] {
                 state = State::CONNECTED;
+                watchdog.reset();
             });
         });
     }
 
 
 public:
-    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, reset_pin_t &_reset): tx(&_tx), rx(&_rx), reset_pin(&_reset) {
+    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, reset_pin_t &_reset, rt_t &rt): tx(&_tx), rx(&_rx), reset_pin(&_reset), watchdog(rt) {
         reset_pin->configureAsOutput();
         restart();
     }
@@ -206,6 +223,9 @@ public:
     }
 
     void loop() {
+        if (watchdog.isNow()) {
+            restart();
+        } else
         switch (state) {
         case State::RESTARTING: restarting(); return;
         case State::DISABLING_ECHO: disabling_echo(); return;
@@ -240,10 +260,11 @@ template<
     uint8_t rxFifoSize = 64,
     typename tx_pin_t,
     typename rx_pin_t,
-    typename reset_pin_t
+    typename reset_pin_t,
+    typename rt_t
 >
-ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, txFifoSize, rxFifoSize> esp8266(tx_pin_t &tx, rx_pin_t &rx, reset_pin_t &reset_pin) {
-    return ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, txFifoSize, rxFifoSize>(tx, rx, reset_pin);
+ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, rt_t, txFifoSize, rxFifoSize> esp8266(tx_pin_t &tx, rx_pin_t &rx, reset_pin_t &reset_pin, rt_t &rt) {
+    return ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, rt_t, txFifoSize, rxFifoSize>(tx, rx, reset_pin, rt);
 }
 
 }

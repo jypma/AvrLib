@@ -25,6 +25,8 @@
 
 namespace HopeRF {
 
+using namespace Time;
+
 enum class RFM12Band: uint8_t {
     _433MHz = 1, _868Mhz = 2, _915MHz = 3
 };
@@ -234,8 +236,7 @@ private:
                 // because of SPI delays, and the DELAY and TRANSMITTER_ON messages being processed by the RFM12
                 // at different delays, we need to make an adjustment between the desired pulse lengths, and the actual
                 // forwarded pulse lengths.
-                using namespace TimeUnits;
-                constexpr auto correction = (240_us).template toCounts<comparator_t>();
+                constexpr auto correction = toCountsOn<comparator_t>(240_us);
                 if (result.isHigh()) {
                     result = Pulse(true, result.getDuration() + correction);
                 } else {

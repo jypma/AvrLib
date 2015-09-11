@@ -15,6 +15,43 @@ struct MockPin {
     void setHigh() { high = true; }
 };
 
+struct MockRealTimer {
+    typedef uint32_t value_t;
+    static constexpr uint8_t prescalerPower2 = 8;
+
+    uint32_t count = 0;
+    uint32_t counts() {
+        return count;
+    }
+};
+
+TEST(ESP8266Test, ESP_retries_reset_when_watchdog_fires) {
+    eeprom_set(&EEPROM::apn, "apn");
+    eeprom_set(&EEPROM::password, "pss");
+    eeprom_set(&EEPROM::remoteIP, "host");
+    eeprom_set(&EEPROM::remotePort, 123);
+
+    Fifo<200> rx;
+    Fifo<200> tx;
+
+    MockPin reset;
+    MockRealTimer rt;
+
+    reset.high = false;
+    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset, rt);
+    EXPECT_TRUE(reset.high);
+
+    reset.high = false;
+    rt.count = toCountsOn<MockRealTimer>(10000_ms) + 1000; // after timeout
+    esp.loop();
+
+    EXPECT_TRUE(reset.high);
+
+    rx.out() << "garbage#####\r\nready\r\n";
+    esp.loop();
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("ATE0\r\n")>>>()));
+}
+
 TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     eeprom_set(&EEPROM::apn, "apn");
     eeprom_set(&EEPROM::password, "pss");
@@ -25,8 +62,9 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     Fifo<200> tx;
 
     MockPin reset;
+    MockRealTimer rt;
 
-    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset);
+    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset, rt);
 
     EXPECT_TRUE(reset.high);
 

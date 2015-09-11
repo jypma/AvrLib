@@ -22,15 +22,15 @@ struct FS20Packet: public Streamable<FS20Packet> {
 
     template <typename prescaled_t>
     static constexpr SerialConfig serialConfig() {
-        using namespace TimeUnits;
+        using namespace Time;
 
         return SerialConfig {
             /* highOnIdle */ false,
             prefix, 24,
-            highPulse(400_us).template on<prescaled_t>(),
-            lowPulse(400_us).template on<prescaled_t>(),
-            highPulse(600_us).template on<prescaled_t>(),
-            lowPulse(600_us).template on<prescaled_t>(),
+            highPulseOn<prescaled_t>(400_us),
+            lowPulseOn<prescaled_t>(400_us),
+            highPulseOn<prescaled_t>(600_us),
+            lowPulseOn<prescaled_t>(600_us),
             SerialParity::EVEN,
             SerialBitOrder::MSB_FIRST,
             postfix, 2 };

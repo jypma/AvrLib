@@ -13,6 +13,7 @@
 namespace Serial {
 
 using namespace Streams;
+using namespace Time;
 
 class Pulse: public Streamable<Pulse> {
     bool high;
@@ -44,25 +45,15 @@ public:
     > Proto;
 };
 
-template <typename Value, bool high>
-struct PulseIn {
-    template <typename prescaled_t>
-    static constexpr Pulse on() {
-        return Pulse(high, Value::template toCounts<prescaled_t>());
-    }
-};
-
-template <typename Value>
-PulseIn<Value, true> constexpr highPulse(Value duration) {
-    return PulseIn<Value, true>();
+template <typename prescaled_t, typename Value>
+Pulse constexpr highPulseOn(Value duration) {
+    return Pulse(true, toCountsOn<prescaled_t>(duration));
 }
 
-template <typename Value>
-PulseIn<Value, false> constexpr lowPulse(Value duration) {
-    return PulseIn<Value, false>();
+template <typename prescaled_t, typename Value>
+Pulse constexpr lowPulseOn(Value duration) {
+    return Pulse(false, toCountsOn<prescaled_t>(duration));
 }
-
-
 
 }
 

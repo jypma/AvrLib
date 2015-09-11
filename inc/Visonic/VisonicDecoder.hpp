@@ -13,7 +13,7 @@
 
 namespace Visonic {
 
-using namespace TimeUnits;
+using namespace Time;
 using namespace Streams;
 using namespace Serial;
 

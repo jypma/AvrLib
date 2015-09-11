@@ -12,92 +12,8 @@
 #include "AtomicScope.hpp"
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include "gcc_limits.h"
-
-namespace TimeUnits {
-    template <typename t>
-    constexpr t pow(t base, int exp) {
-      return (exp > 0) ? base * pow(base, exp-1) : 1;
-    };
-
-    template <char...> struct literal;
-    template <> struct literal<> {
-      static constexpr uint64_t to_uint64 = 0;
-    };
-    template <char c, char ...cv> struct literal<c, cv...> {
-      static constexpr uint64_t to_uint64 = (c - '0') * pow(uint64_t(10), sizeof...(cv)) + literal<cv...>::to_uint64;
-    };
-
-    template<typename Base, int percentage>
-    class MultipliedTimeUnit;
-
-    template <char... cv>
-    class TimeUnit {
-        typedef literal<cv...> value;
-    public:
-        static constexpr uint64_t to_uint64 = value::to_uint64;
-    };
-
-    template<typename Base, int percentage>
-    class MultipliedTimeUnit {
-    public:
-        MultipliedTimeUnit() {
-            static_assert(percentage > 0, "percentage must be larger than zero");
-        }
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = Base::to_uint64>
-        static constexpr return_t toCounts() {
-            return Base::template toCounts<prescaled_t, return_t, uint64_t(value) * percentage / 100>();
-        }
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = Base::to_uint64>
-        static constexpr return_t toTicks() {
-            return Base::template toTicks<prescaled_t, return_t, uint64_t(value) * percentage / 100>();
-        }
-    };
-
-    template <char... cv>
-    class Microseconds: public TimeUnit<cv...> {
-    public:
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-        static constexpr return_t toCounts() {
-            return prescaled_t::template microseconds2counts<value,return_t>();
-        }
-
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-        static constexpr return_t toTicks() {
-            return prescaled_t::template microseconds2ticks<value,return_t>();
-        }
-
-        template <int percentage>
-        static constexpr MultipliedTimeUnit<Microseconds<cv...>,percentage> percent() {
-            return MultipliedTimeUnit<Microseconds<cv...>,percentage>();
-        }
-    };
-
-    template <char... cv>
-    class Milliseconds: public TimeUnit<cv...> {
-    public:
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-        static constexpr return_t toCounts() {
-            return prescaled_t::template milliseconds2counts<value,return_t>();
-        }
-
-        template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-        static constexpr return_t toTicks() {
-            return prescaled_t::template milliseconds2ticks<value,return_t>();
-        }
-
-        template <int percentage>
-        static constexpr MultipliedTimeUnit<Milliseconds<cv...>,percentage> percent() {
-            return MultipliedTimeUnit<Milliseconds<cv...>,percentage>();
-        }
-    };
-
-    template <char ...cv>
-    constexpr Microseconds<cv...> operator "" _us() { return Microseconds<cv...>(); }
-
-    template <char ...cv>
-    constexpr Milliseconds<cv...> operator "" _ms() { return Milliseconds<cv...>(); }
-};
+#include <Time/Prescaled.hpp>
+#include <Time/Units.hpp>
 
 ISR(TIMER0_OVF_vect);
 ISR(TIMER1_OVF_vect);
@@ -131,8 +47,7 @@ extern InterruptChain tm2int;
 extern InterruptChain tm2ocra;
 extern InterruptChain tm2ocrb;
 
-template<typename prescaler_t, prescaler_t prescaler>
-struct PrescalerMeta {};
+namespace Time {
 
 template<> struct PrescalerMeta<ExtPrescaler,ExtPrescaler::_1> {
     constexpr static uint8_t power2 = 0;
@@ -182,65 +97,10 @@ template<> struct PrescalerMeta<IntPrescaler,IntPrescaler::_1024> {
     constexpr static uint8_t power2 = 10;
 };
 
-template <typename _value_t>
-class Counting {
-public:
-    typedef _value_t value_t;
-
-    static constexpr value_t maximum = std::numeric_limits<value_t>::max();
-    /** 8 for 8-bit timer, 16 for 16-bit timer */
-    static constexpr uint8_t maximumPower2 = sizeof(value_t) * 8;
-};
-
-template <typename _value_t, typename _prescaler_t, _prescaler_t _prescaler>
-class Prescaled: public Counting<_value_t> {
-    typedef PrescalerMeta<_prescaler_t,_prescaler> Meta;
-    using Counting<_value_t>::maximum;
-public:
-    typedef _prescaler_t prescaler_t;
-    static constexpr _prescaler_t prescaler = _prescaler;
-    static constexpr uint8_t prescalerPower2 = Meta::power2;
-
-    template <uint64_t usecs, typename return_t = _value_t>
-    static constexpr return_t microseconds2counts() {
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 > 1,
-                "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * usecs / 1000 <= std::numeric_limits<return_t>::max(),
-                "Number of counts for microseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
-    }
-
-    template <uint64_t usecs, typename return_t = _value_t>
-    static constexpr return_t microseconds2ticks() {
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * usecs / 1000 > 1,
-                "Number of ticks for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * usecs / 1000 <= std::numeric_limits<return_t>::max(),
-                "Number of ticks for microseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
-    }
-
-    template <uint64_t msecs, typename return_t = _value_t>
-    static constexpr return_t milliseconds2counts() {
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * msecs > 1,
-                "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 * msecs <= std::numeric_limits<return_t>::max(),
-                "Number of counts for milliseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> prescalerPower2) / 1000 * msecs;
-    }
-
-    template <uint64_t msecs, typename return_t = _value_t>
-    static constexpr return_t milliseconds2ticks() {
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * msecs > 1,
-                "Number of ticks for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> prescalerPower2) / 1000 / (maximum + 1) * msecs <= std::numeric_limits<return_t>::max(),
-                "Number of ticks for milliseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> prescalerPower2) / 1000 * msecs;
-    }
-
-};
+}
 
 template <typename info>
-class TimerComparator: public Counting<typename info::value_t> {
+class TimerComparator: public Time::Counting<typename info::value_t> {
 public:
     typedef typename info::timer_info_t timer_info_t;
     typedef info comparator_info_t;
@@ -273,7 +133,7 @@ enum class NonPWMOutputMode: uint8_t {
 };
 
 template <typename info, typename prescaler_t, prescaler_t prescaler>
-class NonPWMTimerComparator: public TimerComparator<info>, public Prescaled<typename info::value_t, prescaler_t, prescaler> {
+class NonPWMTimerComparator: public TimerComparator<info>, public Time::Prescaled<typename info::value_t, prescaler_t, prescaler> {
 public:
     /**
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
@@ -302,7 +162,7 @@ enum class FastPWMOutputMode: uint8_t {
 };
 
 template <typename info, typename prescaler_t, prescaler_t prescaler>
-class FastPWMTimerComparator: public TimerComparator<info>, public Prescaled<typename info::value_t, prescaler_t, prescaler> {
+class FastPWMTimerComparator: public TimerComparator<info>, public Time::Prescaled<typename info::value_t, prescaler_t, prescaler> {
 public:
     /**
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
@@ -321,7 +181,7 @@ public:
 };
 
 template <typename info, typename comparator_a_t, typename comparator_b_t>
-class Timer: public Counting<typename info::value_t> {
+class Timer: public Time::Counting<typename info::value_t> {
 public:
     typedef info timer_info_t;
     typedef comparator_a_t comparatorA_t;
@@ -356,7 +216,7 @@ public:
 
 template <typename info, typename info::prescaler_t _prescaler, typename comparator_a_t, typename comparator_b_t>
 class PrescaledTimer : public Timer<info, comparator_a_t, comparator_b_t>,
-                       public Prescaled<typename info::value_t, typename info::prescaler_t, _prescaler>
+                       public Time::Prescaled<typename info::value_t, typename info::prescaler_t, _prescaler>
 {};
 
 /**
