@@ -121,7 +121,7 @@ public:
 
 template <int fifo_length = 32, typename _comparator_t, typename pin_t, typename minimumLength_t>
 inline PulseCounter<_comparator_t,pin_t,fifo_length> pulseCounter(_comparator_t &comparator, pin_t &pin, const minimumLength_t minimumLength) {
-    return PulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin, toCounts(minimumLength, comparator));
+    return PulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin, toCountsOn(comparator, minimumLength));
 }
 
 }

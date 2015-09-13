@@ -87,6 +87,7 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparoun
 }
 
 struct MockRealTimer {
+    typedef uint16_t value_t;
     static constexpr uint64_t maximum = 10000000000;
 
     uint32_t count = 0;
@@ -181,6 +182,26 @@ TEST(RealTimerTest, deadline_picks_ticks_instead_of_counts_when_interval_doesnt_
 }
 
 TEST(RealTimerTest, variable_deadline_can_be_set_to_varying_timeouts) {
+    auto rt = MockRealTimer();
+    auto d = deadline(rt);
 
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    d.reset(200_counts);
+    rt.count = 201;
+
+    EXPECT_TRUE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    d.reset(400_counts);
+    rt.count = 402;
+
+    EXPECT_FALSE(d.isNow());
+
+    rt.count = 602;
+    EXPECT_TRUE(d.isNow());
+    EXPECT_FALSE(d.isNow());
 }
+
 }

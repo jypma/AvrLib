@@ -166,15 +166,56 @@ template <char ...cv>
 constexpr Milliseconds<cv...> operator "" _ms() { return Milliseconds<cv...>(); }
 
 
+/**
+ * Converts the given time unit duration to timer counts, when running on the given prescaled timer.
+ * This variant takes references for both the prescaled timer and the time unit.
+ * Typically invoked like:
+ *
+ *     uint16_t counts = toCountsOn(timer1, 200_ms);
+ */
+template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
+constexpr return_t toCountsOn(const prescaled_t &, const duration_t) {
+    return duration_t::template toCounts<prescaled_t, return_t>();
+}
 
-template <typename duration_t, typename prescaled_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toCounts(const duration_t, const prescaled_t &) {
+/**
+ * Converts the given time unit duration to timer counts, when running on the given prescaled timer.
+ * This variant take a type for the prescaled timer, and a reference for the time unit.
+ * Typically invoked like:
+ *
+ *     uint16_t counts = toCountsOn<timer1_t>(200_ms);
+ */
+template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
+constexpr return_t toCountsOn(const duration_t) {
+    return duration_t::template toCounts<prescaled_t, return_t>();
+}
+
+/**
+ * Converts the given time unit duration to timer counts, when running on the given prescaled timer.
+ * This variant take types for both the prescaled timer, and the time unit.
+ * Typically invoked like:
+ *
+ *     typedef decltype(200_ms) duration_t;
+ *     uint16_t counts = toCountsOn<timer1_t, duration_t>();
+ */
+template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
+constexpr return_t toCountsOn() {
     return duration_t::template toCounts<prescaled_t, return_t>();
 }
 
 template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toCountsOn(const duration_t) {
-    return duration_t::template toCounts<prescaled_t, return_t>();
+constexpr return_t toTicksOn(const prescaled_t &, const duration_t) {
+    return duration_t::template toTicks<prescaled_t, return_t>();
+}
+
+template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
+constexpr return_t toTicksOn(const duration_t) {
+    return duration_t::template toTicks<prescaled_t, return_t>();
+}
+
+template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
+constexpr return_t toTicksOn() {
+    return duration_t::template toTicks<prescaled_t, return_t>();
 }
 
 }

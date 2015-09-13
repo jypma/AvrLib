@@ -9,6 +9,7 @@
 #define REALTIMER_HPP_
 
 #include "Time/Prescaled.hpp"
+#include "Time/Units.hpp"
 #include <util/atomic.h>
 #include <avr/sleep.h>
 #include <gcc_limits.h>
@@ -194,7 +195,7 @@ struct Overflow {
 
 template <typename rt_t, typename value, typename check = void>
 class Periodic {
-    static constexpr uint32_t delay = value::template toCounts<rt_t, uint32_t>();
+    static constexpr uint32_t delay = toCountsOn<rt_t, value>();
 
 protected:
     volatile uint32_t next;
@@ -229,7 +230,7 @@ public:
 
 template <typename rt_t, typename value>
 class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type> {
-    static constexpr uint32_t delay = value::template toTicks<rt_t, uint32_t>();
+    static constexpr uint32_t delay = toTicksOn<rt_t, value>();
 
 protected:
     volatile uint32_t next;
@@ -305,9 +306,22 @@ class VariableDeadline {
 public:
     VariableDeadline(rt_t &_rt): rt(&_rt) {}
 
+    bool isNow() {
+        if (!elapsed) {
+            if (rt->counts() >= next) {
+                elapsed = true;
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
     template <typename value>
     void reset(value v) {
-        constexpr uint32_t delay = value::template toCounts<rt_t, uint32_t>();
+        constexpr uint32_t delay = toCountsOn<rt_t>(v);
         uint32_t startTime = rt->counts();
         if (uint32_t(0xFFFFFFFF) - startTime < delay) {
             // we expect an integer wraparound.
