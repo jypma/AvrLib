@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #define _AVR_IO_H_
+#define __AVR_ATmega328P__
 
 extern uint8_t sfr_mem[256];
 
