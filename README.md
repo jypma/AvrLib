@@ -4,6 +4,8 @@ BUGS
 
 TODO
 ====
+ - Implement rate limiting for PulseCounter interrupts
+ - create constexpr constructor DSL for timers, e.g. auto timer0 = Timer0().withPrescaler<8>.inNormalMode() 
 - Change fifo.abortedWrites into a flag "overflow", and add two other flags "full" and "hasData", so
   fastread() and fastwrite() don't have to invoke complex calculations.
 - Simplify PinPD0<Usart0> pinPD0(usart0) : just have two constructors, one with usart0, one without? or factory method?

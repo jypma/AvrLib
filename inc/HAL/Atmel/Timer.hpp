@@ -1,6 +1,9 @@
 #ifndef HAL_ATMEL_TIMER_HPP_
 #define HAL_ATMEL_TIMER_HPP_
 
+#include "Time/Counting.hpp"
+#include "Time/Prescaled.hpp"
+
 namespace HAL {
 namespace Atmel {
 namespace Timer {
@@ -8,6 +11,7 @@ namespace Timer {
 template <typename info>
 class TimerComparator: public Time::Counting<typename info::value_t> {
 public:
+    typedef typename info::INT INT;
     typedef typename info::timer_info_t timer_info_t;
     typedef info comparator_info_t;
 
@@ -88,11 +92,21 @@ public:
 
 template <typename info, typename comparator_a_t, typename comparator_b_t>
 class Timer: public Time::Counting<typename info::value_t> {
+    typedef comparator_a_t comparatorA_t;
+    typedef comparator_b_t comparatorB_t;
+private:
+    comparator_a_t comparator_a;
+    comparator_b_t comparator_b;
 public:
     typedef info timer_info_t;
-    typedef comparator_a_t comparatorA;
-    typedef comparator_b_t comparatorB;
-public:
+    typedef typename info::INT INT;
+
+    comparator_a_t &comparatorA() {
+        return comparator_a;
+    }
+    comparator_b_t &comparatorB() {
+        return comparator_b;
+    }
     static void interruptOnOverflowOn() {
         *info::tifr |= _BV(TOV0); // Datasheet: "[...] is cleared by writing logic 1 to the bit"
         *info::timsk |= _BV(TOIE0);

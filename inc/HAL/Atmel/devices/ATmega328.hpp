@@ -117,6 +117,8 @@ template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescale
 } namespace HAL { namespace Atmel { namespace Info {
 
 struct Timer0Info {
+    typedef HAL::Atmel::InterruptVectors::Vector_TIMER0_OVF INT;
+
     static constexpr volatile uint8_t *tccra = &TCCR0A;
     static constexpr volatile uint8_t *tccrb = &TCCR0B;
     static constexpr volatile uint8_t *tcnt = &TCNT0;
@@ -153,6 +155,7 @@ struct Timer0Info {
     };
 
     struct ComparatorA: public Comparator {
+        typedef HAL::Atmel::InterruptVectors::Vector_TIMER0_COMPA INT;
         static constexpr volatile uint8_t *ocr = &OCR0A;
         static constexpr uint8_t timsk_bit = OCIE0A;
         static constexpr uint8_t tifr_bit = OCF0A;
@@ -161,6 +164,7 @@ struct Timer0Info {
         static constexpr uint8_t foc = FOC0A;
     };
     struct ComparatorB: public Comparator {
+        typedef HAL::Atmel::InterruptVectors::Vector_TIMER0_COMPB INT;
         static constexpr volatile uint8_t *ocr = &OCR0B;
         static constexpr uint8_t timsk_bit = OCIE0B;
         static constexpr uint8_t tifr_bit = OCF0B;
@@ -171,6 +175,8 @@ struct Timer0Info {
 };
 
 struct Timer1Info {
+    typedef HAL::Atmel::InterruptVectors::Vector_TIMER1_OVF INT;
+
     static constexpr volatile uint8_t *tccra = &TCCR1A;
     static constexpr volatile uint8_t *tccrb = &TCCR1B;
     static constexpr volatile uint16_t *tcnt = &TCNT1;
@@ -226,6 +232,8 @@ struct Timer1Info {
 };
 
 struct Timer2Info {
+    typedef HAL::Atmel::InterruptVectors::Vector_TIMER2_OVF INT;
+
     static constexpr volatile uint8_t *tccra = &TCCR2A;
     static constexpr volatile uint8_t *tccrb = &TCCR2B;
     static constexpr volatile uint8_t *tcnt = &TCNT2;

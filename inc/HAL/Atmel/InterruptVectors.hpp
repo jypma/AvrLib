@@ -43,7 +43,7 @@ struct Callback {};
     }; \
 \
 
-FOR_EACH(mkVECTOR, _INT0, _INT1, _USART_RX, _USART_UDRE)
+FOR_EACH(mkVECTOR, _INT0, _INT1, _TIMER0_OVF, _TIMER0_COMPA, _TIMER0_COMPB, _TIMER1_OVF, _TIMER1_COMPA, _TIMER1_COMPB, _TIMER2_OVF, _TIMER2_COMPA, _TIMER2_COMPB, _USART_RX, _USART_UDRE)
 
 template <typename type, type &t, typename check = void>
 struct Callbacks2 {};
@@ -79,7 +79,7 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
     }; \
 
 
-mkVECTORS(_INT0, _INT1, _USART_RX, _USART_UDRE)
+mkVECTORS(_INT0, _INT1,  _TIMER0_OVF, _TIMER0_COMPA, _TIMER0_COMPB, _TIMER1_OVF, _TIMER1_COMPA, _TIMER1_COMPB, _TIMER2_OVF, _TIMER2_COMPA, _TIMER2_COMPB, _USART_RX, _USART_UDRE)
 
 #define __mkVECTOR_CALLBACK(var) \
     ::HAL::Atmel::InterruptVectors::Callbacks1<decltype(var), var>
@@ -104,7 +104,7 @@ mkVECTORS(_INT0, _INT1, _USART_RX, _USART_UDRE)
         FOR_EACH_SEP_COMMA(__mkVECTOR_CALLBACK, __VA_ARGS__) \
     > __Table; \
 \
-    FOR_EACH(__mkISR, INT0_, INT1_, USART_RX_, USART_UDRE_)
+    FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
 
 /**
  * Declares an interrupt handler in a class definition. The method name must be an instance method
@@ -118,6 +118,19 @@ mkVECTORS(_INT0, _INT1, _USART_RX, _USART_UDRE)
     template <typename, typename, typename> friend struct ::HAL::Atmel::InterruptVectors::Callback; \
 public: \
     typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler1;
+
+/**
+ * Declares an interrupt handler in a class definition. The method name must be an instance method
+ * of the class, and can be private. This macro must appear LAST in the class definition.
+ *
+ * @param vect The interrupt vector, e.g. `typename pin_t::INT` or an exact vector by
+ *             invoking `INTERRUPT_VECTOR(USART_UDRE)`
+ * @param method The method to invoke.
+ */
+#define INTERRUPT_HANDLER2(vect, method) \
+    template <typename, typename, typename> friend struct ::HAL::Atmel::InterruptVectors::Callback; \
+public: \
+    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler2;
 
 
 #define INTERRUPT_VECTOR(vect) ::HAL::Atmel::InterruptVectors::Vector_##vect
