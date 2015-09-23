@@ -12,7 +12,7 @@ namespace Atmel {
 namespace Info {
 
 struct Int0Info {
-    typedef HAL::Atmel::InterruptVectors::Vector_INT0 INT;
+    typedef INTERRUPT_VECTOR(INT0) INT;
     inline static void on(uint8_t mode) {
         EICRA = (EICRA & ~(_BV(ISC00) | _BV(ISC01))) | (mode << ISC00);
         EIMSK |= _BV(INT0);
@@ -23,7 +23,7 @@ struct Int0Info {
 };
 
 struct Int1Info {
-    typedef HAL::Atmel::InterruptVectors::Vector_INT0 INT;
+    typedef INTERRUPT_VECTOR(INT1) INT;
     inline static void on(uint8_t mode) {
         EICRA = (EICRA & ~(_BV(ISC10) | _BV(ISC11))) | (mode << ISC10);
         EIMSK |= _BV(INT1);
@@ -117,7 +117,7 @@ template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescale
 } namespace HAL { namespace Atmel { namespace Info {
 
 struct Timer0Info {
-    typedef HAL::Atmel::InterruptVectors::Vector_TIMER0_OVF INT;
+    typedef INTERRUPT_VECTOR(TIMER0_OVF) INT;
 
     static constexpr volatile uint8_t *tccra = &TCCR0A;
     static constexpr volatile uint8_t *tccrb = &TCCR0B;
@@ -155,7 +155,7 @@ struct Timer0Info {
     };
 
     struct ComparatorA: public Comparator {
-        typedef HAL::Atmel::InterruptVectors::Vector_TIMER0_COMPA INT;
+        typedef INTERRUPT_VECTOR(TIMER0_COMPA) INT;
         static constexpr volatile uint8_t *ocr = &OCR0A;
         static constexpr uint8_t timsk_bit = OCIE0A;
         static constexpr uint8_t tifr_bit = OCF0A;
@@ -164,7 +164,7 @@ struct Timer0Info {
         static constexpr uint8_t foc = FOC0A;
     };
     struct ComparatorB: public Comparator {
-        typedef HAL::Atmel::InterruptVectors::Vector_TIMER0_COMPB INT;
+        typedef INTERRUPT_VECTOR(TIMER0_COMPB) INT;
         static constexpr volatile uint8_t *ocr = &OCR0B;
         static constexpr uint8_t timsk_bit = OCIE0B;
         static constexpr uint8_t tifr_bit = OCF0B;
@@ -175,7 +175,7 @@ struct Timer0Info {
 };
 
 struct Timer1Info {
-    typedef HAL::Atmel::InterruptVectors::Vector_TIMER1_OVF INT;
+    typedef INTERRUPT_VECTOR(TIMER1_OVF) INT;
 
     static constexpr volatile uint8_t *tccra = &TCCR1A;
     static constexpr volatile uint8_t *tccrb = &TCCR1B;
@@ -232,7 +232,7 @@ struct Timer1Info {
 };
 
 struct Timer2Info {
-    typedef HAL::Atmel::InterruptVectors::Vector_TIMER2_OVF INT;
+    typedef INTERRUPT_VECTOR(TIMER2_OVF) INT;
 
     static constexpr volatile uint8_t *tccra = &TCCR2A;
     static constexpr volatile uint8_t *tccrb = &TCCR2B;
@@ -417,5 +417,8 @@ class PinPD2: public Info::ExtInterruptPin<Info::PinD2Info,Info::Int0Info> {};
 
 } // namespace Atmel
 } // namespace HAL
+
+#define __mk_ALL_ISRS \
+    FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
 
 #endif /* HAL_ATMEL_DEVICES_ATMEGA328_HPP_ */

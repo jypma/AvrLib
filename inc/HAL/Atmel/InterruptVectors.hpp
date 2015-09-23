@@ -37,13 +37,11 @@ struct Callback {};
 \
     template <typename handler, typename handler::Type &t> \
     struct Callback<handler, t, typename std::enable_if<std::is_same<typename handler::VECT, Vector##vect >::value>::type>: public Vector##vect { \
-        static inline void on##vect##_ () { \
+        static inline void on##vect () { \
             (t.*handler::function)(); \
         } \
     }; \
 \
-
-FOR_EACH(mkVECTOR, _INT0, _INT1, _TIMER0_OVF, _TIMER0_COMPA, _TIMER0_COMPB, _TIMER1_OVF, _TIMER1_COMPA, _TIMER1_COMPB, _TIMER2_OVF, _TIMER2_COMPA, _TIMER2_COMPB, _USART_RX, _USART_UDRE)
 
 template <typename type, type &t, typename check = void>
 struct Callbacks2 {};
@@ -59,13 +57,15 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
 
 #define __mkTYPEDEF_INT(vect) \
     typedef struct { \
-        static inline void on##vect##_ () {} \
-    } vect##_Type; \
+        static inline void on##vect () {} \
+    } vect##Type; \
 
 #define __mkTYPEDEF_IFELSE(vect) \
-    typedef typename enable_ifelse<std::is_base_of<Vector##vect , callback>::value, callback, typename Next::vect##_Type>::type vect##_Type;
+    typedef typename enable_ifelse<std::is_base_of<Vector##vect , callback>::value, callback, typename Next::vect##Type>::type vect##Type;
 
 #define mkVECTORS(...) \
+    FOR_EACH(mkVECTOR, __VA_ARGS__) \
+\
     template <typename... callbacks> \
     struct InterruptVectorTable { \
         FOR_EACH(__mkTYPEDEF_INT, __VA_ARGS__) \
@@ -79,14 +79,14 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
     }; \
 
 
-mkVECTORS(_INT0, _INT1,  _TIMER0_OVF, _TIMER0_COMPA, _TIMER0_COMPB, _TIMER1_OVF, _TIMER1_COMPA, _TIMER1_COMPB, _TIMER2_OVF, _TIMER2_COMPA, _TIMER2_COMPB, _USART_RX, _USART_UDRE)
+mkVECTORS(INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
 
 #define __mkVECTOR_CALLBACK(var) \
     ::HAL::Atmel::InterruptVectors::Callbacks1<decltype(var), var>
 
 #define __mkISR(name) \
     ISR( name##vect ) { \
-        __Table:: _##name##Type :: on_##name (); \
+        __Table:: name##Type :: on##name (); \
     }
 
 /**
@@ -104,7 +104,7 @@ mkVECTORS(_INT0, _INT1,  _TIMER0_OVF, _TIMER0_COMPA, _TIMER0_COMPB, _TIMER1_OVF,
         FOR_EACH_SEP_COMMA(__mkVECTOR_CALLBACK, __VA_ARGS__) \
     > __Table; \
 \
-    FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
+    __mk_ALL_ISRS
 
 /**
  * Declares an interrupt handler in a class definition. The method name must be an instance method
@@ -133,7 +133,7 @@ public: \
     typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler2;
 
 
-#define INTERRUPT_VECTOR(vect) ::HAL::Atmel::InterruptVectors::Vector_##vect
+#define INTERRUPT_VECTOR(vect) ::HAL::Atmel::InterruptVectors::Vector##vect##_
 
 }
 }
