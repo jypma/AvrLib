@@ -93,10 +93,6 @@ template <typename pinInfo, typename usart_t, uint8_t readFifoCapacity>
 class UsartRxPin<pinInfo, usart_t, readFifoCapacity, typename std::enable_if<std::is_same<typename usart_t::usart_info_t, typename pinInfo::usart_info_t>::value>::type>:
   public Pin<pinInfo>, public UsartRx<typename usart_t::usart_info_t, readFifoCapacity> {
   public:
-      INTERRUPT_HANDLER(USART_RX) {
-
-      }
-
       UsartRxPin(const Usart<typename usart_t::usart_info_t> &usart) {}
 };
 

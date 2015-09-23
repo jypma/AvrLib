@@ -1,16 +1,18 @@
 #ifndef HAL_ATMEL_DEVICES_ATMEGA328_HPP_
 #define HAL_ATMEL_DEVICES_ATMEGA328_HPP_
 
-#include <HAL/Atmel/Pin.hpp>
-#include <HAL/Atmel/ExternalInterrupt.hpp>
-#include <HAL/Atmel/InterruptVectors.hpp>
+#include "Time/Prescaled.hpp"
+#include "HAL/Atmel/Pin.hpp"
+#include "HAL/Atmel/ExternalInterrupt.hpp"
+#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/Timer.hpp"
 
 namespace HAL {
 namespace Atmel {
-
 namespace Info {
 
 struct Int0Info {
+    typedef HAL::Atmel::InterruptVectors::Vector_INT0 INT;
     inline static void on(uint8_t mode) {
         EICRA = (EICRA & ~(_BV(ISC00) | _BV(ISC01))) | (mode << ISC00);
         EIMSK |= _BV(INT0);
@@ -21,6 +23,7 @@ struct Int0Info {
 };
 
 struct Int1Info {
+    typedef HAL::Atmel::InterruptVectors::Vector_INT0 INT;
     inline static void on(uint8_t mode) {
         EICRA = (EICRA & ~(_BV(ISC10) | _BV(ISC11))) | (mode << ISC10);
         EIMSK |= _BV(INT1);
@@ -37,6 +40,8 @@ struct Usart0Info {
     static constexpr volatile uint16_t *ubrr = &UBRR0;
     static constexpr volatile uint8_t *udr = &UDR0;
 };
+
+} // namespace Info
 
 enum class ExtPrescaler: uint8_t {
     _1 = _BV(CS00),
@@ -55,6 +60,61 @@ enum class IntPrescaler: uint8_t {
     _256 = _BV(CS02) | _BV(CS01),
     _1024 = _BV(CS02) | _BV(CS01) | _BV(CS00)
 };
+
+} // namespace Atmel
+} // namespace HAL
+
+namespace Time {
+
+template<> struct PrescalerMeta<HAL::Atmel::ExtPrescaler,HAL::Atmel::ExtPrescaler::_1> {
+    constexpr static uint8_t power2 = 0;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::ExtPrescaler,HAL::Atmel::ExtPrescaler::_8> {
+    constexpr static uint8_t power2 = 3;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::ExtPrescaler,HAL::Atmel::ExtPrescaler::_64> {
+    constexpr static uint8_t power2 = 6;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::ExtPrescaler,HAL::Atmel::ExtPrescaler::_256> {
+    constexpr static uint8_t power2 = 8;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::ExtPrescaler,HAL::Atmel::ExtPrescaler::_1024> {
+    constexpr static uint8_t power2 = 10;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescaler::_1> {
+    constexpr static uint8_t power2 = 0;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescaler::_8> {
+    constexpr static uint8_t power2 = 3;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescaler::_32> {
+    constexpr static uint8_t power2 = 5;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescaler::_64> {
+    constexpr static uint8_t power2 = 6;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescaler::_128> {
+    constexpr static uint8_t power2 = 7;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescaler::_256> {
+    constexpr static uint8_t power2 = 8;
+};
+
+template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescaler::_1024> {
+    constexpr static uint8_t power2 = 10;
+};
+
+} namespace HAL { namespace Atmel { namespace Info {
 
 struct Timer0Info {
     static constexpr volatile uint8_t *tccra = &TCCR0A;
@@ -295,6 +355,16 @@ struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
 
 } // namespace Info
 
+////////////////////////////// TIMERS ///////////////////////////////////////////////////////
+
+template <ExtPrescaler prescaler> using Timer0_Normal = Timer::NormalTimer<Info::Timer0Info,prescaler>;
+template <ExtPrescaler prescaler> using Timer1_Normal = Timer::NormalTimer<Info::Timer1Info,prescaler>;
+template <IntPrescaler prescaler> using Timer2_Normal = Timer::NormalTimer<Info::Timer2Info,prescaler>;
+template <ExtPrescaler prescaler> using Timer0_FastPWM = Timer::FastPWMTimer<Info::Timer0Info,prescaler>;
+template <ExtPrescaler prescaler> using Timer1_FastPWM = Timer::FastPWMTimer<Info::Timer1Info,prescaler>;
+template <IntPrescaler prescaler> using Timer2_FastPWM = Timer::FastPWMTimer<Info::Timer2Info,prescaler>;
+
+////////////////////////////// PINS /////////////////////////////////////////////////////////
 /**
  * Declares Usart0 to be used.
  * In order to actually send or receive data, declare types and instances of PinPD1 or PinPD0.
@@ -335,27 +405,9 @@ template <typename usart_t = NoUsart, uint8_t writeFifoCapacity = 16> using PinP
 /**
  * Declares pin PD2 / INT0 / PCINT18 / Arduino Digital 2.
  */
-typedef Info::ExtInterruptPin<Info::PinD2Info,Info::Int0Info> PinPD2;
+class PinPD2: public Info::ExtInterruptPin<Info::PinD2Info,Info::Int0Info> {};
 
-}
-}
-
-/*
-#define __ISR_BODY__(name, target) \
-    ISR(name##_vect) { \
-        HAL::Atmel::InterruptVectors::on##name (target); \
-    }
-
-#define __ISR_BOD2__(name, target, method) \
-    ISR(name##_vect) { \
-        target. on##method (); \
-    }
-
-#define ISR_USART_RX(target)    __ISR_BODY__(USART_RX, target)
-#define ISR_USART_UDRE(target)  __ISR_BODY__(USART_UDRE, target)
-#define ISR_PCINT0(target)      __ISR_BOD2__(PCINT0, target, PCINT)
-#define ISR_PCINT1(target)      __ISR_BOD2__(PCINT1, target, PCINT)
-#define ISR_PCINT2(target)      __ISR_BOD2__(PCINT2, target, PCINT)
-*/
+} // namespace Atmel
+} // namespace HAL
 
 #endif /* HAL_ATMEL_DEVICES_ATMEGA328_HPP_ */

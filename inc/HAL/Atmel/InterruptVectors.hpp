@@ -7,40 +7,10 @@
 
 namespace HAL {
 namespace Atmel {
-
 namespace InterruptVectors {
 
 
-// source for hasVect: http://stackoverflow.com/questions/87372/check-if-a-class-has-a-member-function-of-a-given-signature
-#define __mkHAS(vect) \
-    template<typename, typename T> \
-    struct has_##vect { \
-        static_assert( \
-            std::integral_constant<T, false>::value, \
-            "Second template parameter needs to be of function type."); \
-    }; \
-\
-    template<typename C, typename Ret, typename... Args> \
-    struct has_##vect<C, Ret(Args...)> { \
-    private: \
-        template<typename T> \
-        static constexpr auto check(T*) \
-        -> typename \
-            std::is_same< \
-                decltype( std::declval<T>(). on##vect ( std::declval<Args>()... ) ), \
-                Ret \
-            >::type; \
-\
-        template<typename> \
-        static constexpr std::false_type check(...); \
-\
-        typedef decltype(check<C>(0)) type; \
-\
-    public: \
-        static constexpr bool value = type::value; \
-    };
-
-template<bool, typename _Tp, typename Fallback>
+template<bool, typename _Tp, typename Fallback = void>
 struct enable_ifelse
 {
     typedef Fallback type;
@@ -52,95 +22,105 @@ struct enable_ifelse<true, _Tp, Fallback>
     typedef _Tp type;
 };
 
-#define __mkINT_CALLBACK(vect) \
-    struct has##vect {}; \
-\
-    template <typename target_t, target_t &target, typename check = void> struct vect##Callback {}; \
-\
-    template <typename target_t, target_t &target> \
-    struct vect##Callback <target_t, target, typename std::enable_if<has_##vect<target_t, void()>::value>::type>: public has##vect { \
-        static inline void on##vect () { \
-            target.on##vect (); \
-        } \
-    };
+template <typename VectorName, typename T, void (T::*f)()>
+struct Handler {
+    typedef VectorName VECT;
+    typedef T Type;
+    static constexpr void (T::*function)() = f;
+};
 
-#define __mkEXTEND_INT_CALLBACK(vect) \
-    public vect##Callback<target_t, target>
+template <typename handler, typename handler::Type &t, typename check = void>
+struct Callback {};
+
+#define mkVECTOR(vect) \
+    struct Vector##vect {} ; \
+\
+    template <typename handler, typename handler::Type &t> \
+    struct Callback<handler, t, typename std::enable_if<std::is_same<typename handler::VECT, Vector##vect >::value>::type>: public Vector##vect { \
+        static inline void on##vect##_ () { \
+            (t.*handler::function)(); \
+        } \
+    }; \
+\
+
+FOR_EACH(mkVECTOR, _INT0, _INT1, _USART_RX, _USART_UDRE)
+
+template <typename type, type &t, typename check = void>
+struct Callbacks2 {};
+
+template <typename type, type &t>
+struct Callbacks2<type, t, typename enable_ifelse<false, typename type::Handler2>::type>: public Callback<typename type::Handler2, t>{};
+
+template <typename type, type &t, typename check = void>
+struct Callbacks1 {};
+
+template <typename type, type &t>
+struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1>::type> : public Callback<typename type::Handler1, t>, public Callbacks2<type, t> {};
 
 #define __mkTYPEDEF_INT(vect) \
     typedef struct { \
-        static inline void on##vect () {} \
+        static inline void on##vect##_ () {} \
     } vect##_Type; \
 
 #define __mkTYPEDEF_IFELSE(vect) \
-    typedef typename enable_ifelse<std::is_base_of<has##vect , vectorfor>::value, vectorfor, typename Next::vect##_Type>::type vect##_Type;
+    typedef typename enable_ifelse<std::is_base_of<Vector##vect , callback>::value, callback, typename Next::vect##_Type>::type vect##_Type;
 
-#define __mkTABLE_T(...) \
-    FOR_EACH(__mkHAS, __VA_ARGS__) \
-    FOR_EACH(__mkINT_CALLBACK, __VA_ARGS__) \
-\
-    template <typename target_t, target_t &target> \
-    struct VectorCallback: \
-        FOR_EACH_SEP_COMMA(__mkEXTEND_INT_CALLBACK, __VA_ARGS__) \
-    {}; \
-\
-    template <typename... vectorsfor> \
+#define mkVECTORS(...) \
+    template <typename... callbacks> \
     struct InterruptVectorTable { \
         FOR_EACH(__mkTYPEDEF_INT, __VA_ARGS__) \
     }; \
 \
-    template <typename vectorfor, typename... others> \
-    struct InterruptVectorTable<vectorfor, others...> { \
+    template <typename callback, typename... others> \
+    struct InterruptVectorTable<callback, others...> { \
         typedef InterruptVectorTable<others...> Next; \
 \
         FOR_EACH(__mkTYPEDEF_IFELSE, __VA_ARGS__) \
     }; \
 
 
-
-#define mkTABLE_T __mkTABLE_T(INT0_, USART_RX_, USART_UDRE_)
-
-mkTABLE_T
+mkVECTORS(_INT0, _INT1, _USART_RX, _USART_UDRE)
 
 #define __mkVECTOR_CALLBACK(var) \
-    ::HAL::Atmel::InterruptVectors::VectorCallback<typeof var, var>
+    ::HAL::Atmel::InterruptVectors::Callbacks1<decltype(var), var>
 
 #define __mkISR(name) \
     ISR( name##vect ) { \
-        __Table:: name##_Type :: on##name (); \
+        __Table:: _##name##Type :: on_##name (); \
     }
-
 
 /**
  * Generates the ISR bindings for any interrupt handlers that any of the given global variables
- * expose. Global variables expose interrupt handlers by declaring a public onXXX_ method, where
- * XXX is a handler name, e.g. "onINT0_()" for the INT0 vector.
+ * expose. Global variables expose interrupt handlers by calling the INTERRUPT_HANDLER1 macro in
+ * its class definition.
  *
- * This variant declares at least an empty ISR for all interrupts supported by this library. If
- * you want more control, invoke ...... one by one, for the handlers you want.
+ * Bindings for ALL interrupt vectors known to this library are generated, even when not used
+ * (they'll be empty functions then). This is a limitation of the C++ / macro auto-detection.
+ * It shouldn't generally be a problem, since the specific interrupts still have to be enabled
+ * for there to be a runtime overhead. It only uses a few bytes of extra flash.
  */
 #define mkISRS(...) \
     typedef ::HAL::Atmel::InterruptVectors::InterruptVectorTable< \
         FOR_EACH_SEP_COMMA(__mkVECTOR_CALLBACK, __VA_ARGS__) \
     > __Table; \
 \
-    FOR_EACH(__mkISR, USART_RX_, INT0_, USART_UDRE_)
+    FOR_EACH(__mkISR, INT0_, INT1_, USART_RX_, USART_UDRE_)
 
 /**
- * Defines a method on a class that is an interrupt handler for the given vector [vect], e.g. INT0.
- * This can be a private method on the class, e.g.
+ * Declares an interrupt handler in a class definition. The method name must be an instance method
+ * of the class, and can be private. This macro must appear LAST in the class definition.
  *
- *     class Pin {
- *         INTERRUPT_HANDLER(INT0) {
- *             // handle interrupt
- *         }
- *     }
+ * @param vect The interrupt vector, e.g. `typename pin_t::INT` or an exact vector by
+ *             invoking `INTERRUPT_VECTOR(USART_UDRE)`
+ * @param method The method to invoke.
  */
-#define INTERRUPT_HANDLER(vect) \
-    template <typename target_t, target_t &target> friend struct ::HAL::Atmel::InterruptVectors::vect##_Callback; \
-    template <typename, typename> friend struct ::HAL::Atmel::InterruptVectors::has_##vect##_; \
-    inline void on##vect##_()
+#define INTERRUPT_HANDLER1(vect, method) \
+    template <typename, typename, typename> friend struct ::HAL::Atmel::InterruptVectors::Callback; \
+public: \
+    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler1;
 
+
+#define INTERRUPT_VECTOR(vect) ::HAL::Atmel::InterruptVectors::Vector_##vect
 
 }
 }

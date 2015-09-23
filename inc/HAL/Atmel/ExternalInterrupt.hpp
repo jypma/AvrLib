@@ -4,9 +4,14 @@
 #include <avr/common.h>
 #include <avr/interrupt.h>
 
+namespace HAL {
+namespace Atmel {
+
 template <typename info>
 class ExtInterrupt {
 public:
+    typedef typename info::INT INT;
+
     /**
      * Disables raising any interrupts for this pin
      */
@@ -47,5 +52,9 @@ public:
         info::on(3);
     }
 };
+
+} // namespace Atmel
+} // namespace HAL
+
 
 #endif /* EXTERNALINTERRUPT_HPP_ */

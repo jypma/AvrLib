@@ -65,8 +65,8 @@ template <typename info, uint8_t writeFifoCapacity>
 class UsartTx {
     typedef UsartFifo<info, writeFifoCapacity> fifo_t;
     fifo_t writeFifo;
-
-    INTERRUPT_HANDLER(USART_UDRE) {
+protected:
+    void onSendComplete() {
         // clear the TXC bit -- "can be cleared by writing a one to its bit location"
         *info::ucsra |= _BV(TXC0);
 
@@ -106,15 +106,15 @@ public:
 template <typename info, uint8_t readFifoCapacity>
 class UsartRx {
     Fifo<readFifoCapacity> readFifo;
+protected:
+    inline void onReceive() {
+        uint8_t ch = *info::udr;
+        readFifo.fastwrite(ch);
+    }
 
 public:
     UsartRx() {
         AtomicScope::SEI _;
-    }
-
-    INTERRUPT_HANDLER(USART_RX) {
-        uint8_t ch = *info::udr;
-        readFifo.fastwrite(ch);
     }
 
     inline Streams::Reader<AbstractFifo> in() {

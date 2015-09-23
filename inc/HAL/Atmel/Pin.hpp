@@ -65,9 +65,14 @@ class UsartTxPin<pinInfo, usart_t, writeFifoCapacity, typename std::enable_if<st
 
 template <typename pinInfo, typename usart_t, uint8_t writeFifoCapacity>
 class UsartTxPin<pinInfo, usart_t, writeFifoCapacity, typename std::enable_if<std::is_same<typename usart_t::usart_info_t, typename pinInfo::usart_info_t>::value>::type>:
-  public Pin<pinInfo>, public UsartTx<typename usart_t::usart_info_t, writeFifoCapacity> {
-  public:
-      UsartTxPin(const Usart<typename usart_t::usart_info_t> &usart) {}
+    public Pin<pinInfo>, public UsartTx<typename usart_t::usart_info_t, writeFifoCapacity> {
+    typedef UsartTxPin<pinInfo, usart_t, writeFifoCapacity> This;
+    void onUSART_UDRE() {
+        UsartTx<typename usart_t::usart_info_t, writeFifoCapacity>::onSendComplete();
+    }
+public:
+    UsartTxPin(const Usart<typename usart_t::usart_info_t> &usart) {}
+    INTERRUPT_HANDLER1(INTERRUPT_VECTOR(USART_UDRE), onUSART_UDRE);
 };
 
 template <typename pinInfo, typename usart_t, uint8_t readFifoCapacity, class Enable=void>
@@ -82,9 +87,14 @@ class UsartRxPin<pinInfo, usart_t, readFifoCapacity, typename std::enable_if<std
 
 template <typename pinInfo, typename usart_t, uint8_t readFifoCapacity>
 class UsartRxPin<pinInfo, usart_t, readFifoCapacity, typename std::enable_if<std::is_same<typename usart_t::usart_info_t, typename pinInfo::usart_info_t>::value>::type>:
-  public Pin<pinInfo>, public UsartRx<typename usart_t::usart_info_t, readFifoCapacity> {
-  public:
-      UsartRxPin(const Usart<typename usart_t::usart_info_t> &usart) {}
+    public Pin<pinInfo>, public UsartRx<typename usart_t::usart_info_t, readFifoCapacity> {
+    typedef UsartRxPin<pinInfo, usart_t, readFifoCapacity> This;
+    void onUSART_RX() {
+        UsartRx<typename usart_t::usart_info_t, readFifoCapacity>::onReceive();
+    }
+public:
+    UsartRxPin(const Usart<typename usart_t::usart_info_t> &usart) {}
+    INTERRUPT_HANDLER1(INTERRUPT_VECTOR(USART_RX), onUSART_RX);
 };
 
 } // namespace AVR

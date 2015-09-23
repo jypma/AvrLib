@@ -18,7 +18,16 @@ namespace Serial {
 using namespace Streams;
 using namespace Time;
 
+
+
 /**
+ * TODO idea to rate limit interrupts: only check once every (timer_overflow) us.
+ *
+onINT(timer_overflow) {
+    re-enable onchange interrupt
+    if changed in the meantime, register change.
+}
+ *
  * Counts up/down pulse lengths on a pin by using a timer. The longest reported length is
  * the timer's maximum value - 1.
  */
