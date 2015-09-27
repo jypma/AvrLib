@@ -5,6 +5,28 @@
 
 namespace Time {
 
+template <typename T, T value>
+class Truncatable {
+    template <typename I>
+    static constexpr bool isValid() {
+        return value <= std::numeric_limits<I>::max();
+    }
+
+public:
+    template <typename I>
+    constexpr operator I() {
+        static_assert(isValid<I>(),
+                "A value does not fit in return_t, you might want to widen the return type.");
+        return value;
+    }
+
+    static constexpr bool is_uint8 = isValid<uint8_t>();
+    static constexpr bool is_uint16 = isValid<uint16_t>();
+    static constexpr bool is_uint32 = isValid<uint32_t>();
+};
+
+template <uint64_t value> using ut64_t = Truncatable<uint64_t, value>;
+
 template <typename t>
 constexpr t pow(t base, int exp) {
   return (exp > 0) ? base * pow(base, exp-1) : 1;
@@ -34,13 +56,13 @@ public:
     MultipliedTimeUnit() {
         static_assert(percentage > 0, "percentage must be larger than zero");
     }
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = Base::to_uint64>
-    static constexpr return_t toCounts() {
-        return Base::template toCounts<prescaled_t, return_t, uint64_t(value) * percentage / 100>();
+    template <typename prescaled_t, uint64_t value = Base::to_uint64>
+    static constexpr uint64_t toCounts() {
+        return Base::template toCounts<prescaled_t, uint64_t(value) * percentage / 100>();
     }
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = Base::to_uint64>
-    static constexpr return_t toTicks() {
-        return Base::template toTicks<prescaled_t, return_t, uint64_t(value) * percentage / 100>();
+    template <typename prescaled_t, uint64_t value = Base::to_uint64>
+    static constexpr uint64_t toTicks() {
+        return Base::template toTicks<prescaled_t, uint64_t(value) * percentage / 100>();
     }
 };
 
@@ -49,28 +71,22 @@ public:
 template <char... cv>
 class Counts: public TimeUnit<cv...> {
 public:
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-    static constexpr return_t toCounts() {
-        static_assert(value <= std::numeric_limits<return_t>::max(),
-                "Number of counts does not fit in return_t, you might want to widen the return type.");
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toCounts() {
         return value;
     }
 
     template <uint64_t value = TimeUnit<cv...>::to_uint64, typename prescaled_t>
-    static constexpr typename prescaled_t::value_t toCounts(const prescaled_t &) {
+    static constexpr uint64_t toCounts(const prescaled_t &) {
         return toCounts<prescaled_t, prescaled_t::value_t, value>();
     }
 
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-    static constexpr return_t toTicks() {
-        //return prescaled_t::template microseconds2ticks<value,return_t>();
-        constexpr auto maximum = prescaled_t::maximum;
-
-        static_assert(value / (maximum + 1) > 1,
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toTicks() {
+        constexpr uint64_t result = value / (prescaled_t::maximum + 1);
+        static_assert(result > 1,
                 "Number of ticks for counts is so low that it rounds to 0 or 1, you shouldn't use this counts value as ticks.");
-        static_assert(value / (maximum + 1) <= std::numeric_limits<return_t>::max(),
-                "Number of ticks for counts does not fit in return_t, you might want to widen the return type.");
-        return value / (maximum + 1);
+        return result;
     }
 
     template <int percentage>
@@ -87,32 +103,25 @@ constexpr Counts<cv...> operator "" _counts() { return Counts<cv...>(); }
 template <char... cv>
 class Microseconds: public TimeUnit<cv...> {
 public:
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-    static constexpr return_t toCounts() {
-        constexpr auto power2 = prescaled_t::prescalerPower2;
-
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 * value / 1000 > 1,
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toCounts() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value / 1000;
+        static_assert(result > 1,
                 "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 * value / 1000 <= std::numeric_limits<return_t>::max(),
-                "Number of counts for microseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> power2) / 1000 * value / 1000;
+        return result;
     }
 
     template <uint64_t value = TimeUnit<cv...>::to_uint64, typename prescaled_t>
-    static constexpr typename prescaled_t::value_t toCounts(const prescaled_t &) {
-        return toCounts<prescaled_t, prescaled_t::value_t, value>();
+    static constexpr uint64_t toCounts(const prescaled_t &) {
+        return toCounts<prescaled_t, value>();
     }
 
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-    static constexpr return_t toTicks() {
-        constexpr auto power2 = prescaled_t::prescalerPower2;
-        constexpr auto maximum = prescaled_t::maximum;
-
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 / (maximum + 1) * value / 1000 > 1,
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toTicks() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 / (prescaled_t::maximum + 1) * value / 1000;
+        static_assert(result > 1,
                 "Number of ticks for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 / (maximum + 1) * value / 1000 <= std::numeric_limits<return_t>::max(),
-                "Number of ticks for microseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> power2) / 1000 / (maximum + 1) * value / 1000;
+        return result;
     }
 
     template <int percentage>
@@ -128,32 +137,25 @@ constexpr Microseconds<cv...> operator "" _us() { return Microseconds<cv...>(); 
 template <char... cv>
 class Milliseconds: public TimeUnit<cv...> {
 public:
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-    static constexpr return_t toCounts() {
-        constexpr auto power2 = prescaled_t::prescalerPower2;
-
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 * value > 1,
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toCounts() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value;
+        static_assert(result > 1,
                 "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 * value <= std::numeric_limits<return_t>::max(),
-                "Number of counts for milliseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> power2) / 1000 * value;
+        return result;
     }
 
     template <uint64_t value = TimeUnit<cv...>::to_uint64, typename prescaled_t>
-    static constexpr typename prescaled_t::value_t toCounts(const prescaled_t &) {
-        return toCounts<prescaled_t, prescaled_t::value_t, value>();
+    static constexpr uint64_t toCounts(const prescaled_t &) {
+        return toCounts<prescaled_t, value>();
     }
 
-    template <typename prescaled_t, typename return_t = typename prescaled_t::value_t, uint64_t value = TimeUnit<cv...>::to_uint64>
-    static constexpr return_t toTicks() {
-        constexpr auto power2 = prescaled_t::prescalerPower2;
-        constexpr auto maximum = prescaled_t::maximum;
-
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 / (maximum + 1) * value > 1,
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toTicks() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value / (prescaled_t::maximum  + 1) ;
+        static_assert(result > 1,
                 "Number of ticks for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
-        static_assert((uint64_t(F_CPU) >> power2) / 1000 / (maximum + 1) * value <= std::numeric_limits<return_t>::max(),
-                "Number of ticks for milliseconds does not fit in return_t, you might want to increase the timer prescaler or widen the return type.");
-        return (F_CPU >> power2) / 1000 * value;
+        return result;
     }
 
     template <int percentage>
@@ -173,9 +175,9 @@ constexpr Milliseconds<cv...> operator "" _ms() { return Milliseconds<cv...>(); 
  *
  *     uint16_t counts = toCountsOn(timer1, 200_ms);
  */
-template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toCountsOn(const prescaled_t &, const duration_t) {
-    return duration_t::template toCounts<prescaled_t, return_t>();
+template <typename prescaled_t, typename duration_t>
+constexpr auto toCountsOn(const prescaled_t &, const duration_t) {
+    return ut64_t<duration_t::template toCounts<prescaled_t>()>();
 }
 
 /**
@@ -185,9 +187,9 @@ constexpr return_t toCountsOn(const prescaled_t &, const duration_t) {
  *
  *     uint16_t counts = toCountsOn<timer1_t>(200_ms);
  */
-template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toCountsOn(const duration_t) {
-    return duration_t::template toCounts<prescaled_t, return_t>();
+template <typename prescaled_t, typename duration_t>
+constexpr auto toCountsOn(const duration_t) {
+    return ut64_t<duration_t::template toCounts<prescaled_t>()>();
 }
 
 /**
@@ -198,24 +200,24 @@ constexpr return_t toCountsOn(const duration_t) {
  *     typedef decltype(200_ms) duration_t;
  *     uint16_t counts = toCountsOn<timer1_t, duration_t>();
  */
-template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toCountsOn() {
-    return duration_t::template toCounts<prescaled_t, return_t>();
+template <typename prescaled_t, typename duration_t>
+constexpr auto toCountsOn() {
+    return ut64_t<duration_t::template toCounts<prescaled_t>()>();
 }
 
-template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toTicksOn(const prescaled_t &, const duration_t) {
-    return duration_t::template toTicks<prescaled_t, return_t>();
+template <typename prescaled_t, typename duration_t>
+constexpr auto toTicksOn(const prescaled_t &, const duration_t) {
+    return ut64_t<duration_t::template toTicks<prescaled_t>()>();
 }
 
-template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toTicksOn(const duration_t) {
-    return duration_t::template toTicks<prescaled_t, return_t>();
+template <typename prescaled_t, typename duration_t>
+constexpr auto toTicksOn(const duration_t) {
+    return ut64_t<duration_t::template toTicks<prescaled_t>()>();
 }
 
-template <typename prescaled_t, typename duration_t, typename return_t = typename prescaled_t::value_t>
-constexpr return_t toTicksOn() {
-    return duration_t::template toTicks<prescaled_t, return_t>();
+template <typename prescaled_t, typename duration_t>
+constexpr auto toTicksOn() {
+    return ut64_t<duration_t::template toTicks<prescaled_t>()>();
 }
 
 }

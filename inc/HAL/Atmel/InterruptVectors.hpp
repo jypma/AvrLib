@@ -27,6 +27,10 @@ struct Handler {
     typedef VectorName VECT;
     typedef T Type;
     static constexpr void (T::*function)() = f;
+
+    static void invoke(T &t) {
+        (t.*f)();
+    }
 };
 
 template <typename handler, typename handler::Type &t, typename check = void>
@@ -78,7 +82,9 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
         FOR_EACH(__mkTYPEDEF_IFELSE, __VA_ARGS__) \
     }; \
 
-
+/**
+ * Defines all types for the complete list of ISR names that might exist on ANY Atmel chip.
+ */
 mkVECTORS(INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
 
 #define __mkVECTOR_CALLBACK(var) \
@@ -117,7 +123,8 @@ mkVECTORS(INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, 
 #define INTERRUPT_HANDLER1(vect, method) \
     template <typename, typename, typename> friend struct ::HAL::Atmel::InterruptVectors::Callback; \
 public: \
-    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler1;
+    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler1; \
+typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> method##Handler;
 
 /**
  * Declares an interrupt handler in a class definition. The method name must be an instance method
@@ -130,7 +137,8 @@ public: \
 #define INTERRUPT_HANDLER2(vect, method) \
     template <typename, typename, typename> friend struct ::HAL::Atmel::InterruptVectors::Callback; \
 public: \
-    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler2;
+    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler2; \
+    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> method##Handler;
 
 
 #define INTERRUPT_VECTOR(vect) ::HAL::Atmel::InterruptVectors::Vector##vect##_

@@ -1,6 +1,7 @@
 #ifndef HAL_ATMEL_TIMER_HPP_
 #define HAL_ATMEL_TIMER_HPP_
 
+#include <avr/io.h>
 #include "Time/Counting.hpp"
 #include "Time/Prescaled.hpp"
 

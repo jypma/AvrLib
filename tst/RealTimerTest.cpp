@@ -10,10 +10,11 @@ namespace RealTimerTest {
 using namespace Time;
 
 struct MockTimer {
+    typedef HAL::Atmel::InterruptVectors::VectorTIMER0_OVF_ INT;
+
     typedef uint8_t value_t;
     typedef uint8_t prescaler_t;
     static constexpr uint8_t prescaler = 8;
-    InterruptChain interrupt;
     uint8_t value = 0;
     static constexpr uint8_t maximumPower2 = 8;
     static constexpr uint8_t prescalerPower2 = 8;
@@ -22,9 +23,6 @@ struct MockTimer {
         return value;
     }
 
-    InterruptChain &interruptOnOverflow() {
-        return interrupt;
-    }
     void interruptOnOverflowOn() {
 
     }
@@ -39,7 +37,7 @@ TEST(RealTimerTest, timer_callback_increments_time) {
     EXPECT_EQ(0, rt.millis());
     EXPECT_EQ(0, rt.micros());
 
-    t1.interrupt.invoke();
+    decltype(rt)::onTimerOverflowHandler::invoke(rt);
 
     EXPECT_EQ(256, rt.counts());
     EXPECT_EQ(4, rt.millis());
@@ -54,9 +52,9 @@ MockTimer t2;
 TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called) {
     RealTimer<MockTimer, 0, &wait2> rt(t2);
 
-    std::thread background([]() {
+    std::thread background([&rt]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        t2.interrupt.invoke();
+        decltype(rt)::onTimerOverflowHandler::invoke(rt);
     });
 
     waited2 = false;
@@ -74,9 +72,9 @@ MockTimer t3;
 TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparound) {
     RealTimer<MockTimer, 0xFFFFFFFF, &wait3> rt(t3);
 
-    std::thread background([]() {
+    std::thread background([&rt]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        t3.interrupt.invoke();
+        decltype(rt)::onTimerOverflowHandler::invoke(rt);
     });
 
     waited3 = false;

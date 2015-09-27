@@ -8,8 +8,6 @@
 #ifndef ESP8266_HPP_
 #define ESP8266_HPP_
 
-#include "Pin.hpp"
-#include "Timer.hpp"
 #include "Streams/Streamable.hpp"
 #include "ChunkedFifo.hpp"
 #include "EEPROM.hpp"

@@ -5,6 +5,8 @@
 #ifndef GCC_LIMITS_H
 #define GCC_LIMITS_H
 
+#include <stdint.h>
+
 namespace std {
 
   template<typename _Tp>

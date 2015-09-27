@@ -8,11 +8,10 @@
 #ifndef ADC_HPP_
 #define ADC_HPP_
 
-#include "InterruptHandler.hpp"
-#include "Pin.hpp"
-#include <avr/common.h>
+#include <avr/io.h>
 
-extern InterruptChain _adc_onConversionComplete;
+namespace HAL {
+namespace Atmel {
 
 class ADConverter {
 public:
@@ -38,6 +37,8 @@ public:
     uint16_t getValue();
 };
 
+} // namespace Atmel
+} // namespace HAL
 
 
 #endif /* ADC_HPP_ */

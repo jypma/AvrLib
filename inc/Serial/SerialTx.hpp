@@ -9,7 +9,6 @@
 #define SERIALTX_HPP_
 
 #include <util/parity.h>
-#include "InterruptHandler.hpp"
 #include "Serial/PulseTx.hpp"
 #include "ChunkedFifo.hpp"
 

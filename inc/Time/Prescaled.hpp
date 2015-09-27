@@ -24,8 +24,8 @@ struct PrescalerMeta {
 template <typename _value_t, typename _prescaler_t, _prescaler_t _prescaler>
 class Prescaled: public Counting<_value_t> {
     typedef PrescalerMeta<_prescaler_t,_prescaler> Meta;
-    using Counting<_value_t>::maximum;
 public:
+    using Counting<_value_t>::maximum;
     typedef _prescaler_t prescaler_t;
     static constexpr _prescaler_t prescaler = _prescaler;
     static constexpr uint8_t prescalerPower2 = Meta::power2;

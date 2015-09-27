@@ -3,9 +3,7 @@
 
 #include "Time/Prescaled.hpp"
 #include "HAL/Atmel/Pin.hpp"
-#include "HAL/Atmel/ExternalInterrupt.hpp"
 #include "HAL/Atmel/InterruptVectors.hpp"
-#include "HAL/Atmel/Timer.hpp"
 
 namespace HAL {
 namespace Atmel {
@@ -312,9 +310,6 @@ struct PinOnPortC {
     static constexpr uint8_t bitmask = _BV(bit);
 };
 
-template <typename pinInfo, typename extInterruptInfo>
-class ExtInterruptPin: public Pin<pinInfo>, public ExtInterrupt<extInterruptInfo> {};
-
 struct PinPD0Info: public PinOnPortD<0> {
     typedef Usart0Info usart_info_t;
 
@@ -348,18 +343,43 @@ struct PinOnTimer2 {
 };
 
 
-struct PinD2Info: public PinOnPortD<2>, public GPIOPin {};
-struct PinD3Info: public PinOnPortD<3>, public GPIOPin, public PinOnTimer2 {};
-struct PinD4Info: public PinOnPortD<4>, public GPIOPin {};
-struct PinD5Info: public PinOnPortD<5>, public GPIOPin, public PinOnTimer0 {};
-struct PinD6Info: public PinOnPortD<6>, public GPIOPin, public PinOnTimer0 {};
-struct PinD7Info: public PinOnPortD<7>, public GPIOPin {};
-struct PinD8Info: public PinOnPortB<0>, public GPIOPin {};
-struct PinD9Info: public PinOnPortB<1>, public GPIOPin, public PinOnTimer1 {};
-struct PinD10Info: public PinOnPortB<2>, public GPIOPin, public PinOnTimer1 {};
-struct PinD11Info: public PinOnPortB<3>, public GPIOPin, public PinOnTimer2 {};
-struct PinD12Info: public PinOnPortB<4>, public GPIOPin {};
-struct PinD13Info: public PinOnPortB<5>, public GPIOPin {};
+struct PinPD2Info: public PinOnPortD<2>, public GPIOPin {};
+struct PinPD3Info: public PinOnPortD<3>, public GPIOPin, public PinOnTimer2 {};
+struct PinPD4Info: public PinOnPortD<4>, public GPIOPin {};
+struct PinPD5Info: public PinOnPortD<5>, public GPIOPin, public PinOnTimer0 {};
+struct PinPD6Info: public PinOnPortD<6>, public GPIOPin, public PinOnTimer0 {};
+struct PinPD7Info: public PinOnPortD<7>, public GPIOPin {};
+struct PinPB0Info: public PinOnPortB<0>, public GPIOPin {};
+struct PinPB1Info: public PinOnPortB<1>, public GPIOPin, public PinOnTimer1 {};
+struct PinPB2Info: public PinOnPortB<2>, public GPIOPin, public PinOnTimer1 {};
+struct PinPB3Info: public PinOnPortB<3>, public GPIOPin, public PinOnTimer2 {};
+struct PinPB4Info: public PinOnPortB<4>, public GPIOPin {};
+struct PinPB5Info: public PinOnPortB<5>, public GPIOPin {};
+
+struct PinA0Info: public PinOnPortC<0>, public GPIOPin {
+    static constexpr uint8_t adc_mux = 0;
+};
+struct PinA1Info: public PinOnPortC<1>, public GPIOPin {
+    static constexpr uint8_t adc_mux = 1;
+};
+struct PinA2Info: public PinOnPortC<2>, public GPIOPin {
+    static constexpr uint8_t adc_mux = 2;
+};
+struct PinA3Info: public PinOnPortC<3>, public GPIOPin {
+    static constexpr uint8_t adc_mux = 3;
+};
+struct PinA4Info: public PinOnPortC<4>, public GPIOPin {
+    static constexpr uint8_t adc_mux = 4;
+};
+struct PinA5Info: public PinOnPortC<5>, public GPIOPin {
+    static constexpr uint8_t adc_mux = 5;
+};
+struct PinA6Info {
+    static constexpr uint8_t adc_mux = 6;
+};
+struct PinA7Info {
+    static constexpr uint8_t adc_mux = 7;
+};
 
 } // namespace Info
 
@@ -413,11 +433,142 @@ template <typename usart_t = NoUsart, uint8_t writeFifoCapacity = 16> using PinP
 /**
  * Declares pin PD2 / INT0 / PCINT18 / Arduino Digital 2.
  */
-class PinPD2: public Info::ExtInterruptPin<Info::PinD2Info,Info::Int0Info> {};
+class PinPD2: public ExtInterruptPin<Info::PinPD2Info,Info::Int0Info> {};
+
+template <typename timer2_t = NoTimer, class Enable=void>
+class PinPD3 {
+    typename timer2_t::fail error_wrong_timer_template_argument;
+};
+
+/**
+ * Declares pin PD3 / INT1 / OC2B / PCINT19 / Arduino Digital 3. This variant declares the pin without timer / PWM capability:
+ *
+ *     auto pinPD3 = PinPD3();
+ */
+template <typename timer2_t>
+class PinPD3<timer2_t, typename std::enable_if<std::is_same<timer2_t, NoTimer>::value>::type>: public Pin<Info::PinPD3Info>, public ExtInterrupt<Info::Int1Info>  {
+    // If NoTimer is provided as timer_t, the pin will be defined without timer capability.
+};
+
+/**
+ * Declares pin PD3 / INT1 / OC2B / PCINT19 / Arduino Digital 3. This variant declares the pin with timer / PWM capability:
+ *
+ *     auto timer2 = Timer2().inNormalMode();
+ *     auto pinPD3 = PinPD3(timer2);
+ */
+template <typename timer2_t>
+class PinPD3<timer2_t, typename std::enable_if<std::is_same<typename timer2_t::timer_info_t, typename Info::PinPD3Info::timer_info_t>::value>::type>:
+         public PinOnComparatorB<Info::PinPD3Info,timer2_t>, public ExtInterrupt<Info::Int1Info> {
+public:
+    PinPD3(timer2_t &_timer): PinOnComparatorB<Info::PinPD3Info,timer2_t>(_timer) {}
+};
+
+/**
+ * Declares pin PD4 / PCINT20 / XCK (TODO) / T0 (TODO) / Arduino Digital 4.
+ */
+typedef Pin<Info::PinPD4Info> PinPD4;
+
+/**
+ * Declares pin PD5 / PCINT21 / OC0B / T1 (TODO) / Arduino Digital 5.
+ * In order to use the pin without timer capability:
+ *
+ *     auto pinPD5 = PinPD5();
+ *
+ * In order to use the pin with timer capability:
+ *
+ *     auto timer0 = Timer0().inNormalMode();
+ *     auto pinPD5 = PinPD5(timer0);
+ */
+template <typename timer0_t = NoTimer> using PinPD5 = PinOnComparatorB<Info::PinPD5Info,timer0_t>;
+
+/**
+ * Declares pin PD6 / PCINT22 / OC0A / AIN0 (TODO) / Arduino Digital 6.
+ * In order to use the pin without timer capability:
+ *
+ *     auto pinPD6 = PinPD6();
+ *
+ * In order to use the pin with timer capability:
+ *
+ *     auto timer0 = Timer0().inNormalMode();
+ *     auto pinPD6 = PinPD6(timer0);
+ */
+template <typename timer0_t = NoTimer> using PinPD6 = PinOnComparatorA<Info::PinPD6Info,timer0_t>;
+
+/**
+ * Declares pin PD7 / PCINT23 / AIN1 (TODO) / Arduino Digital 7.
+ */
+typedef Pin<Info::PinPD7Info> PinPD7;
+
+/**
+ * Declares pin PB0 / PCINT0 / CLKO (TODO) / ICP1 (TODO) / Arduino Digital 8.
+ */
+typedef Pin<Info::PinPB0Info> PinPB0;
+
+/**
+ * Declares pin PB1 / PCINT1 / OC1A / Arduino Digital 9.
+ * In order to use the pin without timer capability:
+ *
+ *     auto pinPB1 = PinPB1();
+ *
+ * In order to use the pin with timer capability:
+ *
+ *     auto timer1 = Timer1().inNormalMode();
+ *     auto pinPB1 = PinPB1(timer1);
+ */
+template <typename timer1_t = NoTimer> using PinPB1 = PinOnComparatorA<Info::PinPB1Info,timer1_t>;
+
+/**
+ * Declares pin PB2 / PCINT2 / SS / OC1B / Arduino Digital 10.
+ * In order to use the pin without timer capability:
+ *
+ *     auto pinPB2 = PinPB2();
+ *
+ * In order to use the pin with timer capability:
+ *
+ *     auto timer1 = Timer1().inNormalMode();
+ *     auto pinPB2 = PinPB2(timer1);
+ */
+template <typename timer1_t = NoTimer> using PinPB2 = PinOnComparatorB<Info::PinPB2Info,timer1_t>;
+
+/**
+ * Declares pin PB3 / PCINT3 / MOSI / OC2A / Arduino Digital 11.
+ * In order to use the pin without timer capability:
+ *
+ *     auto pinPB3 = PinPB3();
+ *
+ * In order to use the pin with timer capability:
+ *
+ *     auto timer2 = Timer2().inNormalMode();
+ *     auto pinPB3 = PinPB3(timer1);
+ */
+template <typename timer2_t = NoTimer> using PinPB3 = PinOnComparatorA<Info::PinPB3Info,timer2_t>;
+
+/**
+ * Declares pin PB4 / PCINT4 / MISO / Arduino Digital 12.
+ */
+typedef Pin<Info::PinPB4Info> PinPB4;
+
+/**
+ * Declares pin PB5 / PCINT5 / SCK / Arduino Digital 13.
+ */
+typedef Pin<Info::PinPB5Info> PinPB5;
+
+
+typedef Pin<Info::PinA0Info> PinA0;
+typedef Pin<Info::PinA1Info> PinA1;
+typedef Pin<Info::PinA2Info> PinA2;
+typedef Pin<Info::PinA3Info> PinA3;
+typedef Pin<Info::PinA4Info> PinA4;
+typedef Pin<Info::PinA5Info> PinA5;
+typedef ADCOnlyPin<Info::PinA6Info> PinA6;
+typedef ADCOnlyPin<Info::PinA7Info> PinA7;
 
 } // namespace Atmel
 } // namespace HAL
 
+/**
+ * Defines all ISRS that exist on THIS chip.
+ */
 #define __mk_ALL_ISRS \
     FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
 

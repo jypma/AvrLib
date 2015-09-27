@@ -1,12 +1,7 @@
-#include "ADConverter.hpp"
+#include "HAL/Atmel/ADConverter.hpp"
 #include "AtomicScope.hpp"
 
-InterruptChain _adc_onConversionComplete;
-
-ISR(ADC_vect)
-{
-    _adc_onConversionComplete.invoke();
-}
+using namespace HAL::Atmel;
 
 void ADConverter::enable() {
     ADCSRA |= (1 << ADEN);  // Enable ADC

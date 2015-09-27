@@ -32,14 +32,11 @@ public:
 };
 
 class MockIntPin {
-    InterruptChain i;
 public:
+    typedef HAL::Atmel::InterruptVectors::VectorINT0_ INT;
     bool isInput = false;
     void configureAsInputWithPullup() {
         isInput = true;
-    }
-    InterruptChain &interrupt() {
-        return i;
     }
     void interruptOnLow() {
 
@@ -53,14 +50,11 @@ public:
 };
 
 struct MockComparator {
+    typedef HAL::Atmel::InterruptVectors::VectorTIMER0_COMPA_ INT;
+
     static constexpr uint8_t prescalerPower2 = 8;
     typedef uint8_t value_t;
-    InterruptChain i;
     value_t target = 0;
-
-    InterruptChain &interrupt() {
-        return i;
-    }
 
     void setTarget(value_t _target) {
         target = _target;
