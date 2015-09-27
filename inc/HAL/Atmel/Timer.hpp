@@ -93,6 +93,7 @@ public:
 
 template <typename info, typename comparator_a_t, typename comparator_b_t>
 class Timer: public Time::Counting<typename info::value_t> {
+public:
     typedef comparator_a_t comparatorA_t;
     typedef comparator_b_t comparatorB_t;
 private:

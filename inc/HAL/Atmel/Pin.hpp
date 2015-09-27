@@ -76,7 +76,6 @@ class UsartTxPin<pinInfo, usart_t, writeFifoCapacity, typename std::enable_if<st
         UsartTx<typename usart_t::usart_info_t, writeFifoCapacity>::onSendComplete();
     }
 public:
-    UsartTxPin(const Usart<typename usart_t::usart_info_t> &usart) {}
     INTERRUPT_HANDLER1(INTERRUPT_VECTOR(USART_UDRE), onUSART_UDRE);
 };
 
@@ -98,7 +97,6 @@ class UsartRxPin<pinInfo, usart_t, readFifoCapacity, typename std::enable_if<std
         UsartRx<typename usart_t::usart_info_t, readFifoCapacity>::onReceive();
     }
 public:
-    UsartRxPin(const Usart<typename usart_t::usart_info_t> &usart) {}
     INTERRUPT_HANDLER1(INTERRUPT_VECTOR(USART_RX), onUSART_RX);
 };
 
@@ -135,7 +133,7 @@ public:
 
 template <typename pinInfo, typename timer_t, class Enable=void>
 class PinOnComparatorB: public Pin<pinInfo> {
-    typedef typename timer_t::fail error_wrong_timer_template_argument;
+    typedef typename timer_t::error_wrong_timer_template_argument fail;
 };
 
 template <typename pinInfo, typename timer_t>

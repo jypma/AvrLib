@@ -212,6 +212,7 @@ struct Timer1Info {
     };
 
     struct ComparatorA: public Comparator {
+        typedef INTERRUPT_VECTOR(TIMER1_COMPA) INT;
         static constexpr volatile uint16_t *ocr = &OCR1A;
         static constexpr uint8_t timsk_bit = OCIE1A;
         static constexpr uint8_t tifr_bit = OCF1A;
@@ -220,6 +221,7 @@ struct Timer1Info {
         static constexpr uint8_t foc = FOC1A;
     };
     struct ComparatorB: public Comparator {
+        typedef INTERRUPT_VECTOR(TIMER1_COMPA) INT;
         static constexpr volatile uint16_t *ocr = &OCR1B;
         static constexpr uint8_t timsk_bit = OCIE1B;
         static constexpr uint8_t tifr_bit = OCF1B;
@@ -268,6 +270,7 @@ struct Timer2Info {
     };
 
     struct ComparatorA: public Comparator {
+        typedef INTERRUPT_VECTOR(TIMER2_COMPA) INT;
         static constexpr volatile uint8_t *ocr = &OCR2A;
         static constexpr uint8_t timsk_bit = OCIE2A;
         static constexpr uint8_t tifr_bit = OCF2A;
@@ -276,6 +279,7 @@ struct Timer2Info {
         static constexpr uint8_t foc = FOC2A;
     };
     struct ComparatorB: public Comparator {
+        typedef INTERRUPT_VECTOR(TIMER2_COMPA) INT;
         static constexpr volatile uint8_t *ocr = &OCR2B;
         static constexpr uint8_t timsk_bit = OCIE2B;
         static constexpr uint8_t tifr_bit = OCF2B;
@@ -402,33 +406,56 @@ template <IntPrescaler prescaler> using Timer2_FastPWM = Timer::FastPWMTimer<Inf
  */
 typedef Usart<Info::Usart0Info> Usart0;
 
+template <typename usart_t, uint8_t readFifoCapacity = 32> using PinPD0_t = UsartRxPin<Info::PinPD0Info, usart_t, readFifoCapacity>;
+
 /**
- * Declares pin PD0 / RXD / PCINT16 / Arduino Digital 0.
+ * Declares pin PD0 / RXD / PCINT16 / Arduino Digital 0, without USART support.
+ */
+constexpr PinPD0_t<NoUsart,32> PinPD0() {
+    return PinPD0_t<NoUsart,32>();
+}
+
+/**
+ * Declares pin PD0 / RXD / PCINT16 / Arduino Digital 0, with USART support. You'll need an instance of Usart0, as follows:
  * If to be used as RXD, declare as:
  *
  *     Usart0 usart0(57600);
- *     PinPD0<Usart0> pinPD0(usart0);
- *     ISR_USART_RX(pinPD0);
+ *     auto pinPD0 = PinPD0(usart0);
+ *     mkISRS(pinPD0);
  *
- * If to be used without USART, just say:
+ * In order to customize the read FIFO size, include a template parameter:
  *
- *     PinPD0<> pinPD0;
+ *     auto pinPD0 = PinPD0<32>(usart0);
  */
-template <typename usart_t = NoUsart, uint8_t readFifoCapacity = 32> using PinPD0 = UsartRxPin<Info::PinPD0Info, usart_t, readFifoCapacity>;
+template <uint8_t readFifoCapacity = 32, typename usart_t>
+constexpr PinPD0_t<usart_t, readFifoCapacity> PinPD0(usart_t &usart) {
+    return PinPD0_t<usart_t, readFifoCapacity>();
+}
+
+template <typename usart_t, uint8_t writeFifoCapacity = 16> using PinPD1_t = UsartTxPin<Info::PinPD1Info, usart_t, writeFifoCapacity>;
 
 /**
- * Declares pin PD1 / TXD / PCINT17 / Arduino Digital 1.
- * If to be used as TXD, declare as:
+ * Declares pin PD1 / TXD / PCINT17 / Arduino Digital 1, without USART support.
+ */
+constexpr PinPD1_t<NoUsart,16> PinPD1() {
+    return PinPD1_t<NoUsart,16>();
+}
+
+/**
+ * Declares pin PD1 / TXD / PCINT17 / Arduino Digital 1, with USART support. You'll need an instance of Usart0, as follows:
  *
  *     Usart0 usart0(57600);
- *     PinPD0<Usart1> pinPD1(usart0);
- *     ISR_USART_UDRE(pinPD0);
+ *     auto pinPD1 = PinPD1(usart0);
+ *     mkISRS(pinPD1);
  *
- * If to be used without USART, just say:
+ * In order to customize the write FIFO size, include a template parameter:
  *
- *     PinD0<> pinD0;
+ *     auto pinPD1 = PinPD1<32>(usart0);
  */
-template <typename usart_t = NoUsart, uint8_t writeFifoCapacity = 16> using PinPD1 = UsartTxPin<Info::PinPD1Info, usart_t, writeFifoCapacity>;
+template <uint8_t writeFifoCapacity = 16, typename usart_t>
+constexpr PinPD1_t<usart_t, writeFifoCapacity> PinPD1(usart_t &usart) {
+    return PinPD1_t<usart_t, writeFifoCapacity>();
+}
 
 /**
  * Declares pin PD2 / INT0 / PCINT18 / Arduino Digital 2.
@@ -436,8 +463,13 @@ template <typename usart_t = NoUsart, uint8_t writeFifoCapacity = 16> using PinP
 class PinPD2: public ExtInterruptPin<Info::PinPD2Info,Info::Int0Info> {};
 
 template <typename timer2_t = NoTimer, class Enable=void>
-class PinPD3 {
+class PinPD3_t {
     typename timer2_t::fail error_wrong_timer_template_argument;
+};
+
+template <typename timer2_t>
+class PinPD3_t<timer2_t, typename std::enable_if<std::is_same<timer2_t, NoTimer>::value>::type>: public Pin<Info::PinPD3Info>, public ExtInterrupt<Info::Int1Info>  {
+    // If NoTimer is provided as timer_t, the pin will be defined without timer capability.
 };
 
 /**
@@ -445,9 +477,15 @@ class PinPD3 {
  *
  *     auto pinPD3 = PinPD3();
  */
+constexpr PinPD3_t<NoTimer> PinPD3() {
+    return PinPD3_t<NoTimer>();
+}
+
 template <typename timer2_t>
-class PinPD3<timer2_t, typename std::enable_if<std::is_same<timer2_t, NoTimer>::value>::type>: public Pin<Info::PinPD3Info>, public ExtInterrupt<Info::Int1Info>  {
-    // If NoTimer is provided as timer_t, the pin will be defined without timer capability.
+class PinPD3_t<timer2_t, typename std::enable_if<std::is_same<typename timer2_t::timer_info_t, typename Info::PinPD3Info::timer_info_t>::value>::type>:
+         public PinOnComparatorB<Info::PinPD3Info,timer2_t>, public ExtInterrupt<Info::Int1Info> {
+public:
+    PinPD3_t(timer2_t &_timer): PinOnComparatorB<Info::PinPD3Info,timer2_t>(_timer) {}
 };
 
 /**
@@ -457,42 +495,55 @@ class PinPD3<timer2_t, typename std::enable_if<std::is_same<timer2_t, NoTimer>::
  *     auto pinPD3 = PinPD3(timer2);
  */
 template <typename timer2_t>
-class PinPD3<timer2_t, typename std::enable_if<std::is_same<typename timer2_t::timer_info_t, typename Info::PinPD3Info::timer_info_t>::value>::type>:
-         public PinOnComparatorB<Info::PinPD3Info,timer2_t>, public ExtInterrupt<Info::Int1Info> {
-public:
-    PinPD3(timer2_t &_timer): PinOnComparatorB<Info::PinPD3Info,timer2_t>(_timer) {}
-};
+constexpr PinPD3_t<timer2_t> PinPD3(timer2_t &timer) {
+    return PinPD3_t<timer2_t>(timer);
+}
 
 /**
  * Declares pin PD4 / PCINT20 / XCK (TODO) / T0 (TODO) / Arduino Digital 4.
  */
 typedef Pin<Info::PinPD4Info> PinPD4;
 
+template <typename timer0_t = NoTimer> using PinPD5_t = PinOnComparatorB<Info::PinPD5Info,timer0_t>;
+
 /**
- * Declares pin PD5 / PCINT21 / OC0B / T1 (TODO) / Arduino Digital 5.
- * In order to use the pin without timer capability:
- *
- *     auto pinPD5 = PinPD5();
- *
- * In order to use the pin with timer capability:
+ * Declares pin PD5 / PCINT21 / OC0B / T1 (TODO) / Arduino Digital 5, without timer capability.
+ */
+constexpr PinPD5_t<NoTimer> PinPD5() {
+    return PinPD5_t<NoTimer>();
+}
+
+/**
+ * Declares pin PD5 / PCINT21 / OC0B / T1 (TODO) / Arduino Digital 5, with timer capability. You'll need a Timer0 instance:
  *
  *     auto timer0 = Timer0().inNormalMode();
  *     auto pinPD5 = PinPD5(timer0);
  */
-template <typename timer0_t = NoTimer> using PinPD5 = PinOnComparatorB<Info::PinPD5Info,timer0_t>;
+template <typename timer0_t>
+constexpr PinPD5_t<timer0_t> PinPD5(timer0_t &timer) {
+    return PinPD5_t<timer0_t>(timer);
+}
+
+
+template <typename timer0_t = NoTimer> using PinPD6_t = PinOnComparatorA<Info::PinPD6Info,timer0_t>;
 
 /**
- * Declares pin PD6 / PCINT22 / OC0A / AIN0 (TODO) / Arduino Digital 6.
- * In order to use the pin without timer capability:
- *
- *     auto pinPD6 = PinPD6();
- *
- * In order to use the pin with timer capability:
+ * Declares pin PD6 / PCINT22 / OC0A / AIN0 (TODO) / Arduino Digital 6, without timer capability.
+ */
+constexpr PinPD6_t<NoTimer> PinPD6() {
+    return PinPD6_t<NoTimer>();
+}
+
+/**
+ * Declares pin PD6 / PCINT22 / OC0A / AIN0 (TODO) / Arduino Digital 6, with timer capability. You'll need a Timer0:
  *
  *     auto timer0 = Timer0().inNormalMode();
  *     auto pinPD6 = PinPD6(timer0);
  */
-template <typename timer0_t = NoTimer> using PinPD6 = PinOnComparatorA<Info::PinPD6Info,timer0_t>;
+template <typename timer0_t>
+constexpr PinPD6_t<timer0_t> PinPD6(timer0_t &timer) {
+    return PinPD6_t<timer0_t>(timer);
+}
 
 /**
  * Declares pin PD7 / PCINT23 / AIN1 (TODO) / Arduino Digital 7.
@@ -504,44 +555,65 @@ typedef Pin<Info::PinPD7Info> PinPD7;
  */
 typedef Pin<Info::PinPB0Info> PinPB0;
 
+template <typename timer1_t = NoTimer> using PinPB1_t = PinOnComparatorA<Info::PinPB1Info,timer1_t>;
+
 /**
- * Declares pin PB1 / PCINT1 / OC1A / Arduino Digital 9.
- * In order to use the pin without timer capability:
- *
- *     auto pinPB1 = PinPB1();
- *
- * In order to use the pin with timer capability:
+ * Declares pin PB1 / PCINT1 / OC1A / Arduino Digital 9, without timer capability.
+ */
+constexpr PinPB1_t<NoTimer> PinPB1() {
+    return PinPB1_t<NoTimer>();
+}
+
+/**
+ * Declares pin PB1 / PCINT1 / OC1A / Arduino Digital 9, with timer capability. You'll need a Timer1:
  *
  *     auto timer1 = Timer1().inNormalMode();
  *     auto pinPB1 = PinPB1(timer1);
  */
-template <typename timer1_t = NoTimer> using PinPB1 = PinOnComparatorA<Info::PinPB1Info,timer1_t>;
+template <typename timer1_t>
+constexpr PinPB1_t<timer1_t> PinPB1(timer1_t &timer) {
+    return PinPB1_t<timer1_t>(timer);
+}
+
+template <typename timer1_t = NoTimer> using PinPB2_t = PinOnComparatorB<Info::PinPB2Info,timer1_t>;
 
 /**
- * Declares pin PB2 / PCINT2 / SS / OC1B / Arduino Digital 10.
- * In order to use the pin without timer capability:
- *
- *     auto pinPB2 = PinPB2();
- *
- * In order to use the pin with timer capability:
+ * Declares pin PB2 / PCINT2 / SS / OC1B / Arduino Digital 10, without timer capability.
+ */
+constexpr PinPB2_t<NoTimer> PinPB2() {
+    return PinPB2_t<NoTimer>();
+}
+
+/**
+ * Declares pin PB2 / PCINT2 / SS / OC1B / Arduino Digital 10, with timer capability. You'll need a Timer1:
  *
  *     auto timer1 = Timer1().inNormalMode();
  *     auto pinPB2 = PinPB2(timer1);
  */
-template <typename timer1_t = NoTimer> using PinPB2 = PinOnComparatorB<Info::PinPB2Info,timer1_t>;
+template <typename timer1_t>
+constexpr PinPB2_t<timer1_t> PinPB2(timer1_t &timer) {
+    return PinPB2_t<timer1_t>(timer);
+}
+
+template <typename timer2_t = NoTimer> using PinPB3_t = PinOnComparatorA<Info::PinPB3Info,timer2_t>;
 
 /**
- * Declares pin PB3 / PCINT3 / MOSI / OC2A / Arduino Digital 11.
- * In order to use the pin without timer capability:
- *
- *     auto pinPB3 = PinPB3();
- *
- * In order to use the pin with timer capability:
- *
- *     auto timer2 = Timer2().inNormalMode();
- *     auto pinPB3 = PinPB3(timer1);
+ * Declares pin PB3 / PCINT3 / MOSI / OC2A / Arduino Digital 11, without timer capability.
  */
-template <typename timer2_t = NoTimer> using PinPB3 = PinOnComparatorA<Info::PinPB3Info,timer2_t>;
+constexpr PinPB3_t<NoTimer> PinPB3() {
+    return PinPB3_t<NoTimer>();
+}
+
+/**
+ * Declares pin PB3 / PCINT3 / MOSI / OC2A / Arduino Digital 11, with timer capability. You'll need a Timer2:
+ *
+ *     auto timer1 = Timer1().inNormalMode();
+ *     auto pinPB2 = PinPB2(timer1);
+ */
+template <typename timer2_t>
+constexpr PinPB3_t<timer2_t> PinPB3(timer2_t &timer) {
+    return PinPB3_t<timer2_t>(timer);
+}
 
 /**
  * Declares pin PB4 / PCINT4 / MISO / Arduino Digital 12.
