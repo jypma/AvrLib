@@ -2,6 +2,7 @@
 #define HAL_ATMEL_DEVICES_ATMEGA328_HPP_
 
 #include "Time/Prescaled.hpp"
+#include "HAL/Atmel/Usart.hpp"
 #include "HAL/Atmel/Pin.hpp"
 #include "HAL/Atmel/InterruptVectors.hpp"
 
@@ -49,6 +50,22 @@ enum class ExtPrescaler: uint8_t {
     _1024 = _BV(CS02) | _BV(CS00)
 };
 
+template <uint16_t i>
+constexpr static ExtPrescaler extPrescalerFromInt() {
+    static_assert(i == 1 || i == 8 || i == 64 || i == 256 || i == 1024, "prescaler must be 1, 8, 64, 256 or 1024.");
+    if (i == 1) {
+        return ExtPrescaler::_1;
+    } else if (i == 8) {
+        return ExtPrescaler::_8;
+    } else if (i == 64) {
+        return ExtPrescaler::_64;
+    } else if (i == 256) {
+        return ExtPrescaler::_256;
+    } else if (i == 1024) {
+        return ExtPrescaler::_1024;
+    }
+}
+
 enum class IntPrescaler: uint8_t {
     _1 = _BV(CS00),
     _8 = _BV(CS01),
@@ -58,6 +75,26 @@ enum class IntPrescaler: uint8_t {
     _256 = _BV(CS02) | _BV(CS01),
     _1024 = _BV(CS02) | _BV(CS01) | _BV(CS00)
 };
+
+template <uint16_t i>
+constexpr static IntPrescaler intPrescalerFromInt() {
+    static_assert(i == 1 || i == 8 || i == 32 || i == 64 || i == 128 || i == 256 || i == 1024, "prescaler must be 1, 8, 32, 64, 128, 256 or 1024.");
+    if (i == 1) {
+        return IntPrescaler::_1;
+    } else if (i == 8) {
+        return IntPrescaler::_8;
+    } else if (i == 32) {
+        return IntPrescaler::_32;
+    } else if (i == 64) {
+        return IntPrescaler::_64;
+    } else if (i == 128) {
+        return IntPrescaler::_128;
+    } else if (i == 256) {
+        return IntPrescaler::_256;
+    } else if (i == 1024) {
+        return IntPrescaler::_1024;
+    }
+}
 
 } // namespace Atmel
 } // namespace HAL
@@ -125,6 +162,7 @@ struct Timer0Info {
 
     typedef uint8_t value_t;
     typedef ExtPrescaler prescaler_t;
+    template <uint16_t i> constexpr static ExtPrescaler prescalerFromInt() { return extPrescalerFromInt<i>(); }
 
     inline static void configureNormal(prescaler_t p) {
         // Existing settings for COM0A1 etc. should be kept
@@ -183,6 +221,7 @@ struct Timer1Info {
 
     typedef uint16_t value_t;
     typedef ExtPrescaler prescaler_t;
+    template <uint16_t i> constexpr static ExtPrescaler prescalerFromInt() { return extPrescalerFromInt<i>(); }
 
     inline static void configureNormal(prescaler_t p) {
         // Existing settings for COM0A1 etc. should be kept
@@ -242,6 +281,7 @@ struct Timer2Info {
 
     typedef uint8_t value_t;
     typedef IntPrescaler prescaler_t;
+    template <uint16_t i> constexpr static IntPrescaler prescalerFromInt() { return intPrescalerFromInt<i>(); }
 
     inline static void configureNormal(prescaler_t p) {
         // Existing settings for COM0A1 etc. should be kept
@@ -389,12 +429,9 @@ struct PinA7Info {
 
 ////////////////////////////// TIMERS ///////////////////////////////////////////////////////
 
-template <ExtPrescaler prescaler> using Timer0_Normal = Timer::NormalTimer<Info::Timer0Info,prescaler>;
-template <ExtPrescaler prescaler> using Timer1_Normal = Timer::NormalTimer<Info::Timer1Info,prescaler>;
-template <IntPrescaler prescaler> using Timer2_Normal = Timer::NormalTimer<Info::Timer2Info,prescaler>;
-template <ExtPrescaler prescaler> using Timer0_FastPWM = Timer::FastPWMTimer<Info::Timer0Info,prescaler>;
-template <ExtPrescaler prescaler> using Timer1_FastPWM = Timer::FastPWMTimer<Info::Timer1Info,prescaler>;
-template <IntPrescaler prescaler> using Timer2_FastPWM = Timer::FastPWMTimer<Info::Timer2Info,prescaler>;
+typedef Timer::TimerDeclaration<Info::Timer0Info,ExtPrescaler::_1> Timer0;
+typedef Timer::TimerDeclaration<Info::Timer1Info,ExtPrescaler::_1> Timer1;
+typedef Timer::TimerDeclaration<Info::Timer2Info,IntPrescaler::_1> Timer2;
 
 ////////////////////////////// PINS /////////////////////////////////////////////////////////
 /**

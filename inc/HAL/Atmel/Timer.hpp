@@ -159,6 +159,20 @@ public:
     typedef void is_normal;
 };
 
+template <typename info, typename info::prescaler_t _prescaler>
+struct TimerDeclaration {
+    constexpr TimerDeclaration() {}
+
+    template <uint16_t prescaler>
+    constexpr auto withPrescaler() {
+        return TimerDeclaration<info, info::template prescalerFromInt<prescaler>()>();
+    }
+
+    inline NormalTimer<info, _prescaler> inNormalMode() const {
+        return NormalTimer<info, _prescaler>();
+    }
+};
+
 } // namespace Timer
 } // namespace Atmel
 } // namespace HAL
