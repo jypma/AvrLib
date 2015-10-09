@@ -36,12 +36,20 @@ struct Handler {
 template <typename handler, typename handler::Type &t, typename check = void>
 struct Callback {};
 
+template <typename callback1, typename callback2>
+struct Chain {
+    static inline void invoke() {
+        callback1::invoke();
+        callback2::invoke();
+    }
+};
+
 #define mkVECTOR(vect) \
     struct Vector##vect {} ; \
 \
     template <typename handler, typename handler::Type &t> \
     struct Callback<handler, t, typename std::enable_if<std::is_same<typename handler::VECT, Vector##vect >::value>::type>: public Vector##vect { \
-        static inline void on##vect () { \
+        static inline void invoke() { \
             (t.*handler::function)(); \
         } \
     }; \
@@ -61,11 +69,11 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
 
 #define __mkTYPEDEF_INT(vect) \
     typedef struct { \
-        static inline void on##vect () {} \
+        static inline void invoke() {} \
     } vect##Type; \
 
 #define __mkTYPEDEF_IFELSE(vect) \
-    typedef typename enable_ifelse<std::is_base_of<Vector##vect , callback>::value, callback, typename Next::vect##Type>::type vect##Type;
+    typedef typename enable_ifelse<std::is_base_of<Vector##vect , callback>::value, Chain<callback, typename Next::vect##Type>, typename Next::vect##Type>::type vect##Type;
 
 #define mkVECTORS(...) \
     FOR_EACH(mkVECTOR, __VA_ARGS__) \
@@ -92,7 +100,7 @@ mkVECTORS(INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, 
 
 #define __mkISR(name) \
     ISR( name##vect ) { \
-        __Table:: name##Type :: on##name (); \
+        __Table:: name##Type :: invoke(); \
     }
 
 /**
@@ -115,6 +123,7 @@ mkVECTORS(INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, 
 /**
  * Declares an interrupt handler in a class definition. The method name must be an instance method
  * of the class, and can be private. This macro must appear LAST in the class definition.
+ * The enclosing type must define have a This typedef, pointing at itself.
  *
  * @param vect The interrupt vector, e.g. `typename pin_t::INT` or an exact vector by
  *             invoking `INTERRUPT_VECTOR(USART_UDRE)`
@@ -129,6 +138,7 @@ typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> metho
 /**
  * Declares an interrupt handler in a class definition. The method name must be an instance method
  * of the class, and can be private. This macro must appear LAST in the class definition.
+ * The enclosing type must define have a This typedef, pointing at itself.
  *
  * @param vect The interrupt vector, e.g. `typename pin_t::INT` or an exact vector by
  *             invoking `INTERRUPT_VECTOR(USART_UDRE)`

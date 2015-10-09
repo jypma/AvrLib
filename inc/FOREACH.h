@@ -12,10 +12,10 @@
 #define FOR_EACH_RSEQ_N() 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
 #define CONCATENATE(x,y) x##y
 
-#define FOR_EACH_1(what, x, ...) what(x)
+#define FOR_EACH_1(what, sep, x, ...) what(x)
 #define FOR_EACH_2(what, sep, x, ...)\
   what(x) sep \
-  EXPAND(FOR_EACH_1(what,  __VA_ARGS__))
+  EXPAND(FOR_EACH_1(what, sep, __VA_ARGS__))
 #define FOR_EACH_3(what, sep, x, ...)\
   what(x) sep \
   EXPAND(FOR_EACH_2(what, sep, __VA_ARGS__))
@@ -87,7 +87,7 @@
 #define FOR_EACH_COMMA_1(what, x, ...) what(x)
 #define FOR_EACH_COMMA_2(what, x, ...)\
   what(x) , \
-  EXPAND(FOR_EACH_1(what,  __VA_ARGS__))
+  EXPAND(FOR_EACH_COMMA_1(what,  __VA_ARGS__))
 #define FOR_EACH_COMMA_3(what, x, ...)\
   what(x) , \
   EXPAND(FOR_EACH_COMMA_2(what, __VA_ARGS__))
