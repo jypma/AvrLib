@@ -8,9 +8,8 @@
 #ifndef RFM12_HPP_
 #define RFM12_HPP_
 
-#include "Pin.hpp"
+#include "HAL/Atmel/InterruptVectors.hpp"
 #include "SPI.hpp"
-#include "InterruptHandler.hpp"
 #include "BitSet.hpp"
 #include "Fifo.hpp"
 #include "CRC.hpp"
@@ -109,7 +108,7 @@ private:
         }
     }
 
-    void interrupt() {
+    void onInterrupt() {
         ints++;
         uint8_t in = 0;
         auto status = getStatus(in);
@@ -205,8 +204,6 @@ private:
         sendOrListen();
     }
 
-    InterruptHandler handler = { this, &This::interrupt };
-
     friend struct OOKTarget;
     struct OOKTarget {
         This *rfm12;
@@ -236,7 +233,7 @@ private:
                 // because of SPI delays, and the DELAY and TRANSMITTER_ON messages being processed by the RFM12
                 // at different delays, we need to make an adjustment between the desired pulse lengths, and the actual
                 // forwarded pulse lengths.
-                constexpr auto correction = toCountsOn<comparator_t>(240_us);
+                constexpr uint16_t correction = toCountsOn<comparator_t>(240_us);
                 if (result.isHigh()) {
                     result = Pulse(true, result.getDuration() + correction);
                 } else {
@@ -254,8 +251,6 @@ private:
 public:
     RFM12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band):
         spi(&_spi), ss_pin(&_ss_pin), int_pin(&_int_pin), comparator(&_comparator) {
-        int_pin->interrupt().attach(handler);
-
         enable(band);
     }
 
@@ -283,6 +278,7 @@ public:
         return rxFifo.hasContent();
     }
 
+    INTERRUPT_HANDLER1(typename int_pin_t::INT, onInterrupt);
 };
 
 template <typename spi_t,

@@ -9,6 +9,7 @@
 #define SERIAL_PULSE_HPP_
 
 #include "Streams/Streamable.hpp"
+#include "Time/Units.hpp"
 
 namespace Serial {
 

@@ -116,7 +116,147 @@ template<typename>
     : public __is_pointer_helper<typename remove_cv<_Tp>::type>::type
     { };
 
+  template<typename, typename>
+       struct is_base_of;
+
+  template<typename _Base, typename _Derived>
+        struct is_base_of
+        : public integral_constant<bool, __is_base_of(_Base, _Derived)>
+        { };
+
+  template<bool, typename, typename>
+          struct conditional;
+
+  // Primary template.
+     /// Define a member typedef @c type to one of two argument types.
+     template<bool _Cond, typename _Iftrue, typename _Iffalse>
+        struct conditional
+        { typedef _Iftrue type; };
+
+      // Partial specialization for false.
+      template<typename _Iftrue, typename _Iffalse>
+        struct conditional<false, _Iftrue, _Iffalse>
+        { typedef _Iffalse type; };
+
+     template<typename...>
+       struct __or_;
+
+     template<>
+       struct __or_<>
+       : public false_type
+       { };
+
+     template<typename _B1>
+       struct __or_<_B1>
+       : public _B1
+       { };
+
+     template<typename _B1, typename _B2>
+       struct __or_<_B1, _B2>
+       : public conditional<_B1::value, _B1, _B2>::type
+       { };
+
+     template<typename _B1, typename _B2, typename _B3, typename... _Bn>
+       struct __or_<_B1, _B2, _B3, _Bn...>
+       : public conditional<_B1::value, _B1, __or_<_B2, _B3, _Bn...>>::type
+      { };
+
+
+        template<typename...>
+          struct __and_;
+
+        template<>
+          struct __and_<>
+          : public true_type
+          { };
+
+        template<typename _B1>
+          struct __and_<_B1>
+          : public _B1
+          { };
+
+        template<typename _B1, typename _B2>
+          struct __and_<_B1, _B2>
+          : public conditional<_B1::value, _B2, _B1>::type
+          { };
+
+        template<typename _B1, typename _B2, typename _B3, typename... _Bn>
+          struct __and_<_B1, _B2, _B3, _Bn...>
+          : public conditional<_B1::value, __and_<_B2, _B3, _Bn...>, _B1>::type
+          { };
+
+        template<typename _Pp>
+          struct __not_
+          : public integral_constant<bool, !_Pp::value>
+          { };
+
+        template<typename>
+             struct remove_cv;
+
+           template<typename>
+             struct __is_void_helper
+             : public false_type { };
+
+           template<>
+             struct __is_void_helper<void>
+             : public true_type { };
+
+           /// is_void
+           template<typename _Tp>
+             struct is_void
+             : public integral_constant<bool, (__is_void_helper<typename
+                               remove_cv<_Tp>::type>::value)>
+             { };
+
+  template<typename>
+    struct add_rvalue_reference;
+
+  template<typename _Tp>
+    typename add_rvalue_reference<_Tp>::type declval() noexcept;
+
+  /// is_lvalue_reference
+       template<typename>
+         struct is_lvalue_reference
+         : public false_type { };
+
+       template<typename _Tp>
+         struct is_lvalue_reference<_Tp&>
+         : public true_type { };
+
+       /// is_rvalue_reference
+       template<typename>
+         struct is_rvalue_reference
+         : public false_type { };
+
+       template<typename _Tp>
+         struct is_rvalue_reference<_Tp&&>
+         : public true_type { };
+
+  /// is_reference
+      template<typename _Tp>
+        struct is_reference
+        : public __or_<is_lvalue_reference<_Tp>,
+                       is_rvalue_reference<_Tp>>::type
+         { };
+
+  template<typename _Tp,
+              bool = __and_<__not_<is_reference<_Tp>>,
+                            __not_<is_void<_Tp>>>::value>
+       struct __add_rvalue_reference_helper
+       { typedef _Tp   type; };
+
+     template<typename _Tp>
+       struct __add_rvalue_reference_helper<_Tp, true>
+       { typedef _Tp&&   type; };
+
+     /// add_rvalue_reference
+     template<typename _Tp>
+       struct add_rvalue_reference
+       : public __add_rvalue_reference_helper<_Tp>
+       { };
+
 }
+
 
 #endif
 #endif

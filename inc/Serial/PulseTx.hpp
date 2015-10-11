@@ -8,15 +8,16 @@
 #ifndef PULSETX_HPP_
 #define PULSETX_HPP_
 
+#include "HAL/Atmel/Timer.hpp"
 #include <stdint.h>
-#include "InterruptHandler.hpp"
-#include "Timer.hpp"
 #include "Fifo.hpp"
 #include "Serial/Pulse.hpp"
+#include "HAL/Atmel/InterruptVectors.hpp"
 
 namespace Serial {
 
 using namespace Streams;
+using namespace HAL::Atmel::Timer;
 
 template <typename target_t>
 class PulseTxCallbackTarget {
@@ -117,16 +118,9 @@ protected:
             comparator->interruptOff();
         }
     }
-    InterruptHandler onComparatorInt = { this, &This::onComparator };
 
 public:
-    PulseTx(comparator_t &_comparator, target_t &_target, source_t &_source): comparator(&_comparator), target(_target), src(&_source) {
-        comparator->interrupt().attach(onComparatorInt);
-    }
-
-    ~PulseTx() {
-        comparator->interrupt().detach();
-    }
+    PulseTx(comparator_t &_comparator, target_t &_target, source_t &_source): comparator(&_comparator), target(_target), src(&_source) {}
 
     /** Checks the source for new pulses and starts sending them. */
     void sendFromSource() {
@@ -153,6 +147,8 @@ public:
     inline bool isSending() {
         return pulse.isDefined();
     }
+
+    INTERRUPT_HANDLER1(typename comparator_t::INT, onComparator);
 };
 
 template <typename comparator_t, typename target_t, typename source_t>
@@ -192,18 +188,15 @@ protected:
             pin->timerComparator().interruptOff();
         }
     }
-    InterruptHandler onComparatorInt = { this, &This::onComparator };
 
 public:
     ComparatorPinPulseTx(pin_t &_pin, source_t &_source): pin(&_pin), src(&_source) {
         pin->configureAsOutput();
         pin->timerComparator().interruptOff();
         pin->timerComparator().setOutput(src->isHighOnIdle() ? NonPWMOutputMode::high_on_match : NonPWMOutputMode::low_on_match);
-        pin->timerComparator().interrupt().attach(onComparatorInt);
     }
 
     ~ComparatorPinPulseTx() {
-        pin->timerComparator().interrupt().detach();
         pin->setHigh(src->isHighOnIdle());
     }
 
@@ -240,6 +233,8 @@ public:
     inline bool isSending() {
         return pulse.isDefined();
     }
+
+    INTERRUPT_HANDLER1(typename pin_t::comparator_t::INT, onComparator);
 };
 
 template <typename pin_t, typename source_t>

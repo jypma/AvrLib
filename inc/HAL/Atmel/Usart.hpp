@@ -1,24 +1,12 @@
-/*
- * USART.hpp
- *
- *  Created on: Jan 7, 2015
- *      Author: jan
- */
-
-#ifndef USART_HPP_
-#define USART_HPP_
-
-#include "Fifo.hpp"
+#ifndef HAL_ATMEL_USART_HPP_
+#define HAL_ATMEL_USART_HPP_
 
 #include <avr/io.h>
-#include <avr/pgmspace.h>
-#include <avr/interrupt.h>
+#include "Fifo.hpp"
+#include "HAL/Atmel/InterruptVectors.hpp"
 
-extern AbstractFifo *usart0writeFifo;
-extern AbstractFifo *usart0readFifo;
-
-ISR(USART_UDRE_vect);
-ISR(USART_RXC_vect);
+namespace HAL {
+namespace Atmel {
 
 /**
  * Configures the USART to use the given baud rate, and configures both pins (0 and 1) as transmitter
@@ -77,10 +65,24 @@ template <typename info, uint8_t writeFifoCapacity>
 class UsartTx {
     typedef UsartFifo<info, writeFifoCapacity> fifo_t;
     fifo_t writeFifo;
+protected:
+    void onSendComplete() {
+        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
+        *info::ucsra |= _BV(TXC0);
+
+        uint8_t next;
+        if (writeFifo.fastread(next)) {
+            // There is more data in the output buffer. Send the next byte
+            *info::udr = next;
+        } else {
+            // Buffer empty, so disable interrupts
+            *info::ucsrb &= ~_BV(UDRIE0);
+        }
+    }
+
 public:
     UsartTx() {
         AtomicScope::SEI _;
-        info::writeFifo = &writeFifo;
     }
 
     inline Streams::Writer<fifo_t, Streams::BlockingWriteSemantics<fifo_t>> out() {
@@ -104,10 +106,15 @@ public:
 template <typename info, uint8_t readFifoCapacity>
 class UsartRx {
     Fifo<readFifoCapacity> readFifo;
+protected:
+    inline void onReceive() {
+        uint8_t ch = *info::udr;
+        readFifo.fastwrite(ch);
+    }
+
 public:
     UsartRx() {
         AtomicScope::SEI _;
-        info::readFifo = &readFifo;
     }
 
     inline Streams::Reader<AbstractFifo> in() {
@@ -137,17 +144,7 @@ public:
     }
 };
 
-struct Usart0Info {
-    static constexpr volatile uint8_t *ucsra = &UCSR0A;
-    static constexpr volatile uint8_t *ucsrb = &UCSR0B;
-    static constexpr volatile uint8_t *ucsrc = &UCSR0C;
-    static constexpr volatile uint16_t *ubrr = &UBRR0;
-    static constexpr volatile uint8_t *udr = &UDR0;
-    static constexpr AbstractFifo *&writeFifo = usart0writeFifo;
-    static constexpr AbstractFifo *&readFifo = usart0readFifo;
-};
+} // namespace AVR
+} // namespace HAL
 
-typedef Usart<Usart0Info> Usart0;
-template <uint8_t writeFifoCapacity = 16> using Usart0Tx = UsartTx<Usart0Info, writeFifoCapacity>;
-
-#endif /* USART_HPP_ */
+#endif /* HAL_ATMEL_USART_HPP_ */

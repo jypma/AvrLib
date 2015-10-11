@@ -1,7 +1,9 @@
-#include "ADConverter.hpp"
+#include "HAL/Atmel/ADConverter.hpp"
 #include <gtest/gtest.h>
 
 namespace ADCTest {
+
+using namespace HAL::Atmel;
 
 struct MockPin {
     struct info_t {

@@ -143,7 +143,7 @@ public:
     }
 
     /** Only for use in interrupts. Inlined, and does not disable interrupt flag. */
-    inline bool fastread(uint8_t &b) {
+    __attribute__((always_inline)) inline bool fastread(uint8_t &b) {
         const bool avail = markedOrWritePos() != readPos;
         if (avail) {
             b = buffer[readPos];
@@ -156,8 +156,8 @@ public:
     }
 
     /** Only for use in interrupts. Inlined, and does not disable interrupt flag. */
-    inline void fastwrite(uint8_t b) {
-        if (hasSpace()) {
+    __attribute__((always_inline)) inline void fastwrite(uint8_t b) {
+        if (_hasSpace()) {
             buffer[writePos] = b;
             writePos++;
             if (writePos >= bufferSize) {

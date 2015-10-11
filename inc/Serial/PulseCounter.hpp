@@ -8,8 +8,9 @@
 #ifndef PULSECOUNTER_HPP_
 #define PULSECOUNTER_HPP_
 
+#include "HAL/Atmel/InterruptVectors.hpp"
 #include "Fifo.hpp"
-#include "Timer.hpp"
+#include "HAL/Atmel/Timer.hpp"
 #include "Streams/Streamable.hpp"
 #include "Serial/Pulse.hpp"
 
@@ -18,7 +19,16 @@ namespace Serial {
 using namespace Streams;
 using namespace Time;
 
+
+
 /**
+ * TODO idea to rate limit interrupts: only check once every (timer_overflow) us.
+ *
+onINT(timer_overflow) {
+    re-enable onchange interrupt
+    if changed in the meantime, register change.
+}
+ *
  * Counts up/down pulse lengths on a pin by using a timer. The longest reported length is
  * the timer's maximum value - 1.
  */
@@ -46,6 +56,7 @@ private:
         const count_t end = comparator->getValue();
         const count_t length = (end > start) ? end - start :
                                Counting<count_t>::maximum - (start - end);
+        // FIXME this just completely messes up on/off counting. Implement rate limiting above instead.
         if (length > minimumLength) {
             fifo.out() << length;
         }
@@ -66,20 +77,15 @@ private:
         }
     }
 
-    InterruptHandler comp = { this, &This::onComparator };
-    InterruptHandler chng = { this, &This::onPinChanged };
-
 public:
     PulseCounter(comparator_t &_comparator, pin_t &_pin, count_t _minimumLength = 15):
         comparator(&_comparator), pin(&_pin), minimumLength(_minimumLength) {
         start = comparator->getValue();
 
         comparator->interruptOff();
-        comparator->interrupt().attach(comp);
         comparator->setTarget(0);
 
         pin->configureAsInputWithPullup();
-        pin->interrupt().attach(chng);
         pin->interruptOnChange();
 
         lastWasHigh = pin->isHigh();
@@ -87,9 +93,7 @@ public:
 
     ~PulseCounter() {
         comparator->interruptOff();
-        comparator->interrupt().detach();
         pin->interruptOff();
-        pin->interrupt().detach();
     }
 
     inline uint8_t getOverflows() {
@@ -117,6 +121,9 @@ public:
             }
         }
     }
+
+    INTERRUPT_HANDLER1(typename comparator_t::INT, onComparator);
+    INTERRUPT_HANDLER2(typename pin_t::INT, onPinChanged);
 };
 
 template <int fifo_length = 32, typename _comparator_t, typename pin_t, typename minimumLength_t>

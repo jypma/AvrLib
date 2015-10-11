@@ -9,5 +9,6 @@
 #define INTERRUPT_H_
 
 #include "avr/common.h"
+#include "avr/io.h"
 
 #endif /* INTERRUPT_H_ */

@@ -42,7 +42,7 @@ TEST(ESP8266Test, ESP_retries_reset_when_watchdog_fires) {
     EXPECT_TRUE(reset.high);
 
     reset.high = false;
-    rt.count = toCountsOn<MockRealTimer>(10000_ms) + 1000; // after timeout
+    rt.count = uint32_t(toCountsOn<MockRealTimer>(10000_ms)) + 1000; // after timeout
     esp.loop();
 
     EXPECT_TRUE(reset.high);

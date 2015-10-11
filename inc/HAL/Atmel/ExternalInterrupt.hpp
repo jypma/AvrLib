@@ -1,32 +1,19 @@
-/*
- * ExternalInterrupt.hpp
- *
- *  Created on: Jan 16, 2015
- *      Author: jan
- */
-
 #ifndef EXTERNALINTERRUPT_HPP_
 #define EXTERNALINTERRUPT_HPP_
 
-#include "InterruptHandler.hpp"
 #include <avr/common.h>
 #include <avr/interrupt.h>
 
-ISR(INT0_vect);
-ISR(INT1_vect);
+namespace HAL {
+namespace Atmel {
 
-extern InterruptChain extInt0;
-extern InterruptChain extInt1;
-
-template <typename info, InterruptChain &_interrupt>
+template <typename info>
 class ExtInterrupt {
 public:
-    InterruptChain &interrupt() {
-        return _interrupt;
-    }
+    typedef typename info::INT INT;
 
     /**
-     * Disables raising any interrupts for this pin (but does not remove any registered interrupt handler).
+     * Disables raising any interrupts for this pin
      */
     void interruptOff() {
         info::off();
@@ -34,7 +21,7 @@ public:
 
     /**
      * Invokes an attached interrupt handler whenever the pin is low. Works in all sleep modes.
-     * You should call externalInterruptOff() from your handler, otherwise it might be
+     * You should call interruptOff() from your handler, otherwise it might be
      * repeatedly invoked if the pin is still low when the interrupt handler returns.
      */
     void interruptOnLow() {
@@ -66,24 +53,8 @@ public:
     }
 };
 
-struct Int0Info {
-    inline static void on(uint8_t mode) {
-        EICRA = (EICRA & ~(_BV(ISC00) | _BV(ISC01))) | (mode << ISC00);
-        EIMSK |= _BV(INT0);
-    }
-    inline static void off() {
-        EIMSK &= ~_BV(INT0);
-    }
-};
+} // namespace Atmel
+} // namespace HAL
 
-struct Int1Info {
-    inline static void on(uint8_t mode) {
-        EICRA = (EICRA & ~(_BV(ISC10) | _BV(ISC11))) | (mode << ISC10);
-        EIMSK |= _BV(INT1);
-    }
-    inline static void off() {
-        EIMSK &= ~_BV(INT1);
-    }
-};
 
 #endif /* EXTERNALINTERRUPT_HPP_ */

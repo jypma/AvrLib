@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #define _AVR_IO_H_
+#define __AVR_ATmega328P__
 
 extern uint8_t sfr_mem[256];
 
@@ -32,9 +33,7 @@ extern uint8_t sfr_mem[256];
 #  define SREG_I  (7)
 
 #define _VECTOR(idx) vector_##idx
-#define ISR(name) void name()
-
-#include "avr/iom328p.h"
+#define ISR(name) void name ()
 
 #define _BV(bit) (1 << (bit))
 
