@@ -32,6 +32,27 @@ struct Int1Info {
     }
 };
 
+struct PCInt0Info {
+    typedef INTERRUPT_VECTOR(PCINT0) PCINT;
+    static constexpr uint8_t PCIE = PCIE0;
+    static constexpr volatile uint8_t *pin = &PINB;
+    static constexpr volatile uint8_t *pcmsk = &PCMSK0;
+};
+
+struct PCInt1Info {
+    typedef INTERRUPT_VECTOR(PCINT1) PCINT;
+    static constexpr uint8_t PCIE = PCIE1;
+    static constexpr volatile uint8_t *pin = &PINC;
+    static constexpr volatile uint8_t *pcmsk = &PCMSK1;
+};
+
+struct PCInt2Info {
+    typedef INTERRUPT_VECTOR(PCINT2) PCINT;
+    static constexpr uint8_t PCIE = PCIE2;
+    static constexpr volatile uint8_t *pin = &PIND;
+    static constexpr volatile uint8_t *pcmsk = &PCMSK2;
+};
+
 struct Usart0Info {
     static constexpr volatile uint8_t *ucsra = &UCSR0A;
     static constexpr volatile uint8_t *ucsrb = &UCSR0B;
@@ -352,6 +373,7 @@ struct PinOnPortC {
     static constexpr volatile uint8_t *pin = &PINC;
     static constexpr volatile uint8_t *pcmsk = &PCMSK1;
     static constexpr uint8_t bitmask = _BV(bit);
+    typedef Info::PCInt1Info pcintInfo;
 };
 
 struct PinPD0Info: public PinOnPortD<0> {
@@ -400,23 +422,29 @@ struct PinPB3Info: public PinOnPortB<3>, public GPIOPin, public PinOnTimer2 {};
 struct PinPB4Info: public PinOnPortB<4>, public GPIOPin {};
 struct PinPB5Info: public PinOnPortB<5>, public GPIOPin {};
 
-struct PinA0Info: public PinOnPortC<0>, public GPIOPin {
+struct PinPC0Info: public PinOnPortC<0>, public GPIOPin {
     static constexpr uint8_t adc_mux = 0;
+    static constexpr uint8_t pcintBit = 0;
 };
-struct PinA1Info: public PinOnPortC<1>, public GPIOPin {
+struct PinPC1Info: public PinOnPortC<1>, public GPIOPin {
     static constexpr uint8_t adc_mux = 1;
+    static constexpr uint8_t pcintBit = 1;
 };
-struct PinA2Info: public PinOnPortC<2>, public GPIOPin {
+struct PinPC2Info: public PinOnPortC<2>, public GPIOPin {
     static constexpr uint8_t adc_mux = 2;
+    static constexpr uint8_t pcintBit = 2;
 };
-struct PinA3Info: public PinOnPortC<3>, public GPIOPin {
+struct PinPC3Info: public PinOnPortC<3>, public GPIOPin {
     static constexpr uint8_t adc_mux = 3;
+    static constexpr uint8_t pcintBit = 3;
 };
-struct PinA4Info: public PinOnPortC<4>, public GPIOPin {
+struct PinPC4Info: public PinOnPortC<4>, public GPIOPin {
     static constexpr uint8_t adc_mux = 4;
+    static constexpr uint8_t pcintBit = 4;
 };
-struct PinA5Info: public PinOnPortC<5>, public GPIOPin {
+struct PinPC5Info: public PinOnPortC<5>, public GPIOPin {
     static constexpr uint8_t adc_mux = 5;
+    static constexpr uint8_t pcintBit = 5;
 };
 struct PinA6Info {
     static constexpr uint8_t adc_mux = 6;
@@ -662,15 +690,45 @@ typedef Pin<Info::PinPB4Info> PinPB4;
  */
 typedef Pin<Info::PinPB5Info> PinPB5;
 
+/**
+ * Declares pin PC0 / ADC0 / PCINT8 / Arduino Analog 0.
+ */
+typedef PinWithPinChangeOption<Info::PinPC0Info> PinPC0;
 
-typedef Pin<Info::PinA0Info> PinA0;
-typedef Pin<Info::PinA1Info> PinA1;
-typedef Pin<Info::PinA2Info> PinA2;
-typedef Pin<Info::PinA3Info> PinA3;
-typedef Pin<Info::PinA4Info> PinA4;
-typedef Pin<Info::PinA5Info> PinA5;
-typedef ADCOnlyPin<Info::PinA6Info> PinA6;
-typedef ADCOnlyPin<Info::PinA7Info> PinA7;
+/**
+ * Declares pin PC1 / ADC1 / PCINT9 / Arduino Analog 1.
+ */
+typedef PinWithPinChangeOption<Info::PinPC1Info> PinPC1;
+
+/**
+ * Declares pin PC2 / ADC2 / PCINT10 / Arduino Analog 2.
+ */
+typedef PinWithPinChangeOption<Info::PinPC2Info> PinPC2;
+
+/**
+ * Declares pin PC3 / ADC3 / PCINT11 / Arduino Analog 3.
+ */
+typedef PinWithPinChangeOption<Info::PinPC3Info> PinPC3;
+
+/**
+ * Declares pin PC4 / ADC4 / PCINT12 / Arduino Analog 4.
+ */
+typedef PinWithPinChangeOption<Info::PinPC4Info> PinPC4;
+
+/**
+ * Declares pin PC5 / ADC5 / PCINT13 / Arduino Analog 5.
+ */
+typedef PinWithPinChangeOption<Info::PinPC5Info> PinPC5;
+
+/**
+ * Declares pin ADC6 / Arduino Analog 6.
+ */
+typedef ADCOnlyPin<Info::PinA6Info> PinADC6;
+
+/**
+ * Declares pin ADC7 / Arduino Analog 7.
+ */
+typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
 
 } // namespace Atmel
 } // namespace HAL
@@ -679,6 +737,6 @@ typedef ADCOnlyPin<Info::PinA7Info> PinA7;
  * Defines all ISRS that exist on THIS chip.
  */
 #define __mk_ALL_ISRS \
-    FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
+    FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_, PCINT0_, PCINT1_, PCINT2_)
 
 #endif /* HAL_ATMEL_DEVICES_ATMEGA328_HPP_ */

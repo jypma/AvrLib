@@ -22,7 +22,7 @@ struct enable_ifelse<true, _Tp, Fallback>
     typedef _Tp type;
 };
 
-template <typename VectorName, typename T, void (T::*f)()>
+template <typename VectorName, typename T, void (T::*f)(), typename check = void>
 struct Handler {
     typedef VectorName VECT;
     typedef T Type;
@@ -33,27 +33,54 @@ struct Handler {
     }
 };
 
-template <typename handler, typename handler::Type &t, typename check = void>
-struct Callback {};
+/**
+ * Handler definition for where the first template argument is in fact a wrapping vector.
+ * A wrapping vector must define a nested type VECT, which is the actual interrupt vector,
+ * and a static wrapping function
+ *
+ *     template <typename body_t>
+ *     static void wrap(body_t body) {
+ *          // possibly invoke body() at some point
+ *     }
+ *
+ * The wrapper is invoked whenever the interrupt occurs, and can choose to delegate to the
+ * actual class that is listening on this handler.
+ */
+template <typename VectorName, typename T, void (T::*f)()>
+struct Handler<VectorName, T, f, typename std::enable_if<std::is_class<typename VectorName::VECT>::value>::type> {
+    typedef typename VectorName::VECT VECT;
+    typedef T Type;
+    static constexpr void (T::*function)() = f;
 
-template <typename callback1, typename callback2>
-struct Chain {
-    static inline void invoke() {
-        callback1::invoke();
-        callback2::invoke();
+    static void invoke(T &t) {
+        VectorName::wrap([&t] {
+            (t.*f)();
+        });
     }
 };
+
+
+template <typename handler, typename handler::Type &t, typename check = void>
+struct Callback {};
 
 #define mkVECTOR(vect) \
     struct Vector##vect {} ; \
 \
     template <typename handler, typename handler::Type &t> \
     struct Callback<handler, t, typename std::enable_if<std::is_same<typename handler::VECT, Vector##vect >::value>::type>: public Vector##vect { \
-        static inline void invoke() { \
+        static inline void on##vect () { \
             (t.*handler::function)(); \
         } \
     }; \
 \
+    template <typename callback1, typename callback2> \
+    struct Chain##vect { \
+        static inline void on##vect () { \
+            callback1::on##vect (); \
+            callback2::on##vect (); \
+        } \
+    };
+
 
 template <typename type, type &t, typename check = void>
 struct Callbacks2 {};
@@ -69,11 +96,11 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
 
 #define __mkTYPEDEF_INT(vect) \
     typedef struct { \
-        static inline void invoke() {} \
+        static inline void on##vect () {} \
     } vect##Type; \
 
 #define __mkTYPEDEF_IFELSE(vect) \
-    typedef typename enable_ifelse<std::is_base_of<Vector##vect , callback>::value, Chain<callback, typename Next::vect##Type>, typename Next::vect##Type>::type vect##Type;
+    typedef typename enable_ifelse<std::is_base_of<Vector##vect , callback>::value, Chain##vect<callback, typename Next::vect##Type>, typename Next::vect##Type>::type vect##Type;
 
 #define mkVECTORS(...) \
     FOR_EACH(mkVECTOR, __VA_ARGS__) \
@@ -93,14 +120,31 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
 /**
  * Defines all types for the complete list of ISR names that might exist on ANY Atmel chip.
  */
-mkVECTORS(INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_)
+mkVECTORS(\
+        INT0_, \
+        INT1_, \
+        TIMER0_OVF_, \
+        TIMER0_COMPA_, \
+        TIMER0_COMPB_, \
+        TIMER1_OVF_, \
+        TIMER1_COMPA_, \
+        TIMER1_COMPB_, \
+        TIMER2_OVF_, \
+        TIMER2_COMPA_, \
+        TIMER2_COMPB_, \
+        USART_RX_, \
+        USART_UDRE_, \
+        PCINT0_, \
+        PCINT1_, \
+        PCINT2_, \
+        PCINT0_BIT0 )  // <-- invoke a special mkISRS for this one.
 
 #define __mkVECTOR_CALLBACK(var) \
     ::HAL::Atmel::InterruptVectors::Callbacks1<decltype(var), var>
 
 #define __mkISR(name) \
     ISR( name##vect ) { \
-        __Table:: name##Type :: invoke(); \
+        __Table:: name##Type :: on##name (); \
     }
 
 /**

@@ -56,6 +56,7 @@ private:
         const count_t end = comparator->getValue();
         const count_t length = (end > start) ? end - start :
                                Counting<count_t>::maximum - (start - end);
+        // FIXME this just completely messes up on/off counting. Implement rate limiting above instead.
         if (length > minimumLength) {
             fifo.out() << length;
         }

@@ -3,6 +3,7 @@
 
 #include <HAL/Atmel/Usart.hpp>
 #include "HAL/Atmel/ExternalInterrupt.hpp"
+#include "HAL/Atmel/PinChangeInterrupt.hpp"
 #include "HAL/Atmel/Timer.hpp"
 
 namespace HAL {
@@ -11,6 +12,8 @@ namespace Atmel {
 template <typename info>
 class Pin {
 public:
+    constexpr Pin() {}
+
     typedef info info_t;
 
     void configureAsOutput() const {
@@ -190,6 +193,18 @@ public:
             *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(Timer::NonPWMOutputMode::low_on_match) << info::output_mode_bitstart);
             *info::tccrb |= (1 << info::foc);
         }
+    }
+};
+
+template <typename info>
+class PinWithPinChange: public Pin<info>, public PinChangeInterrupt<typename info::pcintInfo, _BV(info::pcintBit)> {
+
+};
+template <typename info>
+class PinWithPinChangeOption: public Pin<info> {
+public:
+    static PinWithPinChange<info> withInterrupt() {
+        return PinWithPinChange<info>();
     }
 };
 
