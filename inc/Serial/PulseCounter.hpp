@@ -13,22 +13,14 @@
 #include "HAL/Atmel/Timer.hpp"
 #include "Streams/Streamable.hpp"
 #include "Serial/Pulse.hpp"
+#include "Logging.hpp"
 
 namespace Serial {
 
 using namespace Streams;
 using namespace Time;
 
-
-
 /**
- * TODO idea to rate limit interrupts: only check once every (timer_overflow) us.
- *
-onINT(timer_overflow) {
-    re-enable onchange interrupt
-    if changed in the meantime, register change.
-}
- *
  * Counts up/down pulse lengths on a pin by using a timer. The longest reported length is
  * the timer's maximum value - 1.
  */
@@ -42,38 +34,47 @@ public:
     typedef typename comparator_t::value_t count_t;
 
 private:
+    typedef Logging::Log<Loggers::Serial> log;
 
     Fifo<fifo_length> fifo;
     volatile count_t start;
-    volatile bool wasEmptyPeriod = true;
-    bool lastWasHigh;
+    volatile bool wasEmptyPeriod = false;
+    bool lastReadWasHigh;
+    bool lastWriteWasHigh;
 
     _comparator_t *const comparator;
     pin_t *const pin;
     const count_t minimumLength;
 
     void onPinChanged() {
+        lastWriteWasHigh = pin->isHigh();
         const count_t end = comparator->getValue();
         const count_t length = (end > start) ? end - start :
                                Counting<count_t>::maximum - (start - end);
-        // FIXME this just completely messes up on/off counting. Implement rate limiting above instead.
-        if (length > minimumLength) {
-            fifo.out() << length;
-        }
+
+        log::debug("onPinChanged start=%d end=%d high=%d", start, end, lastWriteWasHigh);
+        fifo.out() << length;
+        pin->interruptOff();
+        comparator->setTarget(end + minimumLength);
+
         wasEmptyPeriod = false;
         comparator->interruptOn();
         start = end;
     }
 
     void onComparator() {
+        log::debug("onComparator empty=%d high=%d last=%d", wasEmptyPeriod, pin->isHigh(), lastWriteWasHigh);
         if (wasEmptyPeriod) {
-            if (!(fifo.out() << ((count_t) 0))) {
-                fifo.clear();
-                fifo.out() << ((count_t) 0);
-            }
+            // timeout
+            fifo.out() << ((count_t) 0);
             comparator->interruptOff();
         } else {
             wasEmptyPeriod = true;
+            if (pin->isHigh() != lastWriteWasHigh) {
+                onPinChanged();
+            } else {
+                pin->interruptOnChange();
+            }
         }
     }
 
@@ -82,13 +83,13 @@ public:
         comparator(&_comparator), pin(&_pin), minimumLength(_minimumLength) {
         start = comparator->getValue();
 
-        comparator->interruptOff();
-        comparator->setTarget(0);
-
         pin->configureAsInputWithPullup();
-        pin->interruptOnChange();
+        pin->interruptOff();
 
-        lastWasHigh = pin->isHigh();
+        lastReadWasHigh = pin->isHigh();
+        lastWriteWasHigh = pin->isHigh();
+        comparator->setTarget(start + minimumLength);
+        comparator->interruptOn();
     }
 
     ~PulseCounter() {
@@ -104,8 +105,8 @@ public:
     inline void on(Body body) {
         count_t length ;
         if (fifo.in() >> length) {
-            body(Pulse(lastWasHigh, length));
-            lastWasHigh = !lastWasHigh;
+            body(Pulse(lastReadWasHigh, length));
+            lastReadWasHigh = !lastReadWasHigh;
         }
     }
 
@@ -114,8 +115,8 @@ public:
         for (uint8_t i = maxPulses; i > 0; i--) {
             count_t length ;
             if (fifo.in() >> length) {
-                body(Pulse(lastWasHigh, length));
-                lastWasHigh = !lastWasHigh;
+                body(Pulse(lastReadWasHigh, length));
+                lastReadWasHigh = !lastReadWasHigh;
             } else {
                 return;
             }

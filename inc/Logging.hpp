@@ -53,6 +53,7 @@ struct MessagesEnabled {
         va_start(argp, fmt);
         vprintf(fmt, argp);
         va_end(argp);
+        printf("\n");
     }
 #else
     inline static void debug(const char *fmt, ...) {
