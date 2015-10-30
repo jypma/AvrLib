@@ -115,6 +115,12 @@ public:
         return *this;
     }
 
+    /** Reads a single byte */
+    inline Reader & operator >> (int8_t &b) {
+        readLiteral(b);
+        return *this;
+    }
+
     /** Reads a single char */
     inline Reader & operator >> (char &b) {
         readLiteral(b);
@@ -127,8 +133,20 @@ public:
         return *this;
     }
 
+    /** Reads a single int16_t, LSB first (little endian) */
+    inline Reader & operator >> (int16_t &b) {
+        readLiteral(b);
+        return *this;
+    }
+
     /** Reads a single uint32_t, LSB first (little endian) */
     inline Reader & operator >> (uint32_t &b) {
+        readLiteral(b);
+        return *this;
+    }
+
+    /** Reads a single int32_t, LSB first (little endian) */
+    inline Reader & operator >> (int32_t &b) {
         readLiteral(b);
         return *this;
     }

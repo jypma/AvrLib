@@ -174,6 +174,12 @@ public:
     }
 
     /** Writes a single byte */
+    inline Writer &operator << (const int8_t value) {
+        writeLiteral(value);
+        return *this;
+    }
+
+    /** Writes a single byte */
     inline Writer &operator << (const char value) {
         writeLiteral(value);
         return *this;
@@ -185,8 +191,20 @@ public:
         return *this;
     }
 
+    /** Writes a single int16_t, LSB first (little endian) */
+    inline Writer &operator << (const int16_t value) {
+        writeLiteral(value);
+        return *this;
+    }
+
     /** Writes a single uint32_t, LSB first (little endian) */
     inline Writer &operator << (const uint32_t value) {
+        writeLiteral(value);
+        return *this;
+    }
+
+    /** Writes a single int32_t, LSB first (little endian) */
+    inline Writer &operator << (const int32_t value) {
         writeLiteral(value);
         return *this;
     }
