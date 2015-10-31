@@ -164,7 +164,7 @@ struct TimerDeclaration {
     constexpr TimerDeclaration() {}
 
     template <uint16_t prescaler>
-    constexpr auto withPrescaler() {
+    constexpr TimerDeclaration<info, info::template prescalerFromInt<prescaler>()> withPrescaler() {
         return TimerDeclaration<info, info::template prescalerFromInt<prescaler>()>();
     }
 

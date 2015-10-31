@@ -29,13 +29,13 @@ template<
     uint16_t EEPROM::*remotePort,
     typename tx_pin_t,
     typename rx_pin_t,
-    typename reset_pin_t,
+    typename powerdown_pin_t,
     typename rt_t,
     uint8_t txFifoSize = 64,
     uint8_t rxFifoSize = 64
 >
 class ESP8266 {
-    typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_pin_t, rt_t, txFifoSize, rxFifoSize> This;
+    typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize> This;
 
     template <typename... Fields> using Format = Parts::Format<This, Fields...>;
     template <typename FieldType, FieldType This::*field, class Check = void> using Scalar = Parts::Scalar<This, FieldType, field, Check>;
@@ -52,17 +52,17 @@ private:
     State state = State::RESTARTING;
     tx_pin_t *tx;
     rx_pin_t *rx;
-    reset_pin_t *reset_pin;
+    powerdown_pin_t *pd_pin;
     Deadline<rt_t,decltype (10000_ms)> watchdog;
 
     void restart() {
-        reset_pin->setLow();
+        pd_pin->setLow();
         _delay_ms(1);
-        reset_pin->setHigh();
+        pd_pin->setHigh();
         _delay_ms(1);
-        reset_pin->setLow();
+        pd_pin->setLow();
         _delay_ms(1);
-        reset_pin->setHigh();
+        pd_pin->setHigh();
         state = State::RESTARTING;
         watchdog.reset();
     }
@@ -211,8 +211,8 @@ private:
 
 
 public:
-    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, reset_pin_t &_reset, rt_t &rt): tx(&_tx), rx(&_rx), reset_pin(&_reset), watchdog(rt) {
-        reset_pin->configureAsOutput();
+    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, powerdown_pin_t &_pd, rt_t &rt): tx(&_tx), rx(&_rx), pd_pin(&_pd), watchdog(rt) {
+        pd_pin->configureAsOutput();
         restart();
     }
 

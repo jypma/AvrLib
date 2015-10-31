@@ -7,7 +7,7 @@
 
 namespace FS20 {
 
-enum class State { SYNC, RECEIVING };
+enum class State: uint8_t { SYNC, RECEIVING };
 
 using namespace Time;
 

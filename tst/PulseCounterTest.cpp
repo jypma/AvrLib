@@ -52,8 +52,20 @@ struct MockPin {
 
     }
 
+    void configureAsOutput() {
+
+    }
+
     bool isHigh() {
         return high;
+    }
+
+    void setHigh(bool h) {
+        high = h;
+    }
+
+    void setLow() {
+        high = false;
     }
 };
 
