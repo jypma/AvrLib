@@ -41,8 +41,10 @@ struct TimingEnabled {
 };
 
 struct MessagesDisabled {
-    inline static void debug(const char *fmt, ...);
+    inline static void debug(const char *fmt, ...) {}
 };
+
+extern void (*onMessage)(const char *msg);
 
 template <typename loggerName = STR("")>
 struct MessagesEnabled {
@@ -58,12 +60,16 @@ struct MessagesEnabled {
 #else
     inline static void debug(const char *fmt, ...) {
         // TODO implement on-chip debug message mechanism, pluggable? wifi?
+        if (onMessage != nullptr) {
+            onMessage(loggerName::data());
+            onMessage(fmt);
+        }
     }
 #endif
 };
 
 template <typename T>
-struct Log: public TimingDisabled {
+struct Log: public TimingDisabled, public MessagesDisabled{
 
 };
 

@@ -177,7 +177,7 @@ mkVECTORS(\
     template <typename, typename, typename> friend struct ::HAL::Atmel::InterruptVectors::Callback; \
 public: \
     typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> Handler1; \
-typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> method##Handler;
+    typedef ::HAL::Atmel::InterruptVectors::Handler<vect, This, &This::method> method##Handler;
 
 /**
  * Declares an interrupt handler in a class definition. The method name must be an instance method

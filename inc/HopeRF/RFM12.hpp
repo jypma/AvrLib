@@ -8,6 +8,7 @@
 #ifndef RFM12_HPP_
 #define RFM12_HPP_
 
+#include "Logging.hpp"
 #include "HAL/Atmel/InterruptVectors.hpp"
 #include "SPI.hpp"
 #include "BitSet.hpp"
@@ -21,6 +22,7 @@
 #include "HopeRF/RFM12Strength.hpp"
 #include "FS20/FS20Packet.hpp"
 #include "Serial/SerialTx.hpp"
+#include "Time/Units.hpp"
 
 namespace HopeRF {
 
@@ -30,17 +32,20 @@ enum class RFM12Band: uint8_t {
     _433MHz = 1, _868Mhz = 2, _915MHz = 3
 };
 
+enum class RFM12Mode: uint8_t { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK };
+
 template <typename spi_t,
           typename ss_pin_t,
           typename int_pin_t,
           typename comparator_t,
-          bool checkCrc = true,
-          int rxFifoSize = 32, int txFifoSize = 32>
+          bool checkCrc,
+          int rxFifoSize, int txFifoSize>
 class RFM12 {
     typedef RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize> This;
+    typedef Logging::Log<Loggers::RFM12> log;
 
 public:
-    enum class Mode { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK };
+    typedef RFM12Mode Mode;
 
 private:
     volatile Mode mode = Mode::IDLE;
@@ -80,8 +85,10 @@ private:
     volatile uint8_t lastLen = 0;
     volatile uint8_t recvCount = 0;
     volatile uint8_t underruns = 0;
+    volatile uint16_t pulses = 0;
 
-    void commandIdle() {
+    void idle() {
+        log::debug("idle()");
         command(0x820D);  // RF_IDLE_MODE
         mode = Mode::IDLE;
     }
@@ -93,15 +100,18 @@ private:
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
                 if (txFifo.readStart()) {
+                    log::debug("sendOrListen(): send FSK");
                     mode = Mode::SENDING_FSK;
                     command(0x823D); // RF_XMITTER_ON
                 } else {
+                    log::debug("sendOrListen(): send OOK");
                     mode = Mode::SENDING_OOK;
                     int_pin->interruptOff();
                     command(0x820D);  // RF_IDLE_MODE
                     ookTx.sendFromSource();
                 }
             } else {
+                log::debug("sendOrListen(): listen");
                 mode = Mode::LISTENING;
                 command(0x82DD); // RF_RECEIVER_ON
             }
@@ -111,6 +121,7 @@ private:
     void onInterrupt() {
         ints++;
         uint8_t in = 0;
+        // The RFM12 will keep the INT line low until we read the status register.
         auto status = getStatus(in);
         if (status[RFM12Status::READY_FOR_NEXT_BYTE]) {
             if (mode == Mode::SENDING_OOK) {
@@ -122,7 +133,7 @@ private:
                     txFifo.read(b);
                     command(0xB800 | b); // RF_TXREG_WRITE
                 } else {
-                    commandIdle();
+                    idle();
                     command(0xB8AA);     // RF_TXREG_WRITE 0xAA (postfix)
                     sendOrListen();
                 }
@@ -141,7 +152,7 @@ private:
 
                 if (!rxFifo.isWriting()) {
                     // fifo expects no further bytes -> either we just received the last byte, or length was 0
-                    commandIdle();
+                    idle();
                     sendOrListen();
                 }
             }
@@ -149,7 +160,7 @@ private:
 
         // power-on reset
         if (status[RFM12Status::POWER_ON_RESET]) {
-            commandIdle();
+            idle();
             sendOrListen();
         }
 
@@ -158,7 +169,7 @@ private:
             underruns++;
             rxFifo.writeAbort();
             txFifo.readAbort();
-            commandIdle();
+            idle();
             sendOrListen();
         }
     }
@@ -209,6 +220,9 @@ private:
         This *rfm12;
 
         void setHigh(bool high) {
+            if (rfm12->mode != Mode::SENDING_OOK) {
+                return;
+            }
             if (high) {
                 rfm12->command(0x823D); // RF_XMITTER_ON
             } else {
@@ -224,11 +238,17 @@ private:
         OOKSource(This *_rfm12, ChunkedFifo &_fifo): ChunkPulseSource(_fifo), rfm12(_rfm12) {}
 
         Pulse getNextPulse() {
+            rfm12->pulses++;
             Pulse result = ChunkPulseSource::getNextPulse();
             if (result.isEmpty()) {
-                rfm12->commandIdle();
-                rfm12->int_pin->interruptOnLow();
+                rfm12->command(0xB800); // RF_TXREG_WRITE, we need to clear the TX buffer to leave OOK mode.
+                                        // If we don't, we'll end in endless interrupt loop.
+                while (rfm12->int_pin->isLow()) {
+                    rfm12->command(0x0000);
+                }
+                rfm12->idle();
                 rfm12->sendOrListen();
+                rfm12->int_pin->interruptOnLow();
             } else {
                 // because of SPI delays, and the DELAY and TRANSMITTER_ON messages being processed by the RFM12
                 // at different delays, we need to make an adjustment between the desired pulse lengths, and the actual
@@ -246,8 +266,14 @@ private:
 
     OOKTarget ookTarget = { this };
     OOKSource ookSource = { this, txFifo.getChunkedFifo() };
+    typedef CallbackPulseTx<comparator_t, OOKTarget, OOKSource> ookTx_t;
     CallbackPulseTx<comparator_t, OOKTarget, OOKSource> ookTx = pulseTx(*comparator, ookTarget, ookSource);
     SerialConfig fs20SerialConfig = FS20::FS20Packet::serialConfig<comparator_t>();
+
+    void onComparator() {
+        ookTx_t::onComparatorHandler::invoke(ookTx);
+    }
+
 public:
     RFM12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band):
         spi(&_spi), ss_pin(&_ss_pin), int_pin(&_int_pin), comparator(&_comparator) {
@@ -258,7 +284,7 @@ public:
         enable(band);
     }
 
-    Mode getMode() {
+    Mode getMode() const {
         return mode;
     }
 
@@ -271,6 +297,7 @@ public:
     }
 
     inline void out_fs20(const FS20::FS20Packet &packet) {
+        log::debug("queueing FS20");
         txFifo.out(&fs20SerialConfig) << packet;
     }
 
@@ -279,6 +306,7 @@ public:
     }
 
     INTERRUPT_HANDLER1(typename int_pin_t::INT, onInterrupt);
+    INTERRUPT_HANDLER2(typename comparator_t::INT, onComparator);
 };
 
 template <typename spi_t,

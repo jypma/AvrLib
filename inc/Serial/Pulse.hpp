@@ -48,12 +48,14 @@ public:
 
 template <typename prescaled_t, typename Value>
 Pulse constexpr highPulseOn(Value duration) {
-    return Pulse(true, toCountsOn<prescaled_t>(duration));
+    constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration);
+    return Pulse(true, value);
 }
 
 template <typename prescaled_t, typename Value>
 Pulse constexpr lowPulseOn(Value duration) {
-    return Pulse(false, toCountsOn<prescaled_t>(duration));
+    constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration);
+    return Pulse(false, value);
 }
 
 }
