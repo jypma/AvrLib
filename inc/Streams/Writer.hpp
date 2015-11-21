@@ -221,6 +221,23 @@ public:
         return *this;
     }
 
+    /** Writes the remaining bytes of the given reader as decimal, separated by commas */
+    template <typename reader_fifo_t>
+    Writer &operator << (Decimal<Reader<reader_fifo_t>> in) {
+        const uint8_t length = in.value.getReadAvailable();
+        bool first = true;
+        for (uint8_t i = 0; i < length; i++) {
+            uint8_t value;
+            in.value >> value;
+            if (!first) {
+                writeLiteral(',');
+            }
+            Format::format(&This::writeByte, this, dec(value));
+            first = false;
+        }
+        return *this;
+    }
+
     inline Writer &operator << (Decimal<uint8_t> v) {
         Format::format(&This::writeByte, this, v);
         return *this;
