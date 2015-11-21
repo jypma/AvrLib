@@ -27,7 +27,9 @@ public:
     }
 
     static inline void write(fifo_t &fifo, uint8_t value) {
-        while (fifo.isFull()) ;
+        if ((SREG & (1 << SREG_I)) > 0) {
+            while (fifo.isFull()) ;
+        }
 
         fifo.uncheckedWrite(value);
     }

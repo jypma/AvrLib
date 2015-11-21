@@ -40,9 +40,11 @@ struct MockFifo {
         return space;
     }
     void uncheckedWrite(uint8_t ch) {
-        buffer[length] = ch;
-        length++;
-        space--;
+        if (pretendFull == 0) {
+            buffer[length] = ch;
+            length++;
+            space--;
+        }
     }
 
 };
@@ -292,6 +294,7 @@ TEST(WriterTest, can_write_chunk_from_chunked_fifo_as_reader) {
 
 TEST(WriterTest, blocking_write_semantics_block_until_fifo_no_longer_full) {
     MockFifo out;
+    SREG = (1 << SREG_I);
     out.pretendFull = 10;
     {
         auto w = Writer<MockFifo,BlockingWriteSemantics<MockFifo>>(out);
@@ -303,6 +306,19 @@ TEST(WriterTest, blocking_write_semantics_block_until_fifo_no_longer_full) {
     EXPECT_EQ('1', out.buffer[0]);
     EXPECT_EQ('0', out.buffer[1]);
     EXPECT_EQ('2', out.buffer[2]);
+}
+
+TEST(WriterTest, blocking_write_semantics_dont_block_when_interrupts_are_off) {
+    MockFifo out;
+    SREG = 0;
+    out.pretendFull = 10;
+    {
+        auto w = Writer<MockFifo,BlockingWriteSemantics<MockFifo>>(out);
+        w << dec(uint8_t(102));
+    }
+
+    EXPECT_EQ(0, out.isFullInvocations);
+    EXPECT_EQ(0, out.length);
 }
 
 }
