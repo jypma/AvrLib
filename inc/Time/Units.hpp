@@ -16,7 +16,7 @@ public:
     template <typename I>
     constexpr operator I() {
         static_assert(isValid<I>(),
-                "A value does not fit in return_t, you might want to widen the return type.");
+                "A value does not fit in return_t, you might want to widen the return type, or in case of a timed value, increase the timer prescaler.");
         return value;
     }
 
@@ -167,6 +167,73 @@ public:
 template <char ...cv>
 constexpr Milliseconds<cv...> operator "" _ms() { return Milliseconds<cv...>(); }
 
+
+template <char... cv>
+class Seconds: public TimeUnit<cv...> {
+public:
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toCounts() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value;
+        static_assert(result > 1,
+                "Number of counts for seconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        return result;
+    }
+
+    template <uint64_t value = TimeUnit<cv...>::to_uint64, typename prescaled_t>
+    static constexpr uint64_t toCounts(const prescaled_t &) {
+        return toCounts<prescaled_t, value>();
+    }
+
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toTicks() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / (prescaled_t::maximum  + 1) ;
+        static_assert(result > 1,
+                "Number of ticks for seconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        return result;
+    }
+
+    template <int percentage>
+    static constexpr MultipliedTimeUnit<Seconds<cv...>,percentage> percent() {
+        return MultipliedTimeUnit<Seconds<cv...>,percentage>();
+    }
+};
+
+template <char ...cv>
+constexpr Seconds<cv...> operator "" _s() { return Seconds<cv...>(); }
+
+
+template <char... cv>
+class Minutes: public TimeUnit<cv...> {
+public:
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toCounts() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value * 60;
+        static_assert(result > 1,
+                "Number of counts for minutes is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        return result;
+    }
+
+    template <uint64_t value = TimeUnit<cv...>::to_uint64, typename prescaled_t>
+    static constexpr uint64_t toCounts(const prescaled_t &) {
+        return toCounts<prescaled_t, value>();
+    }
+
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toTicks() {
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value * 60 / (prescaled_t::maximum  + 1) ;
+        static_assert(result > 1,
+                "Number of ticks for minutes is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
+        return result;
+    }
+
+    template <int percentage>
+    static constexpr MultipliedTimeUnit<Minutes<cv...>,percentage> percent() {
+        return MultipliedTimeUnit<Minutes<cv...>,percentage>();
+    }
+};
+
+template <char ...cv>
+constexpr Minutes<cv...> operator "" _min() { return Minutes<cv...>(); }
 
 /**
  * Converts the given time unit duration to timer counts, when running on the given prescaled timer.

@@ -229,6 +229,7 @@ public:
     VariableDeadline(rt_t &_rt): rt(&_rt) {}
 
     bool isNow() {
+        AtomicScope _;
         if (!elapsed) {
             if (rt->counts() >= next) {
                 elapsed = true;
@@ -244,12 +245,13 @@ public:
     template <typename value>
     void reset(value v) {
         constexpr uint32_t delay = toCountsOn<rt_t>(v);
-        uint32_t startTime = rt->counts();
+        volatile uint32_t startTime = rt->counts();
         if (uint32_t(0xFFFFFFFF) - startTime < delay) {
             // we expect an integer wraparound.
             // first, wait for the int to overflow (with some margin)
             while (rt->counts() > 5) ;
         }
+        AtomicScope _;
         next = startTime + delay;
         elapsed = false;
     }

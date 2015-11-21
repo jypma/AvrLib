@@ -39,16 +39,15 @@ TEST(ESP8266Test, ESP_retries_reset_when_watchdog_fires) {
 
     reset.high = false;
     auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset, rt);
-    EXPECT_TRUE(reset.high);
 
-    reset.high = false;
+    tx.clear();
     rt.count = uint32_t(toCountsOn<MockRealTimer>(10000_ms)) + 1000; // after timeout
     esp.loop();
-
-    EXPECT_TRUE(reset.high);
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+RST\r\n")>>>()));
 
     rx.out() << "garbage#####\r\nready\r\n";
     esp.loop();
+
     EXPECT_TRUE((tx.in().expect<Seq<Token<STR("ATE0\r\n")>>>()));
 }
 
@@ -68,6 +67,7 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
 
     EXPECT_TRUE(reset.high);
 
+    tx.clear();
     rx.out() << "garbage#####\r\nready\r\n";
     esp.loop();
     EXPECT_TRUE((tx.in().expect<Seq<Token<STR("ATE0\r\n")>>>()));

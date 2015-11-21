@@ -21,7 +21,6 @@ namespace Espressif {
 using namespace Time;
 using namespace Streams;
 
-// TODO add timeouts
 template<
     char (EEPROM::*accessPoint)[32],
     char (EEPROM::*password)[64],
@@ -53,26 +52,25 @@ private:
     tx_pin_t *tx;
     rx_pin_t *rx;
     powerdown_pin_t *pd_pin;
-    Deadline<rt_t,decltype (10000_ms)> watchdog;
+    VariableDeadline<rt_t> watchdog;
 
+    constexpr static auto COMMAND_TIMEOUT = 1_s;
+    constexpr static auto CONNECT_TIMEOUT = 10_s;
+    constexpr static auto IDLE_TIMEOUT = 30_min;
+
+public:
     void restart() {
-        pd_pin->setLow();
-        _delay_ms(1);
-        pd_pin->setHigh();
-        _delay_ms(1);
-        pd_pin->setLow();
-        _delay_ms(1);
-        pd_pin->setHigh();
+        tx->out() << F("AT+RST") << endl;
         state = State::RESTARTING;
-        watchdog.reset();
+        watchdog.reset(1000_ms);
     }
-
+private:
     void restarting() {
         scan(*rx, [this] (auto s) {
             on<Format<Token<STR("ready")>>>(s, [this] {
                 tx->out() << F("ATE0") << endl;
                 state = State::DISABLING_ECHO;
-                watchdog.reset();
+                watchdog.reset(COMMAND_TIMEOUT);
             });
         });
     }
@@ -82,7 +80,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CWMODE_CUR=1") << endl;
                 state = State::SETTING_STATION_MODE;
-                watchdog.reset();
+                watchdog.reset(COMMAND_TIMEOUT);
             });
         });
     }
@@ -92,7 +90,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CWLAP") << endl;
                 state = State::LISTING_ACCESS_POINTS;
-                watchdog.reset();
+                watchdog.reset(CONNECT_TIMEOUT);
             });
         });
     }
@@ -102,7 +100,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CWJAP_CUR=\"") << accessPoint << F("\",\"") << password << F("\"") << endl;
                 state = State::CONNECTING_APN;
-                watchdog.reset();
+                watchdog.reset(CONNECT_TIMEOUT);
             });
         });
     }
@@ -112,7 +110,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CIPMUX=0") << endl;
                 state = State::DISABLING_MUX;
-                watchdog.reset();
+                watchdog.reset(COMMAND_TIMEOUT);
             });
             on<Format<Token<STR("FAIL\r\n")>>>(s, [this] {
                 // Failed to connect to wifi, restart
@@ -126,7 +124,7 @@ private:
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CIPCLOSE") << endl;
                 state = State::CLOSING_OLD_CONNECTION;
-                watchdog.reset();
+                watchdog.reset(COMMAND_TIMEOUT);
             });
         });
     }
@@ -138,7 +136,7 @@ private:
                 // mode 2 : any remote IP can send UDP packets to our local port 4123
                 tx->out() << F("AT+CIPSTART=\"UDP\",\"") << remoteIP << F("\",") << dec(remotePort) << F(",4123,2") << endl;
                 state = State::CONNECTING_UDP;
-                watchdog.reset();
+                watchdog.reset(COMMAND_TIMEOUT);
             };
 
             on<Format<Token<STR("OK\r\n")>>>(s, connect);
@@ -151,7 +149,7 @@ private:
         scan(*rx, [this] (auto s) {
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
                 state = State::CONNECTED;
-                watchdog.reset();
+                watchdog.reset(IDLE_TIMEOUT);
             });
             on<Format<Token<STR("ERROR\r\n")>>>(s, [this] {
                 // Could be "ALREADY CONNECTED"
@@ -160,20 +158,14 @@ private:
         });
     }
 
-    template <typename scanner_t>
-    inline void onReceivedData(scanner_t *s) {
-        on<Format<
-            Token<STR("+IPD,")>,
-            Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
-        >(s, [this] {
-            // we got some data, it's already in rxFifo.
-            watchdog.reset();
-        });
-    }
-
     void connected() {
         scan(*rx, *this, [this] (auto s) {
-            this->onReceivedData(s);
+            on<Format<
+                Token<STR("+IPD,")>,
+                Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
+            >(s, [this] {
+                watchdog.reset(IDLE_TIMEOUT);
+            });
         });
 
         if (txFifo.hasContent()) {
@@ -190,21 +182,27 @@ private:
             on<Format<Token<STR(">")>>>(s, [this] {
                 tx->out() << txFifo.in();
                 state = State::SENDING_DATA;
-                watchdog.reset();
+                watchdog.reset(COMMAND_TIMEOUT);
             });
         });
     }
 
     void sending_data() {
         scan(*rx, *this, [this] (auto s) {
-            this->onReceivedData(s);
+            on<Format<
+                Token<STR("+IPD,")>,
+                Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
+            >(s, [this] {
+                // we got some data, it's already in rxFifo.
+                watchdog.reset(COMMAND_TIMEOUT);
+            });
             on<Format<Token<STR("SEND OK")>>>(s, [this] {
                 state = State::CONNECTED;
-                watchdog.reset();
+                watchdog.reset(IDLE_TIMEOUT);
             });
             on<Format<Token<STR("ERROR")>>>(s, [this] {
                 state = State::CONNECTED;
-                watchdog.reset();
+                watchdog.reset(IDLE_TIMEOUT);
             });
         });
     }
@@ -213,6 +211,7 @@ private:
 public:
     ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, powerdown_pin_t &_pd, rt_t &rt): tx(&_tx), rx(&_rx), pd_pin(&_pd), watchdog(rt) {
         pd_pin->configureAsOutput();
+        pd_pin->setHigh();
         restart();
     }
 
