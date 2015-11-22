@@ -4,6 +4,10 @@ BUGS
 
 TODO
 ====
+ - RFM12: Trigger OOK or FSK sending immediately if no packet is currently being received. Might depend on rewriting Fifo first with
+   template callbacks.
+ - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at
+   runtime. That'll create much faster software serial, and removes the need to juggle pointers in the fifo.
  - UsartFifo: only enable the bit once after the first write in a writer, rather than for every byte
  - investigate replacing INTERRUPT_HANDLER1, 2, etc. macros with a macro-block
      INTERRUPT_HANDLERS {   // starts a nested type with a single, known name

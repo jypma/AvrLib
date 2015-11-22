@@ -16,8 +16,8 @@
 #include "CRC.hpp"
 #include "ChunkedFifo.hpp"
 #include "Serial/SerialTx.hpp"
-#include "HopeRF/RFM12TxFifo.hpp"
-#include "HopeRF/RFM12RxFifo.hpp"
+#include "HopeRF/JeeLibTxFifo.hpp"
+#include "HopeRF/JeeLibRxFifo.hpp"
 #include "HopeRF/RFM12Status.hpp"
 #include "HopeRF/RFM12Strength.hpp"
 #include "FS20/FS20Packet.hpp"
@@ -49,8 +49,8 @@ public:
 
 private:
     volatile Mode mode = Mode::IDLE;
-    RFM12TxFifo<txFifoSize> txFifo;
-    RFM12RxFifo<rxFifoSize, checkCrc> rxFifo;
+    JeeLibTxFifo<5, txFifoSize> txFifo;
+    JeeLibRxFifo<5, rxFifoSize, checkCrc> rxFifo;
     spi_t *spi;
     ss_pin_t *ss_pin;
     int_pin_t *int_pin;
@@ -82,7 +82,6 @@ private:
         return res;
     }
     volatile uint8_t ints = 0;
-    volatile uint8_t lastLen = 0;
     volatile uint8_t recvCount = 0;
     volatile uint8_t underruns = 0;
     volatile uint16_t pulses = 0;
@@ -140,22 +139,22 @@ private:
             } else {
                 // we are receiving / listening
                 //TODO consider moving the spi read block in here, to not have the double if.
-                recvCount++;
 
                 if (rxFifo.isWriting()) {
                     rxFifo.write(in);
                 } else {
-                    lastLen = in;
                     rxFifo.writeStart(in);
                     mode = Mode::RECEIVING;
                 }
 
                 if (!rxFifo.isWriting()) {
                     // fifo expects no further bytes -> either we just received the last byte, or length was 0
+                    recvCount++;
                     idle();
                     sendOrListen();
                 }
             }
+
         }
 
         // power-on reset
@@ -197,11 +196,11 @@ private:
         command(0x94A2); // VDI,FAST,134kHz,0dBm,-91dBm
         command(0xC2AC); // AL,!ml,DIG,DQD4
 
-        command(0xCA8B); // FIFO8,1-SYNC,!ff,DR
-        command(0xCE2D); // SYNC=2D；
+        //command(0xCA8B); // FIFO8,1-SYNC,!ff,DR
+        //command(0xCE2D); // SYNC=2D；
 
-        //command(0xCA83); // FIFO8,2-SYNC,!ff,DR
-        //command(0xCE01); // SYNC=2DD4；
+        command(0xCA83); // FIFO8,2-SYNC,!ff,DR
+        command(0xCE05); // SYNC=2D05；
 
         command(0xC483); // @PWR,NO RSTRIC,!st,!fi,OE,EN
         command(0x9850); // !mp,90kHz,MAX OUT
@@ -288,17 +287,36 @@ public:
         return mode;
     }
 
-    inline Streams::Reader<ChunkedFifo> in() {
-        return rxFifo.in();
+    uint8_t getRecvCount() const {
+        return recvCount;
     }
 
-    inline Streams::Writer<ChunkedFifo> out() {
-        return txFifo.out(nullptr);
+    uint8_t getUnderruns() const {
+        return underruns;
+    }
+
+    uint8_t getInterrupts() const {
+        return ints;
+    }
+
+    uint8_t getPulses() const {
+        return pulses;
+    }
+
+    template <typename body_t>
+    void on(body_t body) {
+        if (rxFifo.hasContent()) {
+            body(rxFifo.in());
+        }
+    }
+
+    inline Streams::Writer<ChunkedFifo> out_fsk(uint8_t header) {
+        return txFifo.out_fsk(header);
     }
 
     inline void out_fs20(const FS20::FS20Packet &packet) {
         log::debug("queueing FS20");
-        txFifo.out(&fs20SerialConfig) << packet;
+        txFifo.out_ook(&fs20SerialConfig) << packet;
     }
 
     inline bool hasContent() const {

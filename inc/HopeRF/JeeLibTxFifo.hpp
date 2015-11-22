@@ -1,12 +1,5 @@
-/*
- * RFM12TxFifo.hpp
- *
- *  Created on: Jan 26, 2015
- *      Author: jan
- */
-
-#ifndef RFM12TXFIFO_HPP_
-#define RFM12TXFIFO_HPP_
+#ifndef HOPERF_JEELIBTXFIFO_HPP_
+#define HOPERF_JEELIBTXFIFO_HPP_
 
 #include "Serial/SerialTx.hpp"
 #include "ChunkedFifo.hpp"
@@ -16,10 +9,11 @@ namespace HopeRF {
 
 using namespace Serial;
 
-template <int fifoSize = 32>
-class RFM12TxFifo {
+template <int groupId = 5, int fifoSize = 32>
+class JeeLibTxFifo {
+public:
     enum PacketIndex {
-        PREAMBLE1, PREAMBLE2, PREAMBLE3, SYNC, LENGTH, DATA, CRCLSB, CRCMSB, POSTFIX, DONE
+        PREAMBLE1, PREAMBLE2, PREAMBLE3, SYNC1, SYNC2, HEADER, LENGTH, DATA, CRCLSB, CRCMSB, POSTFIX, DONE
     };
 
     Fifo<fifoSize> data;
@@ -33,23 +27,34 @@ public:
         return fifo;
     }
 
-    Writer<ChunkedFifo> out(SerialConfig *type) {
+    Writer<ChunkedFifo> out_ook(SerialConfig *type) {
         auto out = fifo.out();
         out << type;
         return out;
     }
 
-    /** Returns whether or not this indeed is an RFM12 packet, i.e. SerialConfig was nullptr calling out(). */
+    Writer<ChunkedFifo> out_fsk(uint8_t header) {
+        auto out = fifo.out();
+        SerialConfig *type = nullptr;
+        out << type;
+        out << header;
+        return out;
+    }
+
+    /** Returns whether or not this indeed is an FSK packet, i.e. SerialConfig was nullptr calling out(). */
     bool readStart() {
         fifo.readStart();
         SerialConfig *type;
-        fifo.in() >> type;
-        if (type == nullptr) {
-            crc.reset();
-            packetIndex = (type == nullptr) ? PacketIndex::PREAMBLE1 : PacketIndex::DATA;
-            return true;
+        if (fifo.in() >> type) {
+            if (type == nullptr) {
+                crc.reset();
+                packetIndex = PacketIndex::PREAMBLE1;
+                return true;
+            } else {
+                fifo.readAbort();
+                return false;
+            }
         } else {
-            fifo.readAbort();
             return false;
         }
     }
@@ -65,9 +70,19 @@ public:
             case PREAMBLE2:
                 b = 0xAA; packetIndex = PREAMBLE3; break;
             case PREAMBLE3:
-                b = 0xAA; packetIndex = SYNC; break;
-            case SYNC:
-                b = 0x2D; packetIndex = LENGTH; break;
+                b = 0xAA; packetIndex = SYNC1; break;
+            case SYNC1:
+                b = 0x2D; packetIndex = SYNC2; break;
+            case SYNC2:
+                b = groupId;
+                crc.append(b);
+                packetIndex = HEADER;
+                break;
+            case HEADER:
+                fifo.read(b);
+                crc.append(b);
+                packetIndex = LENGTH;
+                break;
             case LENGTH:
                 b = fifo.getReadAvailable();
                 crc.append(b);
@@ -105,4 +120,5 @@ public:
 
 }
 
-#endif /* RFM12TXFIFO_HPP_ */
+
+#endif /* HOPERF_JEELIBTXFIFO_HPP_ */

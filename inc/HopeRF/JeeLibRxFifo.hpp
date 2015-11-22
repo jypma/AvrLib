@@ -8,7 +8,7 @@
 
 namespace HopeRF{
 
-enum class JeeLibState: uint8_t { header, length, data };
+enum class JeeLibState: uint8_t { length, data };
 
 template <int groupId = 5, int fifoSize = 32, bool checkCrc = true>
 class JeeLibRxFifo {
@@ -22,23 +22,16 @@ class JeeLibRxFifo {
 
 public:
     void writeStart(uint8_t b) {
-        if (b != groupId) {
-            return;
-        }
-
         crc.reset();
+        crc.append(groupId);
         crc.append(b);
-        state = JeeLibState::header;
         fifo.writeStart();
+        fifo.write(b);
+        state = JeeLibState::length;
     }
 
     void write(uint8_t b) {
         switch(state) {
-        case JeeLibState::header:
-            crc.append(b);
-            fifo.write(b);
-            state = JeeLibState::length;
-            break;
         case JeeLibState::length:
             crc.append(b);
             remaining = b + 2; // 2 extra bytes for CRC

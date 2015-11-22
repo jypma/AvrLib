@@ -101,15 +101,31 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
     FS20Packet packet(0,0,0,0,0);
     rfm.out_fs20(packet);
 
-    // pretend we have a (noise) byte available, that's how sending gets triggered
+    // pretend we have a packet available, that's how sending gets triggered
     spi.rx.write(1 << 7);
     spi.rx.write(0);
-    spi.rx.write(0); // length = 0, so 2 extra bytes for CRC
+    spi.rx.write(0); // header = 0
     spi.tx.clear();
     decltype(rfm)::onInterruptHandler::invoke(rfm);
+
+    /*
+    std::cout << "oh: ";
+    while (spi.tx.hasContent()) {
+        uint8_t b;
+        spi.tx.read(b);
+        std::cout << int(b) << ",";
+    }
+    std::cout << std::endl;
+    */
+
     EXPECT_EQ(3, spi.tx.getSize());
     EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<0,0,0>>>>()));
     EXPECT_EQ(RFM12Mode::RECEIVING, rfm.getMode());
+
+    spi.rx.write(1 << 7);
+    spi.rx.write(0);
+    spi.rx.write(0); // length = 0, so 2 extra bytes for CRC
+    decltype(rfm)::onInterruptHandler::invoke(rfm);
 
     spi.rx.write(1 << 7);
     spi.rx.write(0);
@@ -145,7 +161,7 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
     // pretend we have a (real) byte available
     spi.rx.write(1 << 7);
     spi.rx.write(0);
-    spi.rx.write(0); // length = 0, so 2 extra bytes for CRC
+    spi.rx.write(0); // header = 0
     spi.tx.clear();
     decltype(rfm)::onInterruptHandler::invoke(rfm);
     EXPECT_EQ(3, spi.tx.getSize());
@@ -154,19 +170,25 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
 
     spi.rx.write(1 << 7);
     spi.rx.write(0);
-    spi.rx.write(0xBF); // 1st CRC byte
+    spi.rx.write(0); // length = 0, so 2 extra bytes for CRC
     decltype(rfm)::onInterruptHandler::invoke(rfm);
 
     spi.rx.write(1 << 7);
     spi.rx.write(0);
-    spi.rx.write(0x40); // 2nd CRC byte
+    spi.rx.write(97); // 1st CRC byte
+    decltype(rfm)::onInterruptHandler::invoke(rfm);
+
+    spi.rx.write(1 << 7);
+    spi.rx.write(0);
+    spi.rx.write(193); // 2nd CRC byte
     spi.tx.clear();
     decltype(rfm)::onInterruptHandler::invoke(rfm);
     EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
     EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<0,0,0,130,13,130,221>>>>())); // Idle + turn on RX
     EXPECT_TRUE(rfm.hasContent());
-    auto in = rfm.in();
-    EXPECT_EQ(0, in.getReadAvailable());
+    rfm.on([] (auto in) {
+        EXPECT_EQ(1, in.getReadAvailable()); // header
+    });
 }
 
 }
