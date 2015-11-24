@@ -114,13 +114,41 @@ struct Overflow {
     static constexpr bool largerThanUint32 = !toCountsOn<rt_t,value>().is_uint32;
 };
 
+class AbstractPeriodic {
+protected:
+    volatile uint32_t next;
+    bool waitForOverflow = false;
+
+    void calculateNextCounts(uint32_t startTime, uint32_t delay) {
+        next = startTime + delay;
+        waitForOverflow = (next < startTime);
+    }
+
+    bool isNow(uint32_t currentTime, uint32_t delay) {
+        if (waitForOverflow) {
+            if (currentTime > 0xFFFFFFF) {
+                return false;
+            } else {
+                waitForOverflow = false;
+            }
+        }
+        if (currentTime >= next) {
+            calculateNextCounts(next, delay);
+            return true;
+        } else {
+            return false;
+        }
+    }
+};
 
 template <typename rt_t, typename value, typename check = void>
 class Periodic {
     static constexpr uint32_t delay = toCountsOn<rt_t, value>();
+    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
 protected:
     volatile uint32_t next;
+    bool waitForOverflow = false;
     rt_t *rt;
 
     inline uint32_t currentTime() {
@@ -128,12 +156,8 @@ protected:
     }
 
     void calculateNextCounts(uint32_t startTime) {
-        if (uint32_t(0xFFFFFFFF) - startTime < delay) {
-            // we expect an integer wraparound.
-            // first, wait for the int to overflow (with some margin)
-            while (currentTime() > 5) ;
-        }
         next = startTime + delay;
+        waitForOverflow = (next < startTime);
     }
 public:
     Periodic(rt_t &_rt): rt(&_rt) {
@@ -141,6 +165,13 @@ public:
     }
 
     bool isNow() {
+        if (waitForOverflow) {
+            if (currentTime() > 0xFFFFFFF) {
+                return false;
+            } else {
+                waitForOverflow = false;
+            }
+        }
         if (currentTime() >= next) {
             calculateNextCounts(next);
             return true;
@@ -153,9 +184,11 @@ public:
 template <typename rt_t, typename value>
 class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type> {
     static constexpr uint32_t delay = toTicksOn<rt_t, value>();
+    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
 protected:
     volatile uint32_t next;
+    bool waitForOverflow = false;
     rt_t *rt;
 
     inline uint32_t currentTime() {
@@ -163,12 +196,8 @@ protected:
     }
 
     void calculateNextCounts(uint32_t startTime) {
-        if (uint32_t(0xFFFFFFFF) - startTime < delay) {
-            // we expect an integer wraparound.
-            // first, wait for the int to overflow (with some margin)
-            while (currentTime() > 5) ;
-        }
         next = startTime + delay;
+        waitForOverflow = (next < startTime);
     }
 public:
     Periodic(rt_t &_rt): rt(&_rt) {
@@ -176,6 +205,13 @@ public:
     }
 
     bool isNow() {
+        if (waitForOverflow) {
+            if (currentTime() > 0xFFFFFFF) {
+                return false;
+            } else {
+                waitForOverflow = false;
+            }
+        }
         if (currentTime() >= next) {
             calculateNextCounts(next);
             return true;
@@ -195,6 +231,7 @@ class Deadline: public Periodic<rt_t, value> {
     typedef Periodic<rt_t, value> Super;
     using Super::currentTime;
     using Super::next;
+    using Super::waitForOverflow;
 
     volatile bool elapsed = false;
 public:
@@ -202,6 +239,13 @@ public:
 
     bool isNow() {
         if (!elapsed) {
+            if (waitForOverflow) {
+                if (currentTime() > 0xFFFFFFF) {
+                    return false;
+                } else {
+                    waitForOverflow = false;
+                }
+            }
             if (currentTime() >= next) {
                 elapsed = true;
                 return true;
@@ -223,6 +267,7 @@ template <typename rt_t>
 class VariableDeadline {
     rt_t *rt;
     uint32_t next = 0;
+    bool waitForOverflow = false;
     volatile bool elapsed = true;
 
 public:
@@ -231,6 +276,13 @@ public:
     bool isNow() {
         AtomicScope _;
         if (!elapsed) {
+            if (waitForOverflow) {
+                if (rt->counts() > 0xFFFFFFF) {
+                    return false;
+                } else {
+                    waitForOverflow = false;
+                }
+            }
             if (rt->counts() >= next) {
                 elapsed = true;
                 return true;
@@ -244,15 +296,13 @@ public:
 
     template <typename value>
     void reset(value v) {
-        constexpr uint32_t delay = toCountsOn<rt_t>(v);
-        volatile uint32_t startTime = rt->counts();
-        if (uint32_t(0xFFFFFFFF) - startTime < delay) {
-            // we expect an integer wraparound.
-            // first, wait for the int to overflow (with some margin)
-            while (rt->counts() > 5) ;
-        }
         AtomicScope _;
+        constexpr uint32_t delay = toCountsOn<rt_t>(v);
+        static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
+
+        uint32_t startTime = rt->counts();
         next = startTime + delay;
+        waitForOverflow = (next < startTime);
         elapsed = false;
     }
 };
