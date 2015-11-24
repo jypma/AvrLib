@@ -115,109 +115,42 @@ struct Overflow {
 };
 
 class AbstractPeriodic {
-protected:
     volatile uint32_t next;
     bool waitForOverflow = false;
-
-    void calculateNextCounts(uint32_t startTime, uint32_t delay) {
-        next = startTime + delay;
-        waitForOverflow = (next < startTime);
-    }
-
-    bool isNow(uint32_t currentTime, uint32_t delay) {
-        if (waitForOverflow) {
-            if (currentTime > 0xFFFFFFF) {
-                return false;
-            } else {
-                waitForOverflow = false;
-            }
-        }
-        if (currentTime >= next) {
-            calculateNextCounts(next, delay);
-            return true;
-        } else {
-            return false;
-        }
-    }
+protected:
+    void calculateNextCounts(uint32_t startTime, uint32_t delay);
+    bool isNow(uint32_t currentTime, uint32_t delay);
 };
 
 template <typename rt_t, typename value, typename check = void>
-class Periodic {
+class Periodic: public AbstractPeriodic {
     static constexpr uint32_t delay = toCountsOn<rt_t, value>();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
-protected:
-    volatile uint32_t next;
-    bool waitForOverflow = false;
     rt_t *rt;
-
-    inline uint32_t currentTime() {
-        return rt->counts();
-    }
-
-    void calculateNextCounts(uint32_t startTime) {
-        next = startTime + delay;
-        waitForOverflow = (next < startTime);
-    }
 public:
     Periodic(rt_t &_rt): rt(&_rt) {
-        calculateNextCounts(currentTime());
+        calculateNextCounts(rt->counts(), delay);
     }
 
     bool isNow() {
-        if (waitForOverflow) {
-            if (currentTime() > 0xFFFFFFF) {
-                return false;
-            } else {
-                waitForOverflow = false;
-            }
-        }
-        if (currentTime() >= next) {
-            calculateNextCounts(next);
-            return true;
-        } else {
-            return false;
-        }
+        return AbstractPeriodic::isNow(rt->counts(), delay);
     }
 };
 
 template <typename rt_t, typename value>
-class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type> {
+class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type>: public AbstractPeriodic {
     static constexpr uint32_t delay = toTicksOn<rt_t, value>();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
-protected:
-    volatile uint32_t next;
-    bool waitForOverflow = false;
     rt_t *rt;
-
-    inline uint32_t currentTime() {
-        return rt->ticks();
-    }
-
-    void calculateNextCounts(uint32_t startTime) {
-        next = startTime + delay;
-        waitForOverflow = (next < startTime);
-    }
 public:
     Periodic(rt_t &_rt): rt(&_rt) {
-        calculateNextCounts(currentTime());
+        calculateNextCounts(rt->ticks(), delay);
     }
 
     bool isNow() {
-        if (waitForOverflow) {
-            if (currentTime() > 0xFFFFFFF) {
-                return false;
-            } else {
-                waitForOverflow = false;
-            }
-        }
-        if (currentTime() >= next) {
-            calculateNextCounts(next);
-            return true;
-        } else {
-            return false;
-        }
+        return AbstractPeriodic::isNow(rt->ticks(), delay);
     }
 };
 
@@ -226,83 +159,78 @@ Periodic<rt_t,value_t> periodic(rt_t &rt, value_t value) {
     return Periodic<rt_t,value_t>(rt);
 }
 
-template <typename rt_t, typename value>
-class Deadline: public Periodic<rt_t, value> {
-    typedef Periodic<rt_t, value> Super;
-    using Super::currentTime;
-    using Super::next;
-    using Super::waitForOverflow;
-
+class AbstractDeadline {
+    volatile uint32_t next;
+    bool waitForOverflow = false;
+protected:
     volatile bool elapsed = false;
+
+    bool isNow(uint32_t currentTime);
+    void calculateNextCounts(uint32_t startTime, uint32_t delay);
+};
+
+template <typename rt_t, typename value, typename check = void>
+class Deadline: public AbstractDeadline {
+    static constexpr uint32_t delay = toCountsOn<rt_t, value>();
+    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
+
+    rt_t *rt;
 public:
-    Deadline(rt_t &_rt): Super(_rt) {}
+    Deadline(rt_t &_rt): rt(&_rt) {
+        calculateNextCounts(rt->counts(), delay);
+    }
 
     bool isNow() {
-        if (!elapsed) {
-            if (waitForOverflow) {
-                if (currentTime() > 0xFFFFFFF) {
-                    return false;
-                } else {
-                    waitForOverflow = false;
-                }
-            }
-            if (currentTime() >= next) {
-                elapsed = true;
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
+        return AbstractDeadline::isNow(rt->counts());
     }
 
     void reset() {
-        Super::calculateNextCounts(currentTime());
+        AtomicScope _;
+        calculateNextCounts(rt->counts(), delay);
         elapsed = false;
     }
 };
 
-template <typename rt_t>
-class VariableDeadline {
-    rt_t *rt;
-    uint32_t next = 0;
-    bool waitForOverflow = false;
-    volatile bool elapsed = true;
+template <typename rt_t, typename value>
+class Deadline<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type>: public AbstractDeadline {
+    static constexpr uint32_t delay = toTicksOn<rt_t, value>();
+    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
+    rt_t *rt;
+public:
+    Deadline(rt_t &_rt): rt(&_rt) {
+        calculateNextCounts(rt->counts(), delay);
+    }
+
+    bool isNow() {
+        return AbstractDeadline::isNow(rt->ticks());
+    }
+
+    void reset() {
+        AtomicScope _;
+        calculateNextCounts(rt->ticks(), delay);
+        elapsed = false;
+    }
+};
+
+
+template <typename rt_t>
+class VariableDeadline: public AbstractDeadline {
+    rt_t *rt;
 public:
     VariableDeadline(rt_t &_rt): rt(&_rt) {}
 
     bool isNow() {
-        AtomicScope _;
-        if (!elapsed) {
-            if (waitForOverflow) {
-                if (rt->counts() > 0xFFFFFFF) {
-                    return false;
-                } else {
-                    waitForOverflow = false;
-                }
-            }
-            if (rt->counts() >= next) {
-                elapsed = true;
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
+        return AbstractDeadline::isNow(rt->counts());
     }
 
     template <typename value>
     void reset(value v) {
-        AtomicScope _;
-        constexpr uint32_t delay = toCountsOn<rt_t>(v);
+        static constexpr uint32_t delay = toCountsOn<rt_t, value>();
         static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
-        uint32_t startTime = rt->counts();
-        next = startTime + delay;
-        waitForOverflow = (next < startTime);
+        AtomicScope _;
+        calculateNextCounts(rt->counts(), delay);
         elapsed = false;
     }
 };
