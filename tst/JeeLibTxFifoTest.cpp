@@ -3,8 +3,16 @@
 
 using namespace HopeRF;
 
+struct JeeLibTxFifoCallbackTest {
+    bool invoked = false;
+    static void onWriteEnd(JeeLibTxFifoCallbackTest &target) {
+        target.invoked = true;
+    }
+};
+
 TEST(RFM12JeeLibTxFifo, standard_packet_is_encoded_with_preamble_crc_and_postfix) {
-    JeeLibTxFifo<> fifo;
+    JeeLibTxFifoCallbackTest cb;
+    JeeLibTxFifo<JeeLibTxFifoCallbackTest,JeeLibTxFifoCallbackTest> fifo(cb);
 
     fifo.out_fsk(30) << uint8_t(82) << uint8_t(49) << uint8_t(32) << uint8_t(32) << uint8_t(1) << uint8_t(58) << uint8_t(251) << uint8_t(0);
     EXPECT_TRUE(fifo.hasContent());
@@ -52,7 +60,8 @@ TEST(RFM12JeeLibTxFifo, standard_packet_is_encoded_with_preamble_crc_and_postfix
 }
 
 TEST(RFM12JeeLibTxFifo, empty_packet_is_encoded_with_preamble_crc_and_postfix) {
-    JeeLibTxFifo<> fifo;
+    JeeLibTxFifoCallbackTest cb;
+    JeeLibTxFifo<JeeLibTxFifoCallbackTest,JeeLibTxFifoCallbackTest> fifo(cb);
 
     fifo.out_fsk(0);
     EXPECT_TRUE(fifo.hasContent());

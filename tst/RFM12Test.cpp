@@ -98,48 +98,15 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
 
     EXPECT_TRUE(ss_pin.isOutput);
     EXPECT_TRUE(int_pin.isInput);
+
+    spi.tx.clear();
     FS20Packet packet(0,0,0,0,0);
     rfm.out_fs20(packet);
 
-    // pretend we have a packet available, that's how sending gets triggered
-    spi.rx.write(1 << 7);
-    spi.rx.write(0);
-    spi.rx.write(0); // header = 0
-    spi.tx.clear();
-    decltype(rfm)::onInterruptHandler::invoke(rfm);
-
-    /*
-    std::cout << "oh: ";
-    while (spi.tx.hasContent()) {
-        uint8_t b;
-        spi.tx.read(b);
-        std::cout << int(b) << ",";
-    }
-    std::cout << std::endl;
-    */
-
-    EXPECT_EQ(3, spi.tx.getSize());
-    EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<0,0,0>>>>()));
-    EXPECT_EQ(RFM12Mode::RECEIVING, rfm.getMode());
-
-    spi.rx.write(1 << 7);
-    spi.rx.write(0);
-    spi.rx.write(0); // length = 0, so 2 extra bytes for CRC
-    decltype(rfm)::onInterruptHandler::invoke(rfm);
-
-    spi.rx.write(1 << 7);
-    spi.rx.write(0);
-    spi.rx.write(0); // 1st CRC byte
-    decltype(rfm)::onInterruptHandler::invoke(rfm);
-
-    spi.rx.write(1 << 7);
-    spi.rx.write(0);
-    spi.rx.write(0); // 2nd CRC byte
-    spi.tx.clear();
-    decltype(rfm)::onInterruptHandler::invoke(rfm);
     EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
-    // 3x 0 from the status code and byte retrieval, then 2x IDLE mode and finally turn on TX.
-    EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<0,0,0,130,13,130,13,130,61>>>>()));
+
+    // 2x IDLE mode and finally turn on TX.
+    EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<130,13,130,13,130,61>>>>()));
     bool on = true;
 
     for (int pulse = 0; pulse < 141; pulse++) {
@@ -189,6 +156,69 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
     rfm.on([] (auto in) {
         EXPECT_EQ(1, in.getReadAvailable()); // header
     });
+}
+
+TEST(RFM12Test, rfm12_sends_queued_ook_after_receiving_completes) {
+    MockSPIMaster spi;
+    MockSSPin ss_pin;
+    MockIntPin int_pin;
+    MockComparator comp;
+    auto rfm = rfm12(spi, ss_pin, int_pin, comp, RFM12Band::_868Mhz);
+
+    EXPECT_TRUE(ss_pin.isOutput);
+    EXPECT_TRUE(int_pin.isInput);
+
+    spi.rx.write(1 << 7);
+    spi.rx.write(0);
+    spi.rx.write(0); // header = 0
+    spi.tx.clear();
+    decltype(rfm)::onInterruptHandler::invoke(rfm);
+
+    EXPECT_EQ(3, spi.tx.getSize());
+    EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<0,0,0>>>>()));
+    EXPECT_EQ(RFM12Mode::RECEIVING, rfm.getMode());
+
+    FS20Packet packet(0,0,0,0,0);
+    rfm.out_fs20(packet);
+    EXPECT_EQ(RFM12Mode::RECEIVING, rfm.getMode());
+
+    spi.rx.write(1 << 7);
+    spi.rx.write(0);
+    spi.rx.write(0); // length = 0, so 2 extra bytes for CRC
+    decltype(rfm)::onInterruptHandler::invoke(rfm);
+
+    spi.rx.write(1 << 7);
+    spi.rx.write(0);
+    spi.rx.write(0); // 1st CRC byte
+    decltype(rfm)::onInterruptHandler::invoke(rfm);
+
+    spi.rx.write(1 << 7);
+    spi.rx.write(0);
+    spi.rx.write(0); // 2nd CRC byte
+    spi.tx.clear();
+    decltype(rfm)::onInterruptHandler::invoke(rfm);
+
+    EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
+
+    // 3 zeros from the SPI status byte transfer, then 2x IDLE mode and finally turn on TX.
+    EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<0,0,0,130,13,130,13,130,61>>>>()));
+    bool on = true;
+
+    for (int pulse = 0; pulse < 141; pulse++) {
+        decltype(rfm)::onComparatorHandler::invoke(rfm);
+        EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
+        on = !on;
+        if (on) {
+            EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<130,61>>>>())); // TX on
+        } else {
+            EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<130,13>>>>())); // idle
+        }
+    }
+
+    spi.tx.clear();
+    decltype(rfm)::onComparatorHandler::invoke(rfm);
+    EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
+    EXPECT_TRUE((spi.tx.in().expect<Seq<Token<typestring<184,0,130,13,130,221>>>>())); // Empty TX reg, Idle, Turn on RX
 }
 
 }

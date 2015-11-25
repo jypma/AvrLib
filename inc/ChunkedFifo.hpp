@@ -97,4 +97,24 @@ public:
     Streams::Reader<ChunkedFifo> in();
 };
 
+template <typename callback_t, typename target_t>
+class ChunkedFifoCB: public ChunkedFifo {
+    typedef ChunkedFifoCB<callback_t, target_t> This;
+
+    target_t *target;
+public:
+    ChunkedFifoCB(AbstractFifo *_data, target_t &_target): ChunkedFifo(_data), target(&_target) {}
+
+    inline Streams::Writer<This> out() {
+        return Streams::Writer<This>(*this);
+    }
+
+    void writeEnd() {
+        ChunkedFifo::writeEnd();
+        if (!isWriting()) {
+            callback_t::onWriteEnd(*target);
+        }
+    }
+};
+
 #endif /* CHUNKEDFIFO_HPP_ */

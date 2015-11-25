@@ -29,9 +29,10 @@ public:
     static inline void write(fifo_t &fifo, uint8_t value) {
         if ((SREG & (1 << SREG_I)) > 0) {
             while (fifo.isFull()) ;
+            fifo.uncheckedWrite(value);
+        } else {
+            fifo.write(value);
         }
-
-        fifo.uncheckedWrite(value);
     }
 
     static inline void start(fifo_t &fifo) {
@@ -83,14 +84,6 @@ struct TypedLiteralWrite<writer_t, T, typename std::enable_if<std::is_enum<T>::v
         out.writeLiteral(value);
     }
 };
-/*
-template <typename writer_t, typename T>
-struct TypedLiteralWrite<writer_t, T, typename T::Proto> {
-    inline static void write(writer_t &out, T value) {
-        T::Proto::write(out, value);
-    }
-};
-*/
 
 template <typename fifo_t, typename sem = NonblockingWriteSemantics<fifo_t>>
 class Writer {

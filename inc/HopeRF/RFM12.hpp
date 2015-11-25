@@ -48,8 +48,14 @@ public:
     typedef RFM12Mode Mode;
 
 private:
+    struct CB {
+        static void onWriteEnd(This &rfm) {
+            rfm.sendOrListen();
+        }
+    };
+
     volatile Mode mode = Mode::IDLE;
-    JeeLibTxFifo<5, txFifoSize> txFifo;
+    JeeLibTxFifo<CB, This, 5, txFifoSize> txFifo;
     JeeLibRxFifo<5, rxFifoSize, checkCrc> rxFifo;
     spi_t *spi;
     ss_pin_t *ss_pin;
@@ -95,6 +101,9 @@ private:
     void sendOrListen() { // rf12_recvStart
         AtomicScope _;
 
+        if (mode == Mode::LISTENING && txFifo.hasContent()) {
+            idle();
+        }
         if (mode == Mode::IDLE) {
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
@@ -275,7 +284,7 @@ private:
 
 public:
     RFM12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band):
-        spi(&_spi), ss_pin(&_ss_pin), int_pin(&_int_pin), comparator(&_comparator) {
+        txFifo(*this), spi(&_spi), ss_pin(&_ss_pin), int_pin(&_int_pin), comparator(&_comparator) {
         enable(band);
     }
 
@@ -310,7 +319,7 @@ public:
         }
     }
 
-    inline Streams::Writer<ChunkedFifo> out_fsk(uint8_t header) {
+    inline Streams::Writer<ChunkedFifoCB<CB, This>> out_fsk(uint8_t header) {
         return txFifo.out_fsk(header);
     }
 

@@ -9,7 +9,7 @@ namespace HopeRF {
 
 using namespace Serial;
 
-template <int groupId = 5, int fifoSize = 32>
+template <typename callback_t, typename target_t, int groupId = 5, int fifoSize = 32>
 class JeeLibTxFifo {
 public:
     enum PacketIndex {
@@ -17,23 +17,25 @@ public:
     };
 
     Fifo<fifoSize> data;
-    ChunkedFifo fifo = { &data };
+    ChunkedFifoCB<callback_t, target_t> fifo;
     CRC16 crc;
 
     PacketIndex packetIndex = PacketIndex::PREAMBLE1;
 
 public:
-    ChunkedFifo &getChunkedFifo() {
+    JeeLibTxFifo(target_t &target): fifo(&data, target) {}
+
+    ChunkedFifoCB<callback_t, target_t> &getChunkedFifo() {
         return fifo;
     }
 
-    Writer<ChunkedFifo> out_ook(SerialConfig *type) {
+    Writer<ChunkedFifoCB<callback_t, target_t>> out_ook(SerialConfig *type) {
         auto out = fifo.out();
         out << type;
         return out;
     }
 
-    Writer<ChunkedFifo> out_fsk(uint8_t header) {
+    Writer<ChunkedFifoCB<callback_t, target_t>> out_fsk(uint8_t header) {
         auto out = fifo.out();
         SerialConfig *type = nullptr;
         out << type;

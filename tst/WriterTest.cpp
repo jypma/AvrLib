@@ -46,6 +46,9 @@ struct MockFifo {
             space--;
         }
     }
+    void write(uint8_t ch) {
+        uncheckedWrite(ch);
+    }
 
 };
 
@@ -57,6 +60,8 @@ TEST(WriterTest, write_const_string_should_not_include_terminating_zero) {
 }
 
 TEST(WriterTest, blocking_semantics_writer_should_immediately_commit_all_writes) {
+    SREG |= SREG_I;
+
     MockFifo f;
     auto out = Writer<MockFifo, BlockingWriteSemantics<MockFifo>>(f);
     EXPECT_FALSE(f.started);

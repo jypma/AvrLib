@@ -18,6 +18,7 @@ struct MockPin {
 struct MockRealTimer {
     typedef uint32_t value_t;
     static constexpr uint8_t prescalerPower2 = 8;
+    static constexpr uint8_t maximum = 255;
 
     uint32_t count = 0;
     uint32_t counts() {
@@ -41,7 +42,7 @@ TEST(ESP8266Test, ESP_retries_reset_when_watchdog_fires) {
     auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset, rt);
 
     tx.clear();
-    rt.count = uint32_t(toCountsOn<MockRealTimer>(10000_ms)) + 1000; // after timeout
+    rt.count = uint32_t(toCountsOn<MockRealTimer>(20000_ms)) + 1000; // after timeout
     esp.loop();
     EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+RST\r\n")>>>()));
 
