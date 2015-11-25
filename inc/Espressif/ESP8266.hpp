@@ -42,7 +42,7 @@ class ESP8266 {
     template <typename ElementType, uint8_t count, ElementType (This::*field)[count]> using Array = Parts::Array<This, ElementType, count, field>;
     template <ChunkedFifo This::*field, typename Separator = Format<This>> using Chunk = Parts::Chunk<This, field, Separator>;
 public:
-    enum class State: uint8_t { RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
+    enum class State: uint8_t { RESYNCING, RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
 private:
     Fifo<txFifoSize> txFifoData;
     ChunkedFifo txFifo = &txFifoData;
@@ -56,15 +56,35 @@ private:
 
     constexpr static auto COMMAND_TIMEOUT = 1_s;
     constexpr static auto CONNECT_TIMEOUT = 10_s;
-    constexpr static auto IDLE_TIMEOUT = 30_min;
+    constexpr static auto IDLE_TIMEOUT = 1_min;
+
+    void disable_mux() {
+        tx->out() << F("AT+CIPMUX=0") << endl;
+        state = State::DISABLING_MUX;
+        watchdog.reset(COMMAND_TIMEOUT);
+    }
 
 public:
+    void resync() {
+        tx->out() << F("AT") << endl;
+        state = State::RESYNCING;
+        watchdog.reset(COMMAND_TIMEOUT);
+    }
+
     void restart() {
         tx->out() << F("AT+RST") << endl;
         state = State::RESTARTING;
-        watchdog.reset(1000_ms);
+        watchdog.reset(10_s);
     }
 private:
+    void resyncing() {
+        scan(*rx, [this] (auto s) {
+            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+                this->disable_mux();
+            });
+        });
+    }
+
     void restarting() {
         scan(*rx, [this] (auto s) {
             on<Format<Token<STR("ready")>>>(s, [this] {
@@ -108,9 +128,7 @@ private:
     void connecting_apn() {
         scan(*rx, [this] (auto s) {
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
-                tx->out() << F("AT+CIPMUX=0") << endl;
-                state = State::DISABLING_MUX;
-                watchdog.reset(COMMAND_TIMEOUT);
+                this->disable_mux();
             });
             on<Format<Token<STR("FAIL\r\n")>>>(s, [this] {
                 // Failed to connect to wifi, restart
@@ -221,9 +239,16 @@ public:
 
     void loop() {
         if (watchdog.isNow()) {
-            restart();
+            if (state == State::CONNECTED ||
+                state == State::SENDING_LENGTH ||
+                state == State::SENDING_DATA) {
+                resync();
+            } else {
+                restart();
+            }
         } else
         switch (state) {
+        case State::RESYNCING: resyncing(); return;
         case State::RESTARTING: restarting(); return;
         case State::DISABLING_ECHO: disabling_echo(); return;
         case State::SETTING_STATION_MODE: setting_station_mode(); return;
