@@ -16,6 +16,15 @@ public:
 
     EthernetMACAddress(): data1(0),data2(0),data3(0),data4(0),data5(0),data6(0) {}
 
+    inline bool operator== (const EthernetMACAddress that) const {
+        return data1 == that.data1 &&
+                data2 == that.data2 &&
+                data3 == that.data3 &&
+                data4 == that.data4 &&
+                data5 == that.data5 &&
+                data6 == that.data6;
+    }
+
     inline uint8_t byte1() const { return data1; }
     inline uint8_t byte2() const { return data2; }
     inline uint8_t byte3() const { return data3; }

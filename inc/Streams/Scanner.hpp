@@ -57,7 +57,7 @@ public:
         }
 
         ReaderState thisResult = semantics.template scan<format>(*fifo);
-        log::debug("one branch said %d\n", thisResult);
+        log::debug("one branch said %d", thisResult);
 
         if (thisResult == ReaderState::Valid) {
             state = ReaderState::Valid;
@@ -73,7 +73,7 @@ public:
         if (available > 0 && state == ReaderState::Invalid) {
             uint8_t dropped;
             fifo->uncheckedRead(dropped);
-            log::debug("  state invalid, dropped %c\n", dropped);
+            log::debug("  state invalid, dropped %c", dropped);
             available--;
             return true;
         } else {
@@ -94,6 +94,8 @@ Scanner<fifo_t,ScannerSemantics<fifo_t,target_t>> scanner(fifo_t &fifo, target_t
 
 template<typename fifo_t, typename Body>
 void scan(fifo_t &fifo, Body body) {
+    typedef Logging::Log<Loggers::Streams> log;
+    log::debug("Scanning");
     auto s = scanner(fifo);
     do {
         body(&s);
@@ -102,6 +104,8 @@ void scan(fifo_t &fifo, Body body) {
 
 template<typename fifo_t, typename target_t, typename Body>
 void scan(fifo_t &fifo, target_t &target, Body body) {
+    typedef Logging::Log<Loggers::Streams> log;
+    log::debug("Scanning");
     auto s = scanner(fifo, target);
     do {
         body(&s);

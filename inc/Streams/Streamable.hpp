@@ -25,15 +25,20 @@ namespace Streams {
 
     template <typename reader_t>
     void Token__readFromFlash(reader_t &in, const char *addr, uint8_t length) {
+        typedef Logging::Log<Loggers::Streams> log;
+
         uint8_t available = in.getReadAvailable();
         if (available == 0) {
             in.markIncomplete();
+            return;
         }
         uint8_t first;
         in.uncheckedRead(first);
         available--;
 
-        if (first != pgm_read_byte(addr)) {
+        const uint8_t expected = pgm_read_byte(addr);
+        if (first != expected) {
+            log::debug("Expecting '%c', got '%c', marking invalid.", expected, first);
             in.markInvalid();
             return;
         }
@@ -48,7 +53,9 @@ namespace Streams {
             available--;
 
             addr++;
-            if (ch != pgm_read_byte(addr)) {
+            const uint8_t expectedNext = pgm_read_byte(addr);
+            if (ch != expectedNext) {
+                log::debug("Expected '%c' at %d, got '%c', marking invalid.", expectedNext, ch, i);
                 in.markInvalid();
                 return;
             }
@@ -134,11 +141,11 @@ namespace Parts {
             return (value < 10) ? '0' + value : 'A' + (value - 10);
         }
 
-        static constexpr uint8_t fromHex(uint8_t ch) {
+        static constexpr int8_t fromHex(uint8_t ch) {
             return ((ch >= '0') && (ch <= '9')) ? (ch - '0') :
                    ((ch >= 'a') && (ch <= 'f')) ? (ch + 10 - 'a') :
                    ((ch >= 'A') && (ch <= 'F')) ? (ch + 10 - 'A') :
-                   0;
+                   -1;
         }
 
         template <typename writer_t>
@@ -150,10 +157,21 @@ namespace Parts {
 
         template <typename reader_t>
         inline static void __attribute__((optimize("unroll-loops"))) readUnchecked(reader_t &in, Type &instance) {
-            uint8_t hi, lo;
-            in.uncheckedRead(hi);
-            in.uncheckedRead(lo);
-            instance.*field = (fromHex(hi) << 4) | fromHex(lo);
+            uint8_t hiChar, loChar;
+            in.uncheckedRead(hiChar);
+            int8_t hi = fromHex(hiChar);
+            if (hi == -1) {
+                in.markInvalid();
+                return;
+            }
+            in.uncheckedRead(loChar);
+            int8_t lo = fromHex(loChar);
+            if (lo == -1) {
+                in.markInvalid();
+                return;
+            }
+
+            instance.*field = (hi << 4) | lo;
         }
     };
 

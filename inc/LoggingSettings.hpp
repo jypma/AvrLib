@@ -13,7 +13,7 @@ namespace Logging {
     //template<> class Log<Loggers::Streams>: public MessagesEnabled<STR("RFM12")> {};
 #else
     template<> class Log<Loggers::VisonicDecoder>: public TimingEnabled {};
-    //template<> class Log<Loggers::Streams>: public MessagesEnabled<STR("Streams")> {};
+    template<> class Log<Loggers::Streams>: public MessagesEnabled<STR("Streams")> {};
     //template<> class Log<Loggers::Serial>: public MessagesEnabled<STR("Serial")> {};
     template<> class Log<Loggers::RFM12>: public MessagesEnabled<STR("RFM12")> {};
 #endif

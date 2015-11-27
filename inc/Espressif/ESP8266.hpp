@@ -15,6 +15,7 @@
 #include <util/delay.h>
 #include "Time/RealTimer.hpp"
 #include "Time/Units.hpp"
+#include "Espressif/EthernetMACAddress.hpp"
 
 namespace Espressif {
 
@@ -39,7 +40,7 @@ class ESP8266 {
     template <typename... Fields> using Format = Parts::Format<This, Fields...>;
     template <ChunkedFifo This::*field, typename Separator = Format<This>> using Chunk = Parts::Chunk<This, field, Separator>;
 public:
-    enum class State: uint8_t { RESYNCING, RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
+    enum class State: uint8_t { RESYNCING, RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, GETTING_MAC_ADDRESS, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
 private:
     Fifo<txFifoSize> txFifoData;
     ChunkedFifo txFifo = &txFifoData;
@@ -50,6 +51,9 @@ private:
     rx_pin_t *rx;
     powerdown_pin_t *pd_pin;
     VariableDeadline<rt_t> watchdog;
+    uint8_t watchdogCount = 0;
+    EthernetMACAddress mac;
+    bool macKnown = false;
 
     constexpr static auto COMMAND_TIMEOUT = 1_s;
     constexpr static auto CONNECT_TIMEOUT = 10_s;
@@ -72,6 +76,14 @@ public:
         tx->out() << F("AT+RST") << endl;
         state = State::RESTARTING;
         watchdog.reset(10_s);
+    }
+
+    EthernetMACAddress getMACAddress() {
+        return mac;
+    }
+
+    bool isMACAddressKnown() {
+        return macKnown;
     }
 private:
     void resyncing() {
@@ -105,6 +117,19 @@ private:
     void setting_station_mode() {
         scan(*rx, [this] (auto s) {
             on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+                tx->out() << F("AT+CIPSTAMAC_CUR?") << endl;
+                state = State::GETTING_MAC_ADDRESS;
+                watchdog.reset(COMMAND_TIMEOUT);
+            });
+        });
+    }
+
+    void getting_mac_address() {
+        scan(*rx, mac, [this] (auto s) {
+            on<EthernetMACAddress::Proto>(s, [this] {
+                macKnown = true;
+            });
+            on<Parts::Format<EthernetMACAddress, Token<STR("OK\r\n")>>>(s, [this] {
                 tx->out() << F("AT+CWLAP") << endl;
                 state = State::LISTING_ACCESS_POINTS;
                 watchdog.reset(CONNECT_TIMEOUT);
@@ -227,15 +252,21 @@ public:
     ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, powerdown_pin_t &_pd, rt_t &rt): tx(&_tx), rx(&_rx), pd_pin(&_pd), watchdog(rt) {
         pd_pin->configureAsOutput();
         pd_pin->setHigh();
-        restart();
+        state = State::RESTARTING;
+        watchdog.reset(5_s);
     }
 
-    State getState() {
+    State getState() const {
         return state;
+    }
+
+    uint8_t getWatchdogCount() const {
+        return watchdogCount;
     }
 
     void loop() {
         if (watchdog.isNow()) {
+            watchdogCount++;
             if (state == State::CONNECTED ||
                 state == State::SENDING_LENGTH ||
                 state == State::SENDING_DATA) {
@@ -249,6 +280,7 @@ public:
         case State::RESTARTING: restarting(); return;
         case State::DISABLING_ECHO: disabling_echo(); return;
         case State::SETTING_STATION_MODE: setting_station_mode(); return;
+        case State::GETTING_MAC_ADDRESS: getting_mac_address(); return;
         case State::LISTING_ACCESS_POINTS: listing_access_points(); return;
         case State::CONNECTING_APN: connecting_apn(); return;
         case State::DISABLING_MUX: disabling_mux(); return;
