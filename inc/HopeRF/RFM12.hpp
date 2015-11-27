@@ -312,11 +312,8 @@ public:
         return pulses;
     }
 
-    template <typename body_t>
-    void on(body_t body) {
-        if (rxFifo.hasContent()) {
-            body(rxFifo.in());
-        }
+    inline Streams::Reader<ChunkedFifo> in() {
+        return rxFifo.in();
     }
 
     inline Streams::Writer<ChunkedFifoCB<CB, This>> out_fsk(uint8_t header) {
