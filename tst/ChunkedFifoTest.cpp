@@ -274,8 +274,8 @@ struct TestStruct: public Streamable<TestStruct> {
     TestStruct(uint8_t _a, uint8_t _b): a(_a), b(_b) {}
 
     typedef Format<
-        Scalar<uint8_t, &TestStruct::b>,
-        Scalar<uint8_t, &TestStruct::a>
+        Binary<uint8_t, &TestStruct::b>,
+        Binary<uint8_t, &TestStruct::a>
     > Proto;
 };
 

@@ -17,7 +17,7 @@ TEST(ScannerTest, scan_can_find_a_token_in_a_fifo) {
 
             scan(fifo, *this, [this] (auto s) {
                 on<Format<Token<STR("abd")>>>(s, [] { FAIL(); });
-                on<Format<Token<STR("cde")>, Scalar<uint8_t, &T::ch>>>(s, [this] { invoked = true; });
+                on<Format<Token<STR("cde")>, Binary<uint8_t, &T::ch>>>(s, [this] { invoked = true; });
                 on<Format<Token<STR("e")>>>(s, [] { FAIL(); });
             });
 

@@ -31,9 +31,9 @@ public:
     }
 
     typedef Format<
-        Scalar<IRType, &IRCode::type>,
+        Binary<IRType, &IRCode::type>,
         Conditional<&IRCode::isCommand,
-            Scalar<uint32_t, &IRCode::command>
+            Binary<uint32_t, &IRCode::command>
         >
     > Proto;
 

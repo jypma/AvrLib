@@ -59,7 +59,7 @@ namespace Streams {
     void Token__writeFromFlash(writer_t &out, const char *addr, uint8_t length) {
         if (out.hasSpace(length)) {
             for (uint8_t i = 0; i < length; i++) {
-                out.writeUnchecked(addr);
+                out.uncheckedWrite(pgm_read_byte(addr));
                 addr++;
             }
         } else {
@@ -77,6 +77,11 @@ namespace Streams {
 
         static constexpr uint8_t fixedSize = 0; // disable the outer fixed size optimization, since we do want to read the first token when scanning.
         static_assert(str::size() > 0, "Token must have non-empty STR as template argument.");
+
+        template <typename writer_t, typename Type>
+        static void write (writer_t &out, const Type &instance) {
+            write(out);
+        }
 
         template <typename writer_t>
         static void write (writer_t &out) {
@@ -118,22 +123,57 @@ namespace Parts {
     };
 
     template<typename Type, typename FieldType, FieldType Type::*field, class Check = void>
-    class Scalar {};
-
-    template<typename Type, bool Type::*field>
-    class Scalar<Type, bool, field>: public ScalarLiteral<Type, uint8_t, bool, field> {};
+    class Hexadecimal {};
 
     template<typename Type, uint8_t Type::*field>
-    class Scalar<Type, uint8_t, field>: public ScalarLiteral<Type, uint8_t, uint8_t, field> {};
+    struct Hexadecimal<Type, uint8_t, field> {
+        typedef Logging::Log<Loggers::Streams> log;
+        static constexpr uint8_t fixedSize = 2;
+
+        static constexpr uint8_t hexChar(uint8_t value) {
+            return (value < 10) ? '0' + value : 'A' + (value - 10);
+        }
+
+        static constexpr uint8_t fromHex(uint8_t ch) {
+            return ((ch >= '0') && (ch <= '9')) ? (ch - '0') :
+                   ((ch >= 'a') && (ch <= 'f')) ? (ch + 10 - 'a') :
+                   ((ch >= 'A') && (ch <= 'F')) ? (ch + 10 - 'A') :
+                   0;
+        }
+
+        template <typename writer_t>
+        inline static void writeUnchecked(writer_t &out, const Type &instance) {
+            const uint8_t value = instance.*field;
+            out.uncheckedWrite(hexChar(value >> 4));
+            out.uncheckedWrite(hexChar(value & 0x0F));
+        }
+
+        template <typename reader_t>
+        inline static void __attribute__((optimize("unroll-loops"))) readUnchecked(reader_t &in, Type &instance) {
+            uint8_t hi, lo;
+            in.uncheckedRead(hi);
+            in.uncheckedRead(lo);
+            instance.*field = (fromHex(hi) << 4) | fromHex(lo);
+        }
+    };
+
+    template<typename Type, typename FieldType, FieldType Type::*field, class Check = void>
+    class Binary {};
+
+    template<typename Type, bool Type::*field>
+    class Binary<Type, bool, field>: public ScalarLiteral<Type, uint8_t, bool, field> {};
+
+    template<typename Type, uint8_t Type::*field>
+    class Binary<Type, uint8_t, field>: public ScalarLiteral<Type, uint8_t, uint8_t, field> {};
 
     template<typename Type, uint16_t Type::*field>
-    class Scalar<Type, uint16_t, field>: public ScalarLiteral<Type, uint16_t, uint16_t, field> {};
+    class Binary<Type, uint16_t, field>: public ScalarLiteral<Type, uint16_t, uint16_t, field> {};
 
     template<typename Type, uint32_t Type::*field>
-    class Scalar<Type, uint32_t, field>: public ScalarLiteral<Type, uint32_t, uint32_t, field> {};
+    class Binary<Type, uint32_t, field>: public ScalarLiteral<Type, uint32_t, uint32_t, field> {};
 
     template<typename Type, typename T, T Type::*field>
-    class Scalar<Type, T, field, typename std::enable_if<std::is_enum<T>::value>::type>: public ScalarLiteral<Type, typename std::underlying_type<T>::type, T, field> {};
+    class Binary<Type, T, field, typename std::enable_if<std::is_enum<T>::value>::type>: public ScalarLiteral<Type, typename std::underlying_type<T>::type, T, field> {};
 
     template<typename Type, typename ElementType, uint8_t count, ElementType (Type::*field)[count]>
     class Array {};
@@ -420,113 +460,7 @@ namespace Parts {
 
 
     };
-/*
-    template<typename Type, typename... Fields>
-    class Format {
-    public:
-        // Fall-through for Fields is empty
-        static constexpr uint8_t minimumSize = 0;
-        static constexpr uint8_t maximumUncheckedWriteSize = 0;
 
-        template <typename writer_t>
-        inline static void writeFields(const Type &instance, writer_t &out) {}
-
-        template <typename reader_t>
-        inline static void readFields(reader_t &in, Type &instance) {}
-
-        template <typename reader_t>
-        inline static void readFields(reader_t &in) {}
-    };
-
-    template<typename Type, typename Field, typename... Others>
-    class Format<Type, Field, Others...> {
-        typedef Logging::Log<Loggers::Streams> log;
-    public:
-        static constexpr uint8_t minimumSize = Field::minimumSize + Format<Type, Others...>::minimumSize;
-        static constexpr uint8_t maximumUncheckedWriteSize = Field::maximumUncheckedWriteSize + Format<Type, Others...>::maximumUncheckedWriteSize;
-
-        template <typename writer_t>
-        inline static void writeFields(const Type &instance, writer_t &out) {
-            Field::writeField(instance, out);
-            Format<Type, Others...>::writeFields(instance, out);
-        }
-
-        template <typename reader_t>
-        inline static void readFields(reader_t &in, Type &instance) {
-            if (in) {
-                if (in.getReadAvailable() >= minimumSize) {
-                    log::debug("  reading a field, available %d, minimum size %d, state %d\n", in.getReadAvailable(), minimumSize, (ReaderState) in);
-                    Field::readField(in, instance);
-                    Format<Type, Others...>::readFields(in, instance);
-                } else {
-                    in.markIncomplete();
-                }
-            }
-        }
-
-        template <typename reader_t>
-        inline static void readFields(reader_t &in) {
-            if (in) {
-                if (in.getReadAvailable() >= minimumSize) {
-                    Field::readField(in);
-                    Format<Type, Others...>::readFields(in);
-                } else {
-                    in.markIncomplete();
-                }
-            }
-        }
-
-        template <typename reader_t>
-        inline static void read(reader_t &in, Type &instance) {
-            log::debug("Starting to read, available %d, minimum size %d, state %d\n", in.getReadAvailable(), minimumSize, (ReaderState) in);
-            if (in.getReadAvailable() >= minimumSize) {
-                readFields(in, instance);
-            } else {
-                in.markIncomplete();
-            }
-        }
-
-        template <typename reader_t>
-        inline static void read(reader_t &in) {
-            if (in.getReadAvailable() >= minimumSize) {
-                readFields(in);
-            } else {
-                in.markIncomplete();
-            }
-        }
-    };
-
-    template<typename Type, bool (Type::*condition)() const, typename... Fields>
-    class Conditional: public Format<Type, Fields...> {};
-
-    template<typename Type, bool (Type::*condition)() const, typename Field, typename... Others>
-    class Conditional<Type, condition, Field, Others...>: public Format<Type, Field, Others...> {
-        using Format<Type, Field, Others...>::writeFields;
-        using Format<Type, Field, Others...>::readFields;
-    public:
-        static constexpr uint8_t minimumSize = 0;
-        static constexpr uint8_t minimumSizeWhenPresent = Format<Type, Field, Others...>::minimumSize;
-        static constexpr uint8_t maximumUncheckedWriteSize = Format<Type, Field, Others...>::maximumUncheckedWriteSize;
-
-        template <typename writer_t>
-        inline static void writeField(const Type &instance, writer_t &out) {
-            if ((instance.*condition)()) {
-                writeFields(instance, out);
-            }
-        }
-
-        template <typename reader_t>
-        inline static void readField(reader_t &in, Type &instance) {
-            if ((instance.*condition)()) {
-                if (in.getReadAvailable() >= minimumSizeWhenPresent) {
-                    readFields(in, instance);
-                } else {
-                    in.markIncomplete();
-                }
-            }
-        }
-    };
-*/
     template<typename Type, bool (Type::*condition)() const, typename... Fields>
     struct Conditional {
         typedef Format<Type,Fields...> inner;
@@ -551,7 +485,8 @@ namespace Parts {
 template<class Type>
 struct Streamable {
     template <typename... Fields> using Format = Parts::Format<Type, Fields...>;
-    template <typename FieldType, FieldType Type::*field, class Check = void> using Scalar = Parts::Scalar<Type, FieldType, field, Check>;
+    template <typename FieldType, FieldType Type::*field, class Check = void> using Binary = Parts::Binary<Type, FieldType, field, Check>;
+    template <typename FieldType, FieldType Type::*field, class Check = void> using Hexadecimal = Parts::Hexadecimal<Type, FieldType, field, Check>;
     template <bool (Type::*condition)() const, typename... Fields> using Conditional = Parts::Conditional<Type, condition, Fields...>;
     template <typename ElementType, uint8_t count, ElementType (Type::*field)[count]> using Array = Parts::Array<Type, ElementType, count, field>;
     template <ChunkedFifo Type::*field, typename Separator = Format<Type>> using Chunk = Parts::Chunk<Type, field, Separator>;
@@ -560,6 +495,7 @@ struct Streamable {
 
 struct NoType {};
 
+// To be removed
 template <typename... Fields>
 class Seq: public Parts::Format<NoType, Fields...> {};
 

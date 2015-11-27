@@ -41,8 +41,8 @@ public:
     }
 
     typedef Format<
-        Scalar<bool, &Pulse::high>,
-        Scalar<uint16_t, &Pulse::duration>
+        Binary<bool, &Pulse::high>,
+        Binary<uint16_t, &Pulse::duration>
     > Proto;
 };
 

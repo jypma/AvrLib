@@ -37,9 +37,6 @@ class ESP8266 {
     typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize> This;
 
     template <typename... Fields> using Format = Parts::Format<This, Fields...>;
-    template <typename FieldType, FieldType This::*field, class Check = void> using Scalar = Parts::Scalar<This, FieldType, field, Check>;
-    template <bool (This::*condition)() const, typename... Fields> using Conditional = Parts::Conditional<This, condition, Fields...>;
-    template <typename ElementType, uint8_t count, ElementType (This::*field)[count]> using Array = Parts::Array<This, ElementType, count, field>;
     template <ChunkedFifo This::*field, typename Separator = Format<This>> using Chunk = Parts::Chunk<This, field, Separator>;
 public:
     enum class State: uint8_t { RESYNCING, RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };

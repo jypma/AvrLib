@@ -4,10 +4,12 @@
 #include "Streams/Reader.hpp"
 #include "Streams/Writer.hpp"
 #include "Streams/Streamable.hpp"
+#include "Espressif/EthernetMACAddress.hpp"
 
 namespace StreamsTest {
 
 using namespace Streams;
+using namespace Espressif;
 
 struct TestStruct: public Streamable<TestStruct> {
     uint8_t a = 0, b = 0;
@@ -15,8 +17,8 @@ struct TestStruct: public Streamable<TestStruct> {
     TestStruct(uint8_t _a, uint8_t _b): a(_a), b(_b) {}
 
     typedef Format<
-        Scalar<uint8_t, &TestStruct::b>,
-        Scalar<uint8_t, &TestStruct::a>
+        Binary<uint8_t, &TestStruct::b>,
+        Binary<uint8_t, &TestStruct::a>
     > Proto;
 };
 
@@ -91,8 +93,8 @@ TEST(StreamsTest, writing_constant_size_format_only_checks_available_size_once) 
 
 TEST(StreamsTest, format_consisting_of_only_literals_has_fixed_size) {
     typedef Parts::Format<TestStruct,
-            Parts::Scalar<TestStruct,uint8_t, &TestStruct::b>,
-            Parts::Scalar<TestStruct,uint8_t, &TestStruct::a>
+            Parts::Binary<TestStruct,uint8_t, &TestStruct::b>,
+            Parts::Binary<TestStruct,uint8_t, &TestStruct::a>
         > P;
 
     static_assert(P::fixedSize == 2, "two bytes hav esize 2");
@@ -188,9 +190,9 @@ struct TestStruct3: public Streamable<TestStruct3> {
     bool hasBigA() const { return a > 100; }
 
     typedef Format<
-        Scalar<uint8_t, &TestStruct3::a>,
+        Binary<uint8_t, &TestStruct3::a>,
         Conditional<&TestStruct3::hasBigA,
-            Scalar<uint8_t, &TestStruct3::b>
+            Binary<uint8_t, &TestStruct3::b>
         >
     > Proto;
 };
@@ -236,9 +238,9 @@ TEST(StreamsTest, conditional_field_aborts_read_if_fifo_would_run_out) {
             fifo.out() << "a";
 
             EXPECT_EQ(ReaderState::Incomplete, (fifo.readAs<Format<
-                Scalar<uint8_t, &T::ch1>,
+                Binary<uint8_t, &T::ch1>,
                 Conditional<&T::isCh1A,
-                    Scalar<uint8_t, &T::ch2>
+                    Binary<uint8_t, &T::ch2>
                 >
             >>(*this)));
 
@@ -258,7 +260,7 @@ TEST(StreamsTest, absense_of_token_fails_reader) {
 
             EXPECT_EQ(ReaderState::Invalid, (fifo.readAs<Format<
                 Token<STR("aaa")>,
-                Scalar<uint8_t, &T::ch>
+                Binary<uint8_t, &T::ch>
             >>(*this)));
 
             EXPECT_EQ(0, ch);
@@ -276,13 +278,33 @@ TEST(StreamsTest, char_after_token_is_read) {
 
             EXPECT_EQ(ReaderState::Valid, (fifo.readAs<Format<
                 Token<STR("bcd")>,
-                Scalar<uint8_t, &T::ch>
+                Binary<uint8_t, &T::ch>
             >>(*this)));
 
             EXPECT_EQ('e', ch);
         }
     } t;
 
+}
+
+TEST(StreamsTest, can_parse_mac_address) {
+    auto fifo = Fifo<24>();
+    fifo.out() << "06:0f:A0:de:21:4f";
+    EthernetMACAddress address;
+    EXPECT_TRUE(fifo.in() >> address);
+    EXPECT_EQ(0x06, address.byte1());
+    EXPECT_EQ(0x0F, address.byte2());
+    EXPECT_EQ(0xA0, address.byte3());
+    EXPECT_EQ(0xDE, address.byte4());
+    EXPECT_EQ(0x21, address.byte5());
+    EXPECT_EQ(0x4F, address.byte6());
+}
+
+TEST(StreamsTest, can_write_mac_address) {
+    EthernetMACAddress address = { 0xF0, 0x34, 0x02, 0x4A, 0xDE, 0x00 };
+    auto fifo = Fifo<24>();
+    fifo.out() << address;
+    EXPECT_TRUE((fifo.in().expect<Seq<Token<STR("F0:34:02:4A:DE:00")>>>()));
 }
 
 TEST(StreamTest, partially_present_token_marks_reader_as_partial) {

@@ -345,8 +345,8 @@ struct TestItem: public Streamable<TestItem> {
     uint16_t amount;
 
     typedef Format<
-        Scalar<TestEnum, &TestItem::color>,
-        Scalar<uint16_t, &TestItem::amount>
+        Binary<TestEnum, &TestItem::color>,
+        Binary<uint16_t, &TestItem::amount>
     > Proto;
 
 };

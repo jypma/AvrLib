@@ -55,14 +55,14 @@ struct FS20Packet: public Streamable<FS20Packet> {
     bool isChecksumCorrect() const;
 
     typedef Format<
-        Scalar<uint8_t, &FS20Packet::houseCodeHi>,
-        Scalar<uint8_t, &FS20Packet::houseCodeLo>,
-        Scalar<uint8_t, &FS20Packet::address>,
-        Scalar<uint8_t, &FS20Packet::command>,
+        Binary<uint8_t, &FS20Packet::houseCodeHi>,
+        Binary<uint8_t, &FS20Packet::houseCodeLo>,
+        Binary<uint8_t, &FS20Packet::address>,
+        Binary<uint8_t, &FS20Packet::command>,
         Conditional<&FS20Packet::hasCommandExt,
-            Scalar<uint8_t, &FS20Packet::commandExt>
+            Binary<uint8_t, &FS20Packet::commandExt>
         >,
-        Scalar<uint8_t, &FS20Packet::checksum>
+        Binary<uint8_t, &FS20Packet::checksum>
     > Proto;
 };
 
