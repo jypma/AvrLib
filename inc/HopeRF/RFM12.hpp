@@ -111,6 +111,7 @@ private:
                     log::debug("sendOrListen(): send FSK");
                     mode = Mode::SENDING_FSK;
                     command(0x823D); // RF_XMITTER_ON
+                    int_pin->interruptOnLow();
                 } else {
                     log::debug("sendOrListen(): send OOK");
                     mode = Mode::SENDING_OOK;
@@ -121,6 +122,7 @@ private:
             } else {
                 log::debug("sendOrListen(): listen");
                 mode = Mode::LISTENING;
+                int_pin->interruptOnLow();
                 command(0x82DD); // RF_RECEIVER_ON
             }
         }
@@ -227,7 +229,7 @@ private:
     struct OOKTarget {
         This *rfm12;
 
-        void setHigh(bool high) {
+        void setHigh(bool high) const {
             if (rfm12->mode != Mode::SENDING_OOK) {
                 return;
             }
@@ -236,6 +238,25 @@ private:
             } else {
                 rfm12->command(0x820D);  // RF_IDLE_MODE
             }
+        }
+
+        void onInitialTransition(bool high) const {
+            setHigh(high);
+        }
+        void onIntermediateTransition(bool high) const {
+            setHigh(high);
+        }
+        void onFinalTransition(bool high) const {
+            //rfm12->command(0x0000);
+            //rfm12->command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
+            rfm12->command(0xB800); // RF_TXREG_WRITE, we need to clear the TX buffer to leave OOK mode.
+                                    // If we don't, we'll end in endless interrupt loop.
+            while (rfm12->int_pin->isLow()) {
+                rfm12->command(0x0000);
+            }
+
+            rfm12->idle();
+            rfm12->sendOrListen();
         }
     };
 
@@ -248,16 +269,19 @@ private:
         Pulse getNextPulse() {
             rfm12->pulses++;
             Pulse result = ChunkPulseSource::getNextPulse();
-            if (result.isEmpty()) {
+            /*if (result.isEmpty()) {
+
+                rfm12->command(0x0000);
+                rfm12->command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
                 rfm12->command(0xB800); // RF_TXREG_WRITE, we need to clear the TX buffer to leave OOK mode.
                                         // If we don't, we'll end in endless interrupt loop.
                 while (rfm12->int_pin->isLow()) {
                     rfm12->command(0x0000);
                 }
-                rfm12->idle();
+
+                //rfm12->idle();
                 rfm12->sendOrListen();
-                rfm12->int_pin->interruptOnLow();
-            } else {
+            } else*/ if (!result.isEmpty()) {
                 // because of SPI delays, and the DELAY and TRANSMITTER_ON messages being processed by the RFM12
                 // at different delays, we need to make an adjustment between the desired pulse lengths, and the actual
                 // forwarded pulse lengths.
@@ -274,8 +298,8 @@ private:
 
     OOKTarget ookTarget = { this };
     OOKSource ookSource = { this, txFifo.getChunkedFifo() };
-    typedef CallbackPulseTx<comparator_t, OOKTarget, OOKSource> ookTx_t;
-    CallbackPulseTx<comparator_t, OOKTarget, OOKSource> ookTx = pulseTx(*comparator, ookTarget, ookSource);
+    typedef PulseTx<comparator_t, OOKTarget, OOKSource> ookTx_t;
+    ookTx_t ookTx = ookTx_t(*comparator, ookTarget, ookSource);
     SerialConfig fs20SerialConfig = FS20::FS20Packet::serialConfig<comparator_t>();
 
     void onComparator() {

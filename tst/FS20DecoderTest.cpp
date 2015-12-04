@@ -126,6 +126,11 @@ TEST(FS20DecoderTest, fs20_decoder_can_decode_correct_bit_sequence_on_prescaler_
     EXPECT_EQ(0, pkt.command);
 }
 
+TEST(FS20DecoderTest, fs20_calculates_checksum_correctly) {
+    FS20Packet packet (0b00011011, 0b00011011, 0b00000000, 18, 0);
+    EXPECT_EQ(78, packet.checksum);
+}
+
 }
 
 /*

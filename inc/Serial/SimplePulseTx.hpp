@@ -35,12 +35,12 @@ public:
     }
 };
 
-template <typename comparator_t, typename target_t, typename target_wrapper_t, int fifoSize=simplePulseTxDefaultQueueSize>
-class SimplePulseTx: public PulseTx<comparator_t, target_t, target_wrapper_t, SimplePulseTxSource<fifoSize>> {
-    typedef PulseTx<comparator_t, target_t, target_wrapper_t, SimplePulseTxSource<fifoSize>> Super;
+template <typename comparator_t, typename target_wrapper_t, int fifoSize=simplePulseTxDefaultQueueSize>
+class SimplePulseTx: public PulseTx<comparator_t, target_wrapper_t, SimplePulseTxSource<fifoSize>> {
+    typedef PulseTx<comparator_t, target_wrapper_t, SimplePulseTxSource<fifoSize>> Super;
     SimplePulseTxSource<fifoSize> source;
 public:
-    SimplePulseTx(comparator_t &_comparator, target_t &_target, bool idleHigh):
+    SimplePulseTx(comparator_t &_comparator, target_wrapper_t &_target, bool idleHigh):
         Super(_comparator, _target, source), source(idleHigh) {}
 
     void send(Pulse const &pulse) {
@@ -55,15 +55,15 @@ public:
 };
 
 template <typename comparator_t, typename target_t, int fifoSize=simplePulseTxDefaultQueueSize>
-using SimpleCallbackPulseTx = SimplePulseTx<comparator_t, target_t, PulseTxCallbackTarget<target_t>, fifoSize>;
+using SimpleCallbackPulseTx = SimplePulseTx<comparator_t, PulseTxCallbackTarget<target_t>, fifoSize>;
 
 template <typename comparator_t, typename target_t, int fifoSize=simplePulseTxDefaultQueueSize>
-inline SimpleCallbackPulseTx<comparator_t, target_t, fifoSize> simplePulseTx(comparator_t &comparator, target_t &target, bool idleHigh) {
-    return SimpleCallbackPulseTx<comparator_t, target_t, fifoSize>(comparator, target, idleHigh);
+inline SimpleCallbackPulseTx<comparator_t, PulseTxCallbackTarget<target_t>, fifoSize> simplePulseTx(comparator_t &comparator, target_t &target, bool idleHigh) {
+    return SimpleCallbackPulseTx<comparator_t, PulseTxCallbackTarget<target_t>, fifoSize>(comparator, PulseTxCallbackTarget<target_t>(target), idleHigh);
 }
 
 template <typename pin_t, int fifoSize=simplePulseTxDefaultQueueSize>
-using SimpleComparatorPinPulseTx = SimplePulseTx<typename pin_t::comparator_t, pin_t, PulseTxComparatorPinTarget<pin_t>, fifoSize>;
+using SimpleComparatorPinPulseTx = SimplePulseTx<typename pin_t::comparator_t, PulseTxComparatorPinTarget<pin_t>, fifoSize>;
 
 template <typename pin_t, int fifoSize=simplePulseTxDefaultQueueSize>
 inline SimpleComparatorPinPulseTx<pin_t, fifoSize> simplePulseTx(pin_t &pin, bool idleHigh) {

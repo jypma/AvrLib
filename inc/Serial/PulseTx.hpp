@@ -25,13 +25,13 @@ class PulseTxCallbackTarget {
 public:
     inline PulseTxCallbackTarget(target_t &_target): target(&_target) {}
 
-    inline void onInitialTransition(bool high) {
+    inline void onInitialTransition(bool high) const {
         target->setHigh(high);
     }
-    inline void onIntermediateTransition(bool high) {
+    inline void onIntermediateTransition(bool high) const {
         target->setHigh(high);
     }
-    inline void onFinalTransition(bool high) {
+    inline void onFinalTransition(bool high) const {
         target->setHigh(high);
     }
 };
@@ -93,16 +93,16 @@ public:
  * Sends out individual pulses. The object must stay in scope for the duration of the pulse(s)!
  *
  * comparator_t comparator    : The NonPWMTimerComparator to use as clock source
- * target_t target            : Target, or Pin, to apply output on. Must have setHigh(bool).
+ * target_wrapper_t target    : Target
  * source_t source            : Provides further pulses, hasNextPulse() and getNextPulseDuration().
  */
-template <typename comparator_t, typename target_t, typename target_wrapper_t, typename source_t>
+template <typename comparator_t, typename target_wrapper_t, typename source_t>
 class PulseTx {
-    typedef PulseTx<comparator_t,target_t,target_wrapper_t,source_t> This;
+    typedef PulseTx<comparator_t,target_wrapper_t,source_t> This;
     typedef typename comparator_t::value_t count_t;
 protected:
     comparator_t * const comparator;
-    target_wrapper_t target;
+    target_wrapper_t const target;
     source_t * const src;
     count_t lastPulseEnd = 0;
     Pulse pulse = Pulse::empty();
@@ -114,13 +114,13 @@ protected:
             lastPulseEnd += pulse.getDuration();
             comparator->setTarget(lastPulseEnd);
         } else {
-            target.onFinalTransition(src->isHighOnIdle());
             comparator->interruptOff();
+            target.onFinalTransition(src->isHighOnIdle());
         }
     }
 
 public:
-    PulseTx(comparator_t &_comparator, target_t &_target, source_t &_source): comparator(&_comparator), target(_target), src(&_source) {}
+    PulseTx(comparator_t &_comparator, target_wrapper_t _target, source_t &_source): comparator(&_comparator), target(_target), src(&_source) {}
 
     /** Checks the source for new pulses and starts sending them. */
     void sendFromSource() {
@@ -152,11 +152,11 @@ public:
 };
 
 template <typename comparator_t, typename target_t, typename source_t>
-using CallbackPulseTx = PulseTx<comparator_t, target_t, PulseTxCallbackTarget<target_t>, source_t>;
+using CallbackPulseTx = PulseTx<comparator_t, PulseTxCallbackTarget<target_t>, source_t>;
 
 template <typename comparator_t, typename target_t, typename source_t>
 inline CallbackPulseTx<comparator_t, target_t, source_t> pulseTx(comparator_t &comparator, target_t &target, source_t &source) {
-    return CallbackPulseTx<comparator_t, target_t, source_t>(comparator, target, source);
+    return CallbackPulseTx<comparator_t, target_t, source_t>(comparator, PulseTxCallbackTarget<target_t>(target), source);
 }
 
 /**
