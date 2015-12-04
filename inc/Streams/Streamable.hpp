@@ -387,9 +387,7 @@ namespace Parts {
 
         template <typename writer_t>
         inline static void write(writer_t &out, const Type &instance) {
-            log::debug("Attemting to output %d bytes\n", fixedSize);
             if (out.hasSpace(fixedSize)) {
-                log::debug("  OK.\n");
                 Field::writeUnchecked(out, instance);
                 Format<Type,Fields...>::writeUnchecked(out, instance);
             } else {

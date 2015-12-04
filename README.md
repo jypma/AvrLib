@@ -11,6 +11,7 @@ TODO
      out().write<>()            // without target instance    TODO
      out().writeAs<Format<>>(t) // with target instance       TODO
    Create types for the missing operator variants.
+   Add JSON (or protobuf?) types for easier packet output.
      
  - Allow Format<Format<X,Y>> to be equivalent to Format<X,Y>, so we can declare all format-dependent methods
    to take varargs directly, where appropriate. 
