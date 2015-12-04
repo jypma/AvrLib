@@ -175,7 +175,7 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
 
     rx.out() << "\r\nOK\r\n";
     esp.loop();
-    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CIPSTART=\"UDP\",\"host\",123,4123,2\r\n")>>>()));
+    EXPECT_TRUE((tx.in().expect<Seq<Token<STR("AT+CIPSTART=\"UDP\",\"host\",123,4123,0\r\n")>>>()));
 
     rx.out() << "\r\nOK\r\n";
     esp.loop();

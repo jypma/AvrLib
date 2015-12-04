@@ -173,8 +173,7 @@ private:
         scan(*rx, [this] (auto s) {
             auto connect = [this] {
                 // local UDP port is always 4123
-                // mode 2 : any remote IP can send UDP packets to our local port 4123
-                tx->out() << F("AT+CIPSTART=\"UDP\",\"") << remoteIP << F("\",") << dec(remotePort) << F(",4123,2") << endl;
+                tx->out() << F("AT+CIPSTART=\"UDP\",\"") << remoteIP << F("\",") << dec(remotePort) << F(",4123,0") << endl;
                 state = State::CONNECTING_UDP;
                 watchdog.reset(COMMAND_TIMEOUT);
             };
