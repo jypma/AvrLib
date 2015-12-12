@@ -739,4 +739,44 @@ typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
 #define __mk_ALL_ISRS \
     FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_, PCINT0_, PCINT1_, PCINT2_)
 
+/**
+ * Declares JeeNode Port 1 Analog
+ */
+#define JeeNodePort1A ::HAL::Atmel::PinPC0
+
+/**
+ * Declares JeeNode Port 2 Analog
+ */
+#define JeeNodePort2A ::HAL::Atmel::PinPC1
+
+/**
+ * Declares JeeNode Port 3 Analog
+ */
+#define JeeNodePort3A ::HAL::Atmel::PinPC2
+
+/**
+ * Declares JeeNode Port 1 Analog
+ */
+#define JeeNodePort4A ::HAL::Atmel::PinPC3
+
+/**
+ * Declares JeeNode Port 1 Digital
+ */
+#define JeeNodePort1D ::HAL::Atmel::PinPD4
+
+/**
+ * Declares JeeNode Port 2 Digital
+ */
+#define JeeNodePort2D ::HAL::Atmel::PinPD5
+
+/**
+ * Declares JeeNode Port 3 Digital
+ */
+#define JeeNodePort3D ::HAL::Atmel::PinPD6
+
+/**
+ * Declares JeeNode Port 1 Digital
+ */
+#define JeeNodePort4D ::HAL::Atmel::PinPD7
+
 #endif /* HAL_ATMEL_DEVICES_ATMEGA328_HPP_ */
