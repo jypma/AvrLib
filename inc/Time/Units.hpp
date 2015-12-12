@@ -243,7 +243,7 @@ constexpr Minutes<cv...> operator "" _min() { return Minutes<cv...>(); }
  *     uint16_t counts = toCountsOn(timer1, 200_ms);
  */
 template <typename prescaled_t, typename duration_t>
-constexpr auto toCountsOn(const prescaled_t &, const duration_t) {
+constexpr ut64_t<duration_t::template toCounts<prescaled_t>()> toCountsOn(const prescaled_t &, const duration_t) {
     return ut64_t<duration_t::template toCounts<prescaled_t>()>();
 }
 
@@ -255,7 +255,7 @@ constexpr auto toCountsOn(const prescaled_t &, const duration_t) {
  *     uint16_t counts = toCountsOn<timer1_t>(200_ms);
  */
 template <typename prescaled_t, typename duration_t>
-constexpr auto toCountsOn(const duration_t) {
+constexpr ut64_t<duration_t::template toCounts<prescaled_t>()> toCountsOn(const duration_t) {
     return ut64_t<duration_t::template toCounts<prescaled_t>()>();
 }
 
@@ -268,7 +268,7 @@ constexpr auto toCountsOn(const duration_t) {
  *     uint16_t counts = toCountsOn<timer1_t, duration_t>();
  */
 template <typename prescaled_t, typename duration_t>
-constexpr auto toCountsOn() {
+constexpr ut64_t<duration_t::template toCounts<prescaled_t>()> toCountsOn() {
     return ut64_t<duration_t::template toCounts<prescaled_t>()>();
 }
 

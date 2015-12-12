@@ -4,8 +4,6 @@
 #include "HAL/Atmel/InterruptVectors.hpp"
 #include "AtomicScope.hpp"
 
-extern uint8_t intInvocations;
-
 namespace HAL {
 namespace Atmel {
 
@@ -56,7 +54,6 @@ public:
 
     template <uint8_t bitmask>
     static void interruptOnChange() {
-        intInvocations++;
         directional &= ~bitmask;
         enablePCINT();
         *pcintInfo::pcmsk |= bitmask;
@@ -96,7 +93,6 @@ struct PinChangeVector {
 
     template <typename body_t>
     static void wrap(body_t body) {
-        intInvocations++;
         support::wrap(body);
     }
 };

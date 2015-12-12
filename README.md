@@ -4,6 +4,9 @@ BUGS
 
 TODO
 ====
+ - Allow Format<Format<X,Y>> to be equivalent to Format<X,Y>, so we can declare all format-dependent methods
+   to take varargs directly, where appropriate. 
+ - Allow STR("") where Token<STR("")> is expected
  - Replace << and >> streaming operators with template methods, so we can get rid of *Invocations on Reader and Writer
      in().expect<>()            // without target instance    DONE
      in().readAs<Format<>>(t);  // with target instance       DONE
@@ -13,8 +16,6 @@ TODO
    Create types for the missing operator variants.
    Add JSON (or protobuf?) types for easier packet output.
      
- - Allow Format<Format<X,Y>> to be equivalent to Format<X,Y>, so we can declare all format-dependent methods
-   to take varargs directly, where appropriate. 
  - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at
    runtime. That'll create much faster software serial, and removes the need to juggle pointers in the fifo.
  - UsartFifo: only enable the bit once after the first write in a writer, rather than for every byte
