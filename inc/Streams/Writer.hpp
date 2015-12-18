@@ -291,7 +291,7 @@ public:
 
     /** Writes the remaining bytes of the reader into this writer. */
     template <typename reader_fifo_t>
-    Writer &operator << (Reader<reader_fifo_t> &&in) {
+    Writer &operator << (Reader<reader_fifo_t> in) {
         for (auto length = in.getReadAvailable(); length > 0; length--) {
             uint8_t value;
             in.uncheckedRead(value);

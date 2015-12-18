@@ -289,7 +289,10 @@ TEST(WriterTest, can_write_chunk_from_chunked_fifo_as_reader) {
     MockFifo out;
     {
         auto w = Writer<MockFifo>(out);
-        w << input.in();
+        auto in = input.in();
+        if (in.getReadAvailable() > 0) {
+            w << in;
+        }
     }
 
     EXPECT_EQ(5, out.length);
