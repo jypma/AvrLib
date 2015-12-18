@@ -19,6 +19,10 @@ struct MockPulseCounter {
         static constexpr return_t microseconds2counts() {
             return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
         }
+
+        static uint16_t us2counts(uint16_t usecs) {
+            return (F_CPU >> prescalerPower2) / 1000 * usecs / 1000;
+        }
     };
 };
 
@@ -52,6 +56,26 @@ TEST(VisonicDecoderTest, visonic_decoder_can_decode_correct_bit_sequences) {
 
     std::cout << int(pkt.data[0]) << ", " << int(pkt.data[1]) << ", " << int(pkt.data[2]) << ", " << int(pkt.data[3]) << ", " << int(pkt.data[4]) << std::endl;
     // 111, 194, 43, 221, 6
+}
+
+TEST(VisonicDecoderTest, visonic_decoder_can_decode_more_bit_sequences) {
+    VisonicDecoder<MockPulseCounter> decoder;
+
+    const uint16_t seq1[] = { 500, 828, 500, 396, 904, 868, 484, 408, 892, 452, 872, 884, 476, 844, 496, 832, 500, 396, 900, 868, 488, 840, 492, 400, 900, 868, 484, 840, 496, 832, 500, 828, 496, 832, 504, 388, 904, 444, 876, 460, 868, 884, 480, 840, 492, 836, 496, 400, 900, 868, 484, 408, 896, 448, 872, 460, 868, 884, 480, 408, 892, 456, 868, 884, 480, 412, 892, 452, 872, 880, 480 };
+    constexpr uint16_t count = std::extent<decltype(seq1)>::value;
+    uint16_t seq1c[count];
+    for (int i = 0; i < count; i++) {
+        seq1c[i] = MockPulseCounter::comparator_t::us2counts(seq1[i]);
+        //std::cout << seq1c[i] << ',';
+    }
+    std::cout << int(count) << " pulses." << endl;
+
+    sendData(decoder, seq1c, std::extent<decltype(seq1)>::value);
+
+    VisonicPacket pkt;
+    EXPECT_TRUE(decoder.in() >> pkt);
+
+    std::cout << int(pkt.data[0]) << ", " << int(pkt.data[1]) << ", " << int(pkt.data[2]) << ", " << int(pkt.data[3]) << ", " << int(pkt.data[4]) << std::endl;
 }
 
 /*

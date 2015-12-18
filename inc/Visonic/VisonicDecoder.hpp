@@ -20,9 +20,33 @@ using namespace Serial;
 class VisonicPacket: public Streams::Streamable<VisonicPacket> {
 public:
     uint8_t data[5];
+    uint8_t lastBit;
+    bool flipped;
+
+    /**
+     * Pads data[4] after a received packet completes unsuccessfully, assuming that
+     * we in fact missed the first bits.
+     *
+     * data[0] will be padded with (4 - lastBit) LSB's.
+     * @param bits The number of bits that we did receive for data[4] (0..3)
+     */
+    void pad(const uint8_t lastBit) {
+        this->lastBit = lastBit;
+        if (lastBit >= 4) return;
+
+        const uint8_t left = (4 - lastBit);
+        const uint8_t right = (8 - (4 - lastBit));
+        data[4] = (data[4] << left) | (data[3] >> right);
+        data[3] = (data[3] << left) | (data[2] >> right);
+        data[2] = (data[2] << left) | (data[1] >> right);
+        data[1] = (data[1] << left) | (data[0] >> right);
+        data[0] = (data[0] << left);
+    }
 
     typedef Format<
-        Array<uint8_t, 5, &VisonicPacket::data>
+        Array<uint8_t, 5, &VisonicPacket::data>,
+        Binary<uint8_t, &VisonicPacket::lastBit>,
+        Binary<bool, &VisonicPacket::flipped>
     > Proto;
 };
 
@@ -31,7 +55,7 @@ class VisonicDecoder {
 public:
     uint16_t totalBits = 0;
 private:
-    static Logging::Log<Loggers::VisonicDecoder> log;
+    typedef Logging::Log<Loggers::VisonicDecoder> log;
 
     typedef typename pulsecounter_t::comparator_t comparator_t;
     typedef typename pulsecounter_t::count_t count_t;
@@ -41,57 +65,57 @@ private:
     State state = State::UNKNOWN;
     bool haveFlipped = false;
     VisonicPacket packet;
-    uint8_t bit = 1;
+    uint8_t bit = 0;
     uint8_t pos = 0;
     Fifo<fifoSize> fifo;
 
+    void writePacket() {
+        packet.flipped = haveFlipped;
+        log::timeStart();
+        fifo.out() << packet;
+        log::timeEnd();
+    }
+
     void reset() {
-//        std::cout << "  reset" << std::endl;
-        uint8_t bits = pos * 8;
-        for (uint8_t i = 0; i < 8; i++) {
-            if (bit > (1 << i)) {
-                bits++;
-            }
+        log::debug("  reset");
+
+        if ((uint16_t(pos * 8) + bit) > totalBits) {
+            totalBits = (pos * 8) + bit;
         }
 
-        if (bits > totalBits) {
-            totalBits = bits;
+        if (pos >= 4) {
+            packet.pad(bit);
+            writePacket();
         }
 
         state = State::UNKNOWN;
         haveFlipped = false;
-        bit = 1;
+        bit = 0;
         pos = 0;
-        noiseLength = 0;
-        noisePulses = 0;
-    }
-
-    void writePacket() {
-        log.timeStart();
-        fifo.out() << packet;
-        log.timeEnd();
+        packet.data[0] = 0;
+        packet.data[1] = 0;
+        packet.data[2] = 0;
+        packet.data[3] = 0;
+        packet.data[4] = 0;
     }
 
     void handleBit(uint8_t value) {
-//        std::cout << "  got bit " << int(bit) << " of byte " << int(pos) << std::endl;
+        log::debug("  got bit %d of byte %d", bit, pos);
 
         if (value) {
-            packet.data[pos] |= bit;
-        } else {
-            packet.data[pos] &= ~bit;
+            packet.data[pos] |= (1 << bit);
         }
 
-        if (bit < 128) {
-            bit <<= 1;
+        if (bit < 7) {
+            bit++;
         } else {
-            bit = 1;
+            bit = 0;
             pos++;
         }
 
-        if (pos >= 4 && bit >= 16) {        // 36 bits = 4 1/2 bytes of data in one packet
-            packet.data[4] &= 15;           // last 4  bits of byte 5 just stay 0
-//            std::cout << "  *** packet! " << std::endl;
-            writePacket();
+        if (pos >= 4 && bit >= 4) {        // 36 bits = 4 1/2 bytes of data in one packet
+            log::debug("  *** packet! ");
+            reset();
         }
     }
 
@@ -99,13 +123,13 @@ private:
         for (uint8_t i = 0; i < pos; i++) {
             packet.data[i] = ~packet.data[i];
         }
-        for (uint8_t i = 1; i < bit; i <<= 1) {
-            packet.data[pos] ^= i;
+        for (uint8_t i = 0; i < bit; i++) {
+            packet.data[pos] ^= (1 << i);
         }
     }
 
     void handleLongPulse() {
-        //std::cout << "  handling long pulse in state " << int(state) << std::endl;
+        log::debug("  handling long pulse in state %d", state);
         switch (state) {
         case State::UNKNOWN:
             state = State::PREVIOUS_LONG;
@@ -129,7 +153,7 @@ private:
     }
 
     void handleShortPulse() {
-        //std::cout << "  handling short pulse in state " << int(state) << std::endl;
+        log::debug("  handling short pulse in state %d", state);
         switch (state) {
         case State::UNKNOWN:
             state = State::PREVIOUS_SHORT;
@@ -142,10 +166,10 @@ private:
 
         case State::PREVIOUS_SHORT:
             if (haveFlipped) {
-//                std::cout << "  two flips!" << std::endl;
+                log::debug("  two flips!");
                 reset();
             } else {
-                //std::cout << "  ***flipping" << std::endl;
+                log::debug("  ***flipping");
                 flipBits();
                 haveFlipped = true;
                 state = State::PREVIOUS_SHORT;
@@ -158,41 +182,25 @@ private:
     static constexpr count_t us_600  = (600_us).template toCounts<comparator_t>();
     static constexpr count_t us_1000  = (1000_us).template toCounts<comparator_t>();
 
-    count_t noiseLength = 0;
-    uint8_t noisePulses = 0;
 public:
     void apply(const Pulse &pulse) {
         if (pulse.isDefined()) {
             // TODO investigate whether these are actually LOw or HIGH
-            //std::cout << int(evt.getType()) << " : " << int(evt.getLength()) << " , noise: " << int(noiseLength) << std::endl;
+            log::debug("%d: %d", pulse.isHigh(), pulse.getDuration());
             uint16_t length = pulse.getDuration();
-            if (noisePulses == 2) {
-                //std::cout << "  applying noise spike" << std::endl;
-                length += noiseLength;
-                noiseLength = 0;
-                noisePulses = 0;
-            }
             if (length < us_1000) {
                 if (length > us_200) {
-                    noiseLength = 0;
-                    noisePulses = 0;
                     if (length >= us_600) {
                         handleLongPulse();
                     } else {
                         handleShortPulse();
                     }
                 } else {
-                    if (noisePulses < 2) {
-                        //std::cout << "  considering noise spike " << int(noisePulses) << std::endl;
-                        noisePulses++;
-                        noiseLength += pulse.getDuration();
-                    } else {
-                        //std::cout << "  too short" << std::endl;
-                        reset();
-                    }
+                    log::debug("  too short");
+                    reset();
                 }
             } else {
-                //std::cout << "  too long" << std::endl;
+                log::debug("  too long");
                 reset();
             }
         } else {
