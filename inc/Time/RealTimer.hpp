@@ -233,6 +233,10 @@ public:
         calculateNextCounts(rt->counts(), delay);
         elapsed = false;
     }
+
+    void cancel() {
+        elapsed = true;
+    }
 };
 
 template <typename rt_t, typename value_t>

@@ -212,6 +212,22 @@ TEST(RealTimerTest, variable_deadline_can_be_set_to_varying_timeouts) {
     EXPECT_FALSE(d.isNow());
 }
 
+TEST(RealTimerTest, variable_deadline_does_not_fire_after_cancel) {
+    auto rt = MockRealTimer();
+    auto d = deadline(rt);
+
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+    d.reset(200_counts);
+    rt.count = 201;
+    d.cancel();
+
+    EXPECT_FALSE(d.isNow());
+    EXPECT_FALSE(d.isNow());
+
+}
+
 TEST(RealTimerTest, variable_deadline_copes_with_timer_wraparound) {
     auto rt = MockRealTimer();
     auto d = deadline(rt);
