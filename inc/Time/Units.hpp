@@ -53,6 +53,8 @@ public:
 template<typename Base, int percentage>
 class MultipliedTimeUnit {
 public:
+    static constexpr MultipliedTimeUnit<Base, percentage> instance = MultipliedTimeUnit();
+
     MultipliedTimeUnit() {
         static_assert(percentage > 0, "percentage must be larger than zero");
     }
@@ -71,6 +73,8 @@ public:
 template <char... cv>
 class Counts: public TimeUnit<cv...> {
 public:
+    static constexpr Counts<cv...> instance = Counts();
+
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toCounts() {
         return value;
@@ -103,6 +107,8 @@ constexpr Counts<cv...> operator "" _counts() { return Counts<cv...>(); }
 template <char... cv>
 class Microseconds: public TimeUnit<cv...> {
 public:
+    static constexpr Microseconds<cv...> instance = Microseconds();
+
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toCounts() {
         constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value / 1000;
@@ -137,6 +143,8 @@ constexpr Microseconds<cv...> operator "" _us() { return Microseconds<cv...>(); 
 template <char... cv>
 class Milliseconds: public TimeUnit<cv...> {
 public:
+    static constexpr Milliseconds<cv...> instance = Milliseconds();
+
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toCounts() {
         constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value;
@@ -171,6 +179,8 @@ constexpr Milliseconds<cv...> operator "" _ms() { return Milliseconds<cv...>(); 
 template <char... cv>
 class Seconds: public TimeUnit<cv...> {
 public:
+    static constexpr Seconds<cv...> instance = Seconds();
+
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toCounts() {
         constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value;
@@ -205,6 +215,8 @@ constexpr Seconds<cv...> operator "" _s() { return Seconds<cv...>(); }
 template <char... cv>
 class Minutes: public TimeUnit<cv...> {
 public:
+    static constexpr Minutes<cv...> instance = Minutes();
+
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toCounts() {
         constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value * 60;
