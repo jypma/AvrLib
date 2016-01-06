@@ -17,7 +17,7 @@
 namespace Serial {
 
 using namespace Streams;
-using namespace HAL::Atmel::Timer;
+using namespace HAL::Atmel;
 
 template <typename target_t>
 class PulseTxCallbackTarget {

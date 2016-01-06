@@ -44,6 +44,16 @@ public:
     }
 };
 
+template <typename pin_t, typename rt_t>
+Button<pin_t, rt_t, decltype(8_ms)> button(rt_t &rt, pin_t &pin) {
+    return Button<pin_t, rt_t, decltype(8_ms)>(pin, rt);
+}
+
+template <typename pin_t, typename rt_t, typename debounce_time>
+Button<pin_t, rt_t, debounce_time> button(rt_t &rt, pin_t &pin, debounce_time d) {
+    return Button<pin_t, rt_t, debounce_time>(pin, rt);
+}
+
 }
 
 

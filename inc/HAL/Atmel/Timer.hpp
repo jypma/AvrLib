@@ -7,6 +7,20 @@
 
 namespace HAL {
 namespace Atmel {
+
+enum class NonPWMOutputMode: uint8_t {
+    disconnected = 0,
+    toggle_on_match = 1,
+    low_on_match = 2,
+    high_on_match = 3
+};
+
+enum class FastPWMOutputMode: uint8_t {
+    disconnected = 0,
+    connected = 2,
+    connected_inverting = 3
+};
+
 namespace Timer {
 
 template <typename info>
@@ -30,13 +44,6 @@ public:
     static bool isOutputConnected() {
         return (*info::tccra & info::output_mode_bitmask) >> info::output_mode_bitstart != 0;
     }
-};
-
-enum class NonPWMOutputMode: uint8_t {
-    disconnected = 0,
-    toggle_on_match = 1,
-    low_on_match = 2,
-    high_on_match = 3
 };
 
 template <typename info, typename prescaler_t, prescaler_t prescaler>
@@ -66,12 +73,6 @@ public:
     }
 };
 
-enum class FastPWMOutputMode: uint8_t {
-    disconnected = 0,
-    connected = 2,
-    connected_inverting = 3
-};
-
 template <typename info, typename prescaler_t, prescaler_t prescaler>
 class FastPWMTimerComparator: public TimerComparator<info>, public Time::Prescaled<typename info::value_t, prescaler_t, prescaler> {
 public:
@@ -88,6 +89,10 @@ public:
      */
     static void setTargetFromNextRun(typename info::value_t value) {
         *info::ocr = value;
+    }
+
+    static typename info::value_t getTarget() {
+        return *info::ocr;
     }
 };
 
@@ -170,6 +175,10 @@ struct TimerDeclaration {
 
     inline NormalTimer<info, _prescaler> inNormalMode() const {
         return NormalTimer<info, _prescaler>();
+    }
+
+    inline FastPWMTimer<info, _prescaler> inFastPWMMode() const {
+        return FastPWMTimer<info, _prescaler>();
     }
 };
 

@@ -163,20 +163,24 @@ class AbstractDeadline {
     volatile uint32_t next;
     bool waitForOverflow = false;
 protected:
-    volatile bool elapsed = false;
+    volatile bool elapsed;
+    AbstractDeadline(bool _elapsed): elapsed(_elapsed) {}
 
+    uint32_t getNext() {
+        return next;
+    }
     bool isNow(uint32_t currentTime);
     void calculateNextCounts(uint32_t startTime, uint32_t delay);
 };
 
 template <typename rt_t, typename value, typename check = void>
 class Deadline: public AbstractDeadline {
+    rt_t *rt;
+protected:
     static constexpr uint32_t delay = toCountsOn<rt_t, value>();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
-
-    rt_t *rt;
 public:
-    Deadline(rt_t &_rt): rt(&_rt) {
+    Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
         calculateNextCounts(rt->counts(), delay);
     }
 
@@ -193,12 +197,12 @@ public:
 
 template <typename rt_t, typename value>
 class Deadline<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type>: public AbstractDeadline {
+    rt_t *rt;
+protected:
     static constexpr uint32_t delay = toTicksOn<rt_t, value>();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
-
-    rt_t *rt;
 public:
-    Deadline(rt_t &_rt): rt(&_rt) {
+    Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
         calculateNextCounts(rt->counts(), delay);
     }
 
@@ -217,8 +221,12 @@ public:
 template <typename rt_t>
 class VariableDeadline: public AbstractDeadline {
     rt_t *rt;
+protected:
+    uint32_t getNow() {
+        return rt->counts();
+    }
 public:
-    VariableDeadline(rt_t &_rt): rt(&_rt) {}
+    VariableDeadline(rt_t &_rt): AbstractDeadline(true), rt(&_rt) {}
 
     bool isNow() {
         return AbstractDeadline::isNow(rt->counts());
@@ -247,6 +255,188 @@ Deadline<rt_t,value_t> deadline(rt_t &rt, value_t value) {
 template <typename rt_t>
 VariableDeadline<rt_t> deadline(rt_t &rt) {
     return VariableDeadline<rt_t>(rt);
+}
+
+enum class AnimatorState: uint8_t { IDLE, UPDATED, COMPLETED };
+
+class AnimatorEvent {
+    AnimatorState state;
+    uint16_t value;
+public:
+    AnimatorEvent(AnimatorState _state, uint16_t _value): state(_state), value(_value) {}
+
+    uint16_t getValue() {
+        return value;
+    }
+
+    bool isIdle() {
+        return state == AnimatorState::IDLE;
+    }
+
+    bool isChanged() {
+        return state == AnimatorState::UPDATED || state == AnimatorState::COMPLETED;
+    }
+
+    bool isCompleted() {
+        return state == AnimatorState::COMPLETED;
+    }
+
+    bool operator== (const AnimatorEvent that) const {
+        return state == that.state && value == that.value;
+    }
+};
+
+/**
+ * The interpolation method to use in Animator steps.
+ */
+enum class AnimatorInterpolation: uint8_t {
+    /** Interpolate linearly between in and out point */
+    LINEAR,
+    /** Interpolate using t^2, starting with small steps, taking bigger steps as the out point approaches */
+    EASE_IN,
+    /** Interpolate using (1-t)^2, starting with big steps, taking smaller steps as the out point approaches */
+    EASE_OUT,
+    /** Resolves to EASE_IN if animating from low to high values, or EASE_OUT otherwise */
+    EASE_UP,
+    /** Resolves to EASE_OUT if animating from low to high values, or EASE_IN otherwise */
+    EASE_DOWN
+};
+
+template <typename rt_t>
+class Animator: protected VariableDeadline<rt_t> {
+    typedef VariableDeadline<rt_t> Super;
+    typedef Animator<rt_t> This;
+
+    uint16_t start = 0;
+    uint16_t span = 0;
+    bool backwards = false;
+    uint16_t delay = 0;
+    uint32_t startTime = 0;
+    bool done = true;
+    bool haveSentComplete = true;
+    bool atStart = false;
+    AnimatorInterpolation mode = AnimatorInterpolation::LINEAR;
+    uint16_t lastValue = 0;
+
+    uint16_t getDelta() {
+        const uint32_t progress = int32_t(Super::getNow() - startTime);
+
+        switch(mode) {
+        case AnimatorInterpolation::LINEAR:
+            return progress * span / delay;
+        case AnimatorInterpolation::EASE_IN:
+            return float(progress) * progress * span / delay / delay;
+            //std::cout << "progress= " << int(progress) << " span=" << int(span) << " delay=" << int(delay) << std::endl;
+            //if (progress < span) {
+            //    return progress * span / delay * progress / delay;
+            //} else {
+            //    return progress * progress * span / delay / delay;
+            // }
+        case AnimatorInterpolation::EASE_OUT: {
+            const uint32_t factor = (delay - progress);
+            return span - float(factor) * factor * span / delay / delay;
+            /*
+            if (factor < span) {
+                return span - (factor * span / delay * factor / delay);
+            } else {
+                return span - (factor * factor * span / delay / delay);
+            }
+            */
+        }
+        default: // shouldn't occur
+            return 0;
+        }
+
+        return 0;
+    }
+public:
+    Animator(rt_t &_rt): Super(_rt) {}
+
+    /**
+     * Starts the next "to" call from the given [start] value. Any animation in progress is stopped.
+     */
+    This &from(uint16_t _start) {
+        AtomicScope _;
+
+        start = _start;
+        lastValue = _start;
+        startTime = Super::getNow();
+        done = true;
+        haveSentComplete = true;
+        atStart = true;
+
+        return *this;
+    }
+
+    template <typename duration_t>
+    void to(const uint16_t end, duration_t d) {
+        to (end, d, AnimatorInterpolation::LINEAR);
+    }
+
+    template <typename duration_t>
+    void to(const uint16_t end, duration_t d, AnimatorInterpolation _mode) {
+        AtomicScope _;
+
+        mode = _mode;
+        start = lastValue;
+        backwards = end < start;
+        if (backwards) {
+            span = start - end;
+        } else {
+            span = end - start;
+        }
+        if (_mode == AnimatorInterpolation::EASE_UP) {
+            mode = (backwards) ? AnimatorInterpolation::EASE_OUT : AnimatorInterpolation::EASE_IN;
+        } else if (_mode == AnimatorInterpolation::EASE_DOWN) {
+            mode = (backwards) ? AnimatorInterpolation::EASE_IN : AnimatorInterpolation::EASE_OUT;
+        }
+        delay = toCountsOn<rt_t>(d);
+        startTime = Super::getNow();
+        if (atStart) {
+            // haven't invoked nextEvent() since from(), so we should report the start value.
+            lastValue = start - 1; // force trigger an UPDATED output
+        }
+        done = false;
+        haveSentComplete = false;
+        atStart = false;
+        Super::reset(d);
+    }
+
+    AnimatorEvent nextEvent() {
+        AtomicScope _;
+
+        if (Super::isNow()) {
+            done = true;
+        }
+
+        if (atStart) {
+            atStart = false;
+            lastValue = start;
+            return { AnimatorState::IDLE, lastValue };
+        } else if (done) {
+            if (haveSentComplete) {
+                return { AnimatorState::IDLE, lastValue };
+            } else {
+                haveSentComplete = true;
+                lastValue = (backwards) ? start - span : start + span;
+                return { AnimatorState::COMPLETED, lastValue };
+            }
+        } else {
+            const uint16_t value = (backwards) ? start - getDelta() : start + getDelta();
+
+            if (value != lastValue) {
+                lastValue = value;
+                return { AnimatorState::UPDATED, lastValue };
+            } else {
+                return { AnimatorState::IDLE, lastValue };
+            }
+        }
+    }
+};
+
+template <typename rt_t>
+Animator<rt_t> animator(rt_t &rt) {
+    return Animator<rt_t>(rt);
 }
 
 }

@@ -29,6 +29,9 @@ public:
     bool isHigh() const {
         return high;
     }
+    bool isLow() const {
+        return !high;
+    }
     bool isEmpty() const {
         return duration == 0;
     }

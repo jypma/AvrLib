@@ -238,4 +238,164 @@ TEST(RealTimerTest, variable_deadline_copes_with_timer_wraparound) {
     EXPECT_TRUE(d.isNow());
 }
 
+TEST(RealTimerTest, animator_runs_forward) {
+    auto rt = MockRealTimer();
+    auto a = animator(rt);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 0), a.nextEvent());
+
+    a.from(256).to(0xFFFF, 100_counts);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 256), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 256), a.nextEvent());
+    rt.count = 1;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 908), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 908), a.nextEvent());
+    rt.count = 2;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 1561), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 1561), a.nextEvent());
+    rt.count = 98;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 64229), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 64229), a.nextEvent());
+    rt.count = 99;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 64882), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 64882), a.nextEvent());
+    rt.count = 100;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 0xFFFF), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 0xFFFF), a.nextEvent());
+    rt.count = 101;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 0xFFFF), a.nextEvent());
+}
+
+TEST(RealTimerTest, animator_runs_forward_easing_in) {
+    auto rt = MockRealTimer();
+    auto a = animator(rt);
+
+    a.from(0).to(0xFFFF, 15000_counts, AnimatorInterpolation::EASE_IN);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 0), a.nextEvent());
+    rt.count = 100;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 2), a.nextEvent());
+    rt.count = 200;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 11), a.nextEvent());
+    rt.count = 9800;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 27973), a.nextEvent());
+    rt.count = 14000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 57088), a.nextEvent());
+    rt.count = 15000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 0xFFFF), a.nextEvent());
+}
+
+TEST(RealTimerTest, animator_runs_backward_easing_up) {
+    auto rt = MockRealTimer();
+    auto a = animator(rt);
+
+    a.from(2000).to(0, 15000_counts, AnimatorInterpolation::EASE_UP);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 2000), a.nextEvent());
+    rt.count = 100;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 1974), a.nextEvent());
+    rt.count = 200;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 1948), a.nextEvent());
+    rt.count = 9800;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 241), a.nextEvent());
+    rt.count = 14000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 9), a.nextEvent());
+    rt.count = 15000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 0), a.nextEvent());
+}
+
+TEST(RealTimerTest, animator_runs_forward_easing_in_2) {
+    auto rt = MockRealTimer();
+    auto a = animator(rt);
+
+    a.from(0).to(2000, 15000_counts, AnimatorInterpolation::EASE_IN);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 0), a.nextEvent());
+    rt.count = 1000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 8), a.nextEvent());
+    rt.count = 2000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 35), a.nextEvent());
+    rt.count = 9800;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 853), a.nextEvent());
+    rt.count = 14000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 1742), a.nextEvent());
+    rt.count = 15000;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 2000), a.nextEvent());
+}
+
+TEST(RealTimerTest, animator_runs_forward_easing_out) {
+    auto rt = MockRealTimer();
+    auto a = animator(rt);
+
+    a.from(256).to(0xFFFF, 100_counts, AnimatorInterpolation::EASE_OUT);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 256), a.nextEvent());
+    rt.count = 1;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 1555), a.nextEvent());
+    rt.count = 2;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 2841), a.nextEvent());
+    rt.count = 98;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 65508), a.nextEvent());
+    rt.count = 99;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 65528), a.nextEvent());
+    rt.count = 100;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 0xFFFF), a.nextEvent());
+}
+
+TEST(RealTimerTest, animator_runs_backward) {
+    auto rt = MockRealTimer();
+    auto a = animator(rt);
+
+    a.from(0xFFFF).to(256, 100_counts);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 0xFFFF), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 0xFFFF), a.nextEvent());
+    rt.count = 1;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 64883), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 64883), a.nextEvent());
+    rt.count = 99;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 909), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 909), a.nextEvent());
+    rt.count = 100;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 256), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 256), a.nextEvent());
+    rt.count = 101;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 256), a.nextEvent());
+}
+
+TEST(RealTimerTest, animator_runs_forward_and_backward) {
+    auto rt = MockRealTimer();
+    auto a = animator(rt);
+
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 0), a.nextEvent());
+
+    a.from(256);
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 256), a.nextEvent());
+
+    a.to(512, 100_counts);
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 256), a.nextEvent());
+
+    rt.count = 1;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 258), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 258), a.nextEvent());
+
+    rt.count = 100;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 512), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 512), a.nextEvent());
+
+    a.to(256, 100_counts);
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 512), a.nextEvent());
+
+    rt.count = 101;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::UPDATED, 510), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 510), a.nextEvent());
+
+    rt.count = 200;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::COMPLETED, 256), a.nextEvent());
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 256), a.nextEvent());
+
+    rt.count = 201;
+    EXPECT_EQ(AnimatorEvent(AnimatorState::IDLE, 256), a.nextEvent());
+}
 }

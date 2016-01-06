@@ -99,6 +99,10 @@ public:
         return fifo.getAbortedWrites();
     }
 
+    void clear() {
+        fifo.clear();
+    }
+
     template <typename Body>
     inline void on(Body body) {
         count_t length ;

@@ -13,6 +13,17 @@ TODO
      scan()                     // multiple options           DONE
      out().write<>()            // without target instance    TODO
      out().writeAs<Format<>>(t) // with target instance       TODO
+     
+   Entries inside a Format<...> WITHOUT target instance:
+     literal or primitive variable            (write only)
+     struct that has a ::Protocol             (write only)
+     &primitive variable                      (read only)
+     &struct that has a ::Protocol            (read only)
+     STR("abc"), implying Token<STR("abc")>   (read+write)
+     PADDING(4), ignored bytes when reading, zero when writing
+     
+   Entries inside a Format<...> WITH a target instance:
+   
    Create types for the missing operator variants.
    Add JSON (or protobuf?) types for easier packet output.
      
