@@ -93,9 +93,9 @@ public:
         writeFifo.write(ch);
     }
 
-    static void flush() {
-        if (info::writeFifo != nullptr) {
-            while (info::writeFifo->hasContent()) ;
+    void flush() {
+        if ((SREG & (1 << SREG_I)) > 0) {
+            while (writeFifo.hasContent()) ;
         }
 
         while (*info::ucsrb & _BV(UDRIE0)) ;

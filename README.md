@@ -23,9 +23,71 @@ TODO
      PADDING(4), ignored bytes when reading, zero when writing
      
    Entries inside a Format<...> WITH a target instance:
+
+--------------------------------------------------------------------------------
+
+General
+-------
+   dec() now takes either a primitive& (resulting in Decimal) or a const primitive& (resulting in ConstDecimal)
+
+Read ad-hoc
+-----------
+
+Literal (token), STR("abc") or F("abc"), &primitive variable, &struct that has a ::Protocol, Padding (skip bytes), as<MyFormat>(&struct), dec(&primitive variable)
+
+    TypeWithFormat instance;
+    uint16_t value;
+    ReaderResult result = fifo.read(uint8_t(15), F("abc"), instance, padding(2), dec(value));
+
+Write ad-hoc
+------------
+
+Literal (token), STR("abc") or F("abc"), primitive variable, const &struct that has a ::Protocol, Padding (skip bytes), as<MyFormat>(const &struct)
+
+    const TypeWithFormat instance;
+    const uint16_t value;
+    bool result = fifo.write(uint8_t(15), F("abc"), instance, padding(2), dec(value));
+
+Format
+------
+
+Literal (token), STR("abc") or F("abc"), pointer-to-primitive-field, pointer-to-struct that has a ::Protocol, Padding (skip bytes), as<MyFormat>(&struct)
+
+    typedef Protocol<This> P;
+
+    typedef P<
+      P::ByteString<8>,
+      STR("abc"),
+      P::Binary<uint8_t, This::*a>,
+      P::Padding<2>
+    > Format;
+
+Scan from fifo
+--------------
+
+	scan(fifo, [] (auto s) {
+	    uint16_t value;
+	    onMatch(s, uint8_t(15), F("abc"), &value, padding(2), [] {
+	       // ...
+	    });
+	});
+
+
+Scan from chunked fifo
+----------------------
+
+	scan(chunkedFifo, [] (auto s) {
+	    uint16_t value;
+	    onMatch(s, uint8_t(15), F("abc"), &value, padding(2), [] {
+	       // ...
+	    });    
+    });
+
+
+--------------------------------------------------------------------------------
    
-   Create types for the missing operator variants.
-   Add JSON (or protobuf?) types for easier packet output.
+   
+-  Add JSON (or protobuf?) types for easier packet output.
      
  - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at
    runtime. That'll create much faster software serial, and removes the need to juggle pointers in the fifo.

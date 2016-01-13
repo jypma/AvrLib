@@ -18,9 +18,9 @@ class JeeLibRxFifo {
     JeeLibState state;
     uint8_t remaining;
 
+public:
     static constexpr uint8_t MAX_LENGTH = 64;
 
-public:
     void writeStart(uint8_t b) {
         crc.reset();
         crc.append(groupId);
@@ -34,10 +34,10 @@ public:
         switch(state) {
         case JeeLibState::length:
             crc.append(b);
-            remaining = b + 2; // 2 extra bytes for CRC
-            if (remaining > MAX_LENGTH) {
-                remaining = MAX_LENGTH;
+            if (b > MAX_LENGTH) {
+                b = MAX_LENGTH;
             }
+            remaining = b + 2; // 2 extra bytes for CRC
             state = JeeLibState::data;
             break;
         case JeeLibState::data:

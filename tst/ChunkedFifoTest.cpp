@@ -299,4 +299,14 @@ TEST(ChunkedFifoTest, chunked_fifo_is_stream_api_compatible) {
     }
 }
 
+TEST(ChunkedFifoTest, throwaway_reader_removes_chunk) {
+    Fifo<16> data;
+    ChunkedFifo fifo(&data);
+
+    fifo.out() << "hello";
+    EXPECT_TRUE(fifo.hasContent());
+    fifo.in();
+    EXPECT_FALSE(fifo.hasContent());
+}
+
 }
