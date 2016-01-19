@@ -1,9 +1,21 @@
 #ifndef TIMEUNITS_H
 #define TIMEUNITS_H
 
+#include <avr/io.h>
 #include <stdint.h>
 
 namespace Time {
+
+template<typename This>
+class RuntimeTimeUnit {
+    uint32_t value;
+public:
+    constexpr RuntimeTimeUnit(uint32_t v): value(v) {}
+    constexpr uint32_t getValue() const { return value; }
+    constexpr bool operator== (const This that) const { return that.value == value; }
+};
+
+template <char... cv> class Milliseconds;
 
 template <typename T, T value>
 class Truncatable {
@@ -68,8 +80,9 @@ public:
     }
 };
 
-
-
+/**
+ * Counts represent individual timer increments.
+ */
 template <char... cv>
 class Counts: public TimeUnit<cv...> {
 public:
@@ -99,10 +112,29 @@ public:
     }
 };
 
+template<>
+class Counts<>: public RuntimeTimeUnit<Counts<>> {
+    using RuntimeTimeUnit<Counts<>>::RuntimeTimeUnit;
+public:
+    template <typename prescaled_t>
+    constexpr Milliseconds<> toMillisOn() const;
+};
+
 template <char ...cv>
 constexpr Counts<cv...> operator "" _counts() { return Counts<cv...>(); }
 
+/**
+ * Ticks represent timer overflows, i.e. every 256th or 65kth count, depending on timer size.
+ */
+template<char... cv>
+class Ticks: public TimeUnit<cv...> {
+    // TODO
+};
 
+template<>
+class Ticks<>: public RuntimeTimeUnit<Ticks<>> {
+    using RuntimeTimeUnit<Ticks<>>::RuntimeTimeUnit;
+};
 
 template <char... cv>
 class Microseconds: public TimeUnit<cv...> {
@@ -147,7 +179,7 @@ public:
 
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toCounts() {
-        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value;
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / 1000;
         static_assert(result > 1,
                 "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
@@ -160,7 +192,7 @@ public:
 
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toTicks() {
-        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value / (prescaled_t::maximum  + 1) ;
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / 1000 / (prescaled_t::maximum + 1);
         static_assert(result > 1,
                 "Number of ticks for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
@@ -172,8 +204,32 @@ public:
     }
 };
 
+template<>
+class Milliseconds<>: public RuntimeTimeUnit<Milliseconds<>> {
+    using RuntimeTimeUnit<Milliseconds<>>::RuntimeTimeUnit;
+public:
+    template <typename prescaled_t>
+    constexpr Ticks<> toTicksOn() const {
+        constexpr float countsPerMs = uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2;
+        constexpr float ticksPerMs = countsPerMs / float(prescaled_t::maximum + 1);
+        constexpr float max = 0xFFFFFFFF / ticksPerMs;
+
+        const float v = getValue();
+        return (v >= max) ? 0xFFFFFFFF : v * ticksPerMs;
+    }
+};
+
 template <char ...cv>
 constexpr Milliseconds<cv...> operator "" _ms() { return Milliseconds<cv...>(); }
+
+template <typename prescaled_t>
+constexpr Milliseconds<> Counts<>::toMillisOn() const {
+    constexpr float countsPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2);
+    constexpr float max = 0xFFFFFFFF * countsPerMs;
+
+    const float v = getValue();
+    return (v >= max) ? 0xFFFFFFFF : v / countsPerMs;
+}
 
 
 template <char... cv>
@@ -294,9 +350,19 @@ constexpr auto toTicksOn(const duration_t) {
     return ut64_t<duration_t::template toTicks<prescaled_t>()>();
 }
 
+template <typename prescaled_t>
+constexpr Ticks<> toTicksOn(Milliseconds<> time) {
+    return time.template toTicksOn<prescaled_t>();
+}
+
 template <typename prescaled_t, typename duration_t>
 constexpr auto toTicksOn() {
     return ut64_t<duration_t::template toTicks<prescaled_t>()>();
+}
+
+template <typename prescaled_t, typename time_t>
+Milliseconds<> toMillisOn(const time_t time) {
+    return time.template toMillisOn<prescaled_t>();
 }
 
 }

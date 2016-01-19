@@ -1,5 +1,8 @@
 #include "avr/common.h"
 #include "util/crc16.h"
+#include "avr/sleep.h"
+
+std::function<void()> onSleep_cpu = nullptr;
 
 uint8_t sfr_mem[256];
 uint8_t eeprom_contents[1024];

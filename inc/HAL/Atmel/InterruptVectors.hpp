@@ -121,6 +121,7 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
  * Defines all types for the complete list of ISR names that might exist on ANY Atmel chip.
  */
 mkVECTORS(\
+        WDT_, \
         INT0_, \
         INT1_, \
         TIMER0_OVF_, \
@@ -136,8 +137,7 @@ mkVECTORS(\
         USART_UDRE_, \
         PCINT0_, \
         PCINT1_, \
-        PCINT2_, \
-        PCINT0_BIT0 )  // <-- invoke a special mkISRS for this one.
+        PCINT2_)
 
 #define __mkVECTOR_CALLBACK(var) \
     ::HAL::Atmel::InterruptVectors::Callbacks1<decltype(var), var>

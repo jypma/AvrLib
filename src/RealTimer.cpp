@@ -2,8 +2,6 @@
 
 namespace Time {
 
-uint8_t _watchdogCounter;
-
 bool AbstractPeriodic::isNow(uint32_t currentTime, uint32_t delay) {
     AtomicScope _;
 
@@ -49,6 +47,24 @@ bool AbstractDeadline::isNow(uint32_t currentTime) {
     }
 }
 
+uint32_t AbstractDeadline::getTimeLeft(uint32_t currentTime) const {
+    AtomicScope _;
+
+    if (!elapsed) {
+        if (waitForOverflow) {
+            return next - currentTime;
+        }
+        if (currentTime >= next) {
+            // has elapsed, but isNow hasn't been called yet.
+            return 0;
+        } else {
+            return next - currentTime;
+        }
+    } else {
+        return 0xFFFFFFFF;
+    }
+}
+
 void AbstractDeadline::calculateNextCounts(uint32_t startTime, uint32_t delay) {
     next = startTime + delay;
     waitForOverflow = (next < startTime);
@@ -57,6 +73,3 @@ void AbstractDeadline::calculateNextCounts(uint32_t startTime, uint32_t delay) {
 
 }
 
-ISR(WDT_vect) {
-    Time::_watchdogCounter++;
-}

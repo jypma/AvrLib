@@ -737,7 +737,24 @@ typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
  * Defines all ISRS that exist on THIS chip.
  */
 #define __mk_ALL_ISRS \
-    FOR_EACH(__mkISR, INT0_, INT1_, TIMER0_OVF_, TIMER0_COMPA_, TIMER0_COMPB_, TIMER1_OVF_, TIMER1_COMPA_, TIMER1_COMPB_, TIMER2_OVF_, TIMER2_COMPA_, TIMER2_COMPB_, USART_RX_, USART_UDRE_, PCINT0_, PCINT1_, PCINT2_)
+    FOR_EACH(__mkISR, \
+        WDT_, \
+        INT0_, \
+        INT1_, \
+        TIMER0_OVF_, \
+        TIMER0_COMPA_, \
+        TIMER0_COMPB_, \
+        TIMER1_OVF_, \
+        TIMER1_COMPA_, \
+        TIMER1_COMPB_, \
+        TIMER2_OVF_, \
+        TIMER2_COMPA_, \
+        TIMER2_COMPB_, \
+        USART_RX_, \
+        USART_UDRE_, \
+        PCINT0_, \
+        PCINT1_, \
+        PCINT2_)
 
 /**
  * Declares JeeNode Port 1 Analog

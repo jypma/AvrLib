@@ -19,17 +19,28 @@ inline void noop() {
 
 }
 
+namespace HAL { namespace Atmel { template <typename> class Power; }}
+
 namespace Time {
 
 template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = noop>
 class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
     typedef RealTimer<timer_t,initialTicks,wait> This;
 
+    template <typename> friend class HAL::Atmel::Power;
+
     volatile uint32_t _ticks = initialTicks;
     timer_t *timer;
 
     void onTimerOverflow() {
        _ticks++;
+    }
+
+    template <typename time_t>
+    void haveSlept(time_t time) {
+        uint32_t delta = toTicksOn<This>(time).getValue();
+        AtomicScope _;
+        _ticks += delta;
     }
 
 public:
@@ -63,7 +74,7 @@ public:
         // divide by 16 ( >> 4) to go from clock ticks to microseconds
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
 
-        return ((((uint64_t)_ticks) << timer_t::prescalerPower2) / 16) << timer_t::maximumPower2;
+        return (((((uint64_t)_ticks) << timer_t::prescalerPower2) + timer->getValue()) / 16) << timer_t::maximumPower2;
     }
 
     uint64_t millis() const {
@@ -77,7 +88,7 @@ public:
         // times 256 ( << 8) to go from clock  ticks to timer overflow (8 bit timer overflows at 256)
         // divide by 1000 to get milliseconds
 
-        return (((((uint64_t)_ticks) << timer_t::prescalerPower2) / 16) << timer_t::maximumPower2) / 1000;
+        return ((((((uint64_t)_ticks) << timer_t::prescalerPower2) + timer->getValue()) / 16) << timer_t::maximumPower2) / 1000;
     }
 
     void delayTicks(uint32_t ticksDelay) const {
@@ -118,6 +129,7 @@ class AbstractPeriodic {
     volatile uint32_t next;
     bool waitForOverflow = false;
 protected:
+    uint32_t getNext() const { return next; }
     void calculateNextCounts(uint32_t startTime, uint32_t delay);
     bool isNow(uint32_t currentTime, uint32_t delay);
 };
@@ -136,6 +148,10 @@ public:
     bool isNow() {
         return AbstractPeriodic::isNow(rt->counts(), delay);
     }
+
+    Counts<> timeLeft() const {
+        return Counts<>(getNext() - rt->counts());
+    }
 };
 
 template <typename rt_t, typename value>
@@ -152,6 +168,10 @@ public:
     bool isNow() {
         return AbstractPeriodic::isNow(rt->ticks(), delay);
     }
+
+    Ticks<> timeLeft() const {
+        return Ticks<>(getNext() - rt->ticks());
+    }
 };
 
 template <typename rt_t, typename value_t>
@@ -166,19 +186,20 @@ protected:
     volatile bool elapsed;
     AbstractDeadline(bool _elapsed): elapsed(_elapsed) {}
 
-    uint32_t getNext() {
+    uint32_t getNext() const {
         return next;
     }
     bool isNow(uint32_t currentTime);
     void calculateNextCounts(uint32_t startTime, uint32_t delay);
+    uint32_t getTimeLeft(uint32_t currentTime) const;
 };
 
 template <typename rt_t, typename value, typename check = void>
 class Deadline: public AbstractDeadline {
     rt_t *rt;
-protected:
+public:
     static constexpr uint32_t delay = toCountsOn<rt_t, value>();
-    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
+    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer integer wraparound");
 public:
     Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
         calculateNextCounts(rt->counts(), delay);
@@ -193,6 +214,10 @@ public:
         calculateNextCounts(rt->counts(), delay);
         elapsed = false;
     }
+
+    Counts<> timeLeft() const {
+        return getTimeLeft(rt->counts());
+    }
 };
 
 template <typename rt_t, typename value>
@@ -200,10 +225,10 @@ class Deadline<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::large
     rt_t *rt;
 protected:
     static constexpr uint32_t delay = toTicksOn<rt_t, value>();
-    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
+    static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer integer wraparound");
 public:
     Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
-        calculateNextCounts(rt->counts(), delay);
+        calculateNextCounts(rt->ticks(), delay);
     }
 
     bool isNow() {
@@ -214,6 +239,10 @@ public:
         AtomicScope _;
         calculateNextCounts(rt->ticks(), delay);
         elapsed = false;
+    }
+
+    Ticks<> timeLeft() const {
+        return getTimeLeft(rt->ticks());
     }
 };
 
@@ -245,6 +274,10 @@ public:
     void cancel() {
         elapsed = true;
     }
+
+    Counts<> timeLeft() const {
+        return getTimeLeft(rt->counts());
+    }
 };
 
 template <typename rt_t, typename value_t>
@@ -257,32 +290,40 @@ VariableDeadline<rt_t> deadline(rt_t &rt) {
     return VariableDeadline<rt_t>(rt);
 }
 
-enum class AnimatorState: uint8_t { IDLE, UPDATED, COMPLETED };
-
 class AnimatorEvent {
-    AnimatorState state;
+    /**
+     * Whether more changes to [value] are to be expected within the current animation
+     */
+    bool animating;
+    /**
+     * Whether [value] changed since the previous returned event
+     */
+    bool changed;
+    /**
+     * The current animation value
+     */
     uint16_t value;
 public:
-    AnimatorEvent(AnimatorState _state, uint16_t _value): state(_state), value(_value) {}
+    AnimatorEvent(bool _animating, bool _changed, uint16_t _value): animating(_animating), changed(_changed), value(_value) {}
 
-    uint16_t getValue() {
+    uint16_t getValue() const {
         return value;
     }
 
-    bool isIdle() {
-        return state == AnimatorState::IDLE;
+    bool isIdle() const {
+        return !animating;
     }
 
-    bool isChanged() {
-        return state == AnimatorState::UPDATED || state == AnimatorState::COMPLETED;
+    bool isAnimating() const {
+        return animating;
     }
 
-    bool isCompleted() {
-        return state == AnimatorState::COMPLETED;
+    bool isChanged() const {
+        return changed;
     }
 
     bool operator== (const AnimatorEvent that) const {
-        return state == that.state && value == that.value;
+        return animating == that.animating && changed == that.changed && value == that.value;
     }
 };
 
@@ -412,23 +453,23 @@ public:
         if (atStart) {
             atStart = false;
             lastValue = start;
-            return { AnimatorState::IDLE, lastValue };
+            return { !done, true, lastValue };
         } else if (done) {
             if (haveSentComplete) {
-                return { AnimatorState::IDLE, lastValue };
+                return { false, false, lastValue };
             } else {
                 haveSentComplete = true;
                 lastValue = (backwards) ? start - span : start + span;
-                return { AnimatorState::COMPLETED, lastValue };
+                return { false, true, lastValue };
             }
         } else {
             const uint16_t value = (backwards) ? start - getDelta() : start + getDelta();
 
             if (value != lastValue) {
                 lastValue = value;
-                return { AnimatorState::UPDATED, lastValue };
+                return { true, true, lastValue };
             } else {
-                return { AnimatorState::IDLE, lastValue };
+                return { true, false, lastValue };
             }
         }
     }

@@ -20,7 +20,10 @@ struct MockRealTimer {
 };
 
 struct MockPin {
-    bool high;
+    typedef HAL::Atmel::InterruptVectors::VectorINT0_ INT;
+
+    bool high = true;
+    bool intOn = false;
 
     bool isHigh() {
         return high;
@@ -28,32 +31,73 @@ struct MockPin {
     void configureAsInputWithPullup() {
 
     }
+    void interruptOnLow() {
+        intOn = true;
+    }
+    void interruptOff() {
+        intOn = false;
+    }
 };
 
 TEST(ButtonTest, button_should_ignore_changes_during_debounce_time) {
     MockRealTimer rt;
     MockPin pin;
     Button<MockPin, MockRealTimer> button(pin, rt);
-
-    pin.high = true;
-    rt.count++;
-    EXPECT_EQ(ButtonEvent::PRESSED, button.nextEvent());
+    EXPECT_EQ(ButtonEvent::UP, button.nextEvent());
 
     pin.high = false;
     rt.count++;
-    EXPECT_EQ(ButtonEvent::IDLE, button.nextEvent());
+    EXPECT_EQ(ButtonEvent::PRESSED, button.nextEvent());
+
+    pin.high = true;
+    rt.count++;
+    EXPECT_EQ(ButtonEvent::DOWN, button.nextEvent()); // still debouncing
 
     rt.count += uint16_t(toCountsOn(rt, 8_ms));
     EXPECT_EQ(ButtonEvent::RELEASED, button.nextEvent());
 
-    pin.high = true;
+    pin.high = false;
     rt.count++;
-    EXPECT_EQ(ButtonEvent::IDLE, button.nextEvent());
+    EXPECT_EQ(ButtonEvent::UP, button.nextEvent()); // still debouncing
 
     rt.count += uint16_t(toCountsOn(rt, 8_ms));
     EXPECT_EQ(ButtonEvent::PRESSED, button.nextEvent());
 
-    pin.high = false;
+    pin.high = true;
     rt.count += uint16_t(toCountsOn(rt, 8_ms));
     EXPECT_EQ(ButtonEvent::RELEASED, button.nextEvent());
+}
+
+TEST(ButtonTest, button_should_pick_up_button_press_in_interrupt_only) {
+    MockRealTimer rt;
+    MockPin pin;
+    Button<MockPin, MockRealTimer> button(pin, rt);
+    EXPECT_TRUE(pin.intOn);
+
+    pin.high = false;
+    rt.count++;
+    decltype(button)::onInterruptHandler::invoke(button);
+    EXPECT_FALSE(pin.intOn);
+    pin.high = true; // simulate release before invoking nextEvent()
+
+    EXPECT_EQ(ButtonEvent::PRESSED, button.nextEvent());
+    EXPECT_TRUE(pin.intOn);
+}
+
+TEST(ButtonTest, button_should_pick_up_interrupt_driven_change) {
+    MockRealTimer rt;
+    MockPin pin;
+    Button<MockPin, MockRealTimer> button(pin, rt);
+    EXPECT_TRUE(pin.intOn);
+
+    pin.high = false;
+    rt.count++;
+    decltype(button)::onInterruptHandler::invoke(button);
+    EXPECT_EQ(ButtonEvent::PRESSED, button.nextEvent());
+    EXPECT_FALSE(pin.intOn);
+
+    pin.high = true;
+    rt.count++;
+    EXPECT_EQ(ButtonEvent::DOWN, button.nextEvent()); // still debouncing
+    EXPECT_TRUE(pin.intOn); // but interrupt got re-enabled
 }
