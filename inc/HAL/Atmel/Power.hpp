@@ -40,6 +40,8 @@ enum class SleepGranularity: uint8_t {
     _8000ms = 9
 };
 
+namespace Impl {
+
 template <typename rt_t>
 class Power {
     typedef Power<rt_t> This;
@@ -111,6 +113,11 @@ public:
         return sleepFor(p.timeLeft(), mode, maxGranularity);
     }
 
+    template <typename periodic_t>
+    bool sleepUntil(const periodic_t &p, SleepMode mode) {
+        return sleepFor(p.timeLeft(), mode, SleepGranularity::_8000ms);
+    }
+
     /**
      * Attempts to sleep (power down) for at most the given time.
      * A hardware or pin change interrupt can cause premature wake-up.
@@ -174,6 +181,12 @@ public:
 
     INTERRUPT_HANDLER1(INTERRUPT_VECTOR(WDT), onWatchdog);
 };
+}
+
+template <typename rt_t>
+Impl::Power<rt_t> Power(rt_t &rt) {
+    return Impl::Power<rt_t>(rt);
+}
 
 }
 }

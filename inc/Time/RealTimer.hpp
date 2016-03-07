@@ -15,19 +15,19 @@
 #include <gcc_limits.h>
 #include <gcc_type_traits.h>
 
+namespace HAL { namespace Atmel { namespace Impl { template <typename> class Power; }}}
+
+namespace Time {
+
 inline void noop() {
 
 }
-
-namespace HAL { namespace Atmel { template <typename> class Power; }}
-
-namespace Time {
 
 template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = noop>
 class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
     typedef RealTimer<timer_t,initialTicks,wait> This;
 
-    template <typename> friend class HAL::Atmel::Power;
+    template <typename> friend class HAL::Atmel::Impl::Power;
 
     volatile uint32_t _ticks = initialTicks;
     timer_t *timer;
