@@ -739,6 +739,7 @@ typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
 #define __mk_ALL_ISRS \
     FOR_EACH(__mkISR, \
         WDT_, \
+        ADC_, \
         INT0_, \
         INT1_, \
         TIMER0_OVF_, \

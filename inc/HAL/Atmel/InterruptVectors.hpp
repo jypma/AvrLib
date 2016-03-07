@@ -122,6 +122,7 @@ struct Callbacks1<type, t, typename enable_ifelse<false, typename type::Handler1
  */
 mkVECTORS(\
         WDT_, \
+        ADC_, \
         INT0_, \
         INT1_, \
         TIMER0_OVF_, \
