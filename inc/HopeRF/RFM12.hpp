@@ -40,7 +40,11 @@ template <typename spi_t,
           typename comparator_t,
           bool checkCrc,
           int rxFifoSize, int txFifoSize>
-class RFM12 {
+class RFM12:
+    public Streams::ReadingDelegate<
+        RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize>,
+        JeeLibRxFifo<5, rxFifoSize, checkCrc>>
+{
     typedef RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize> This;
     typedef Logging::Log<Loggers::RFM12> log;
 
@@ -264,7 +268,7 @@ private:
     struct OOKSource: public ChunkPulseSource {
         This *rfm12;
 
-        OOKSource(This *_rfm12, ChunkedFifo &_fifo): ChunkPulseSource(_fifo), rfm12(_rfm12) {}
+        OOKSource(This *_rfm12, AbstractChunkedFifo &_fifo): ChunkPulseSource(_fifo), rfm12(_rfm12) {}
 
         Pulse getNextPulse() {
             rfm12->pulses++;
@@ -308,6 +312,9 @@ private:
 
 public:
     RFM12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band):
+        Streams::ReadingDelegate<
+                RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize>,
+                JeeLibRxFifo<5, rxFifoSize, checkCrc>>(&rxFifo),
         txFifo(*this), spi(&_spi), ss_pin(&_ss_pin), int_pin(&_int_pin), comparator(&_comparator) {
         enable(band);
     }
@@ -336,21 +343,14 @@ public:
         return pulses;
     }
 
-    inline Streams::Reader<ChunkedFifo> in() {
-        return rxFifo.in();
+    template <typename... types>
+    bool write_fsk(uint8_t header, types... args) {
+        return txFifo.write_fsk(header, args...);
     }
 
-    inline Streams::Writer<ChunkedFifoCB<CB, This>> out_fsk(uint8_t header) {
-        return txFifo.out_fsk(header);
-    }
-
-    inline void out_fs20(const FS20::FS20Packet &packet) {
+    bool write_fs20(const FS20::FS20Packet &packet) {
         log::debug("queueing FS20");
-        txFifo.out_ook(&fs20SerialConfig) << packet;
-    }
-
-    inline bool hasContent() const {
-        return rxFifo.hasContent();
+        return txFifo.write_ook(&fs20SerialConfig, &packet);
     }
 
     INTERRUPT_HANDLER1(typename int_pin_t::INT, onInterrupt);

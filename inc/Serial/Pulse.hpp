@@ -8,7 +8,7 @@
 #ifndef SERIAL_PULSE_HPP_
 #define SERIAL_PULSE_HPP_
 
-#include "Streams/Streamable.hpp"
+#include "Streams/Format.hpp"
 #include "Time/Units.hpp"
 
 namespace Serial {
@@ -16,7 +16,7 @@ namespace Serial {
 using namespace Streams;
 using namespace Time;
 
-class Pulse: public Streamable<Pulse> {
+class Pulse {
     bool high;
     uint16_t duration;
 public:
@@ -43,10 +43,11 @@ public:
         return Pulse();
     }
 
-    typedef Format<
-        Binary<bool, &Pulse::high>,
-        Binary<uint16_t, &Pulse::duration>
-    > Proto;
+    typedef Protocol<Pulse> P;
+    typedef P::Seq<
+        P::Binary<bool, &Pulse::high>,
+        P::Binary<uint16_t, &Pulse::duration>
+    > DefaultProtocol;
 };
 
 template <typename prescaled_t, typename Value>

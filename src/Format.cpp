@@ -1,21 +1,22 @@
 #include "Streams/Format.hpp"
 
-using namespace Streams;
+using namespace Streams::Impl;
 
-void Format::format(write_f write, void *ctx, Decimal<uint8_t> v) {
-    if (v.value > 99) {
-        write(ctx, '0' + (v.value / 100));
-        v.value %= 100;
-        write(ctx, '0' + (v.value / 10));
-        v.value %= 10;
-    } else if (v.value > 9) {
-        write(ctx, '0' + (v.value / 10));
-        v.value %= 10;
+void Format::format(write_f write, void *ctx, Impl::Decimal<uint8_t> dec) {
+    uint8_t v = dec.value;
+    if (v > 99) {
+        write(ctx, '0' + (v / 100));
+        v %= 100;
+        write(ctx, '0' + (v / 10));
+        v %= 10;
+    } else if (v > 9) {
+        write(ctx, '0' + (v / 10));
+        v %= 10;
     }
-    write(ctx, '0' + v.value);
+    write(ctx, '0' + v);
 }
 
-void Format::format(write_f write, void *ctx, Decimal<int8_t> v) {
+void Format::format(write_f write, void *ctx, Impl::Decimal<int8_t> v) {
     if (v.value < 0) {
         write(ctx, '-');
         format(write, ctx, dec(uint8_t(-v.value)));
@@ -24,7 +25,7 @@ void Format::format(write_f write, void *ctx, Decimal<int8_t> v) {
     }
 }
 
-void Format::format(write_f write, void *ctx, Decimal<uint16_t> v) {
+void Format::format(write_f write, void *ctx, Impl::Decimal<uint16_t> v) {
     const uint16_t n = v.value;
 
     uint8_t d4, d3, d2, d1, q;
@@ -68,7 +69,7 @@ void Format::format(write_f write, void *ctx, Decimal<uint16_t> v) {
     write(ctx, d0 + '0' );
 }
 
-void Format::format(write_f write, void *ctx, Decimal<int16_t> v) {
+void Format::format(write_f write, void *ctx, Impl::Decimal<int16_t> v) {
     if (v.value < 0) {
         write(ctx, '-');
         format(write, ctx, dec(uint16_t(-v.value)));
@@ -77,7 +78,7 @@ void Format::format(write_f write, void *ctx, Decimal<int16_t> v) {
     }
 }
 
-void Format::format(write_f write, void *ctx, Decimal<uint32_t> v) {
+void Format::format(write_f write, void *ctx, Impl::Decimal<uint32_t> v) {
     const uint32_t n = v.value;
 
     const uint8_t n0 = n & 0x1F;
@@ -167,7 +168,7 @@ void Format::format(write_f write, void *ctx, Decimal<uint32_t> v) {
     write(ctx, d0 + '0');
 }
 
-void Format::format(write_f write, void *ctx, Decimal<int32_t> v) {
+void Format::format(write_f write, void *ctx, Impl::Decimal<int32_t> v) {
     if (v.value < 0) {
         write(ctx, '-');
         format(write, ctx, dec(uint32_t(-v.value)));

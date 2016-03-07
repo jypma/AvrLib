@@ -17,13 +17,13 @@ TEST(RFM12JeeLibRxFifo, rx_receives_packet_with_valid_crc) {
     }
     EXPECT_FALSE(fifo.isWriting());
     EXPECT_TRUE(fifo.hasContent());
-    auto in = fifo.in();
-    EXPECT_EQ(9, in.getReadAvailable()); // 1 byte header + 8 bytes in the original packet.
+    fifo.readStart();
+    EXPECT_EQ(9, fifo.getReadAvailable()); // 1 byte header + 8 bytes in the original packet.
     uint8_t b;
-    in >> b;
+    fifo.read(&b);
     EXPECT_EQ(bytes[0], b); // header
     for (unsigned int i = 2; i < std::extent<decltype(bytes)>::value - 2; i++) {
-        in >> b;
+        fifo.read(&b);
         EXPECT_EQ(bytes[i], b);
     }
 }
@@ -41,13 +41,13 @@ TEST(RFM12JeeLibRxFifo, rx_receives_empty_packet_with_valid_crc) {
     }
     EXPECT_FALSE(fifo.isWriting());
     EXPECT_TRUE(fifo.hasContent());
-    auto in = fifo.in();
-    EXPECT_EQ(1, in.getReadAvailable()); // 1 byte header + 0 bytes in the original packet.
+    fifo.readStart();
+    EXPECT_EQ(1, fifo.getReadAvailable()); // 1 byte header + 0 bytes in the original packet.
     uint8_t b;
-    in >> b;
+    fifo.read(&b);
     EXPECT_EQ(bytes[0], b); // header
     for (unsigned int i = 2; i < std::extent<decltype(bytes)>::value - 2; i++) {
-        in >> b;
+        fifo.read(&b);
         EXPECT_EQ(bytes[i], b);
     }
 }

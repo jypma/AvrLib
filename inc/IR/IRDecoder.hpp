@@ -2,6 +2,8 @@
 #define IRDECODER_H
 
 #include "Serial/PulseCounter.hpp"
+#include "Streams/Protocol.hpp"
+#include "Enum.hpp"
 
 namespace IR {
 
@@ -9,9 +11,21 @@ using namespace Streams;
 using namespace Serial;
 using namespace Time;
 
-enum IRType: uint8_t { Command, Repeat };
+namespace E {
 
-class IRCode: public Streamable<IRCode> {
+struct IRType {
+    enum type: uint8_t { Command, Repeat };
+};
+
+}
+
+class IRType: public Enum<E::IRType> {
+public:
+    typedef E::IRType type;
+    using Enum<E::IRType>::Enum;
+};
+
+class IRCode {
     IRType type;
     uint32_t command;
 public:
@@ -30,12 +44,13 @@ public:
         return type == IRType::Command;
     }
 
-    typedef Format<
-        Binary<IRType, &IRCode::type>,
-        Conditional<&IRCode::isCommand,
-            Binary<uint32_t, &IRCode::command>
+    typedef Protocol<IRCode> P;
+    typedef P::Seq<
+        P::Binary<IRType, &IRCode::type>,
+        P::Conditional<&IRCode::isCommand,
+            P::Binary<uint32_t, &IRCode::command>
         >
-    > Proto;
+    > DefaultProtocol;
 
 };
 
@@ -92,7 +107,8 @@ public:
     }
 
     void decoded(IRType type) {
-        fifo.out() << IRCode(type, command);
+        auto code = IRCode(type, command);
+        fifo.write(&code);
         reset();
     }
 
@@ -160,8 +176,8 @@ public:
         }
     }
 
-    inline Streams::Reader<AbstractFifo> in() {
-        return fifo.in();
+    Streams::ReadResult read(IRCode *code) {
+        return fifo.read(code);
     }
 };
 
@@ -184,7 +200,8 @@ public:
     }
 
     void decoded(IRType type) {
-        fifo.out() << IRCode(type, command);
+        auto code = IRCode(type, command);
+        fifo.write(&code);
         reset();
     }
 
@@ -251,8 +268,8 @@ public:
         }
     }
 
-    inline Reader<AbstractFifo> in() {
-        return fifo.in();
+    Streams::ReadResult read(IRCode *code) {
+        return fifo.read(code);
     }
 };
 

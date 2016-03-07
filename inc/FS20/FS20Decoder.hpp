@@ -57,7 +57,7 @@ public:
 
     void packetComplete() {
         if (!parityError && packet.isChecksumCorrect()) {
-            fifo.out() << packet;
+            fifo.write(&packet);
         }
         reset();
     }
@@ -131,8 +131,8 @@ public:
         }
     }
 
-    inline Reader<AbstractFifo> in() {
-        return fifo.in();
+    inline Streams::ReadResult read(FS20Packet *packet) {
+        return fifo.read(packet);
     }
 };
 

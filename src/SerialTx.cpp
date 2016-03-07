@@ -67,7 +67,7 @@ void ChunkPulseSource::nextDataByte() {
     bitIndex = 0;
     pulseState = SerialPulseState::A;
     if (fifo->hasReadAvailable()) {
-        fifo->read(currentByte);
+        fifo->read(&currentByte);
         currentByteBits = currentByte;
         bitState = config->bitOrder == SerialBitOrder::LSB_FIRST ? SerialBitState::DATA_LSB : SerialBitState::DATA_MSB;
     } else {
@@ -126,7 +126,7 @@ Pulse ChunkPulseSource::getNextPulse() {
     if (bitState == SerialBitState::BEFORE) {
         bitIndex = 0;
         fifo->readStart();
-        if (fifo->in() >> config && config != nullptr) {
+        if (fifo->read( (uintptr_t*) (&config)) && config != nullptr) {
             if (config->prefix_bits > 0) {
                 bitState = SerialBitState::PREFIX;
             } else {

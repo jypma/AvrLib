@@ -11,7 +11,6 @@
 #include "HAL/Atmel/InterruptVectors.hpp"
 #include "Fifo.hpp"
 #include "HAL/Atmel/Timer.hpp"
-#include "Streams/Streamable.hpp"
 #include "Serial/Pulse.hpp"
 #include "Logging.hpp"
 
@@ -52,7 +51,7 @@ private:
                                Counting<count_t>::maximum - (start - end);
 
         log::debug("onPinChanged start=%d end=%d high=%d", start, end, lastWriteWasHigh);
-        fifo.out() << length << uint8_t(pin->isHigh() ? 0 : 1);
+        fifo.write(length, uint8_t(pin->isHigh() ? 0 : 1));
         pin->interruptOff();
         comparator->setTarget(end + minimumLength);
 
@@ -65,7 +64,7 @@ private:
         log::debug("onComparator empty=%d high=%d last=%d", wasEmptyPeriod, pin->isHigh(), lastWriteWasHigh);
         if (wasEmptyPeriod) {
             // timeout
-            fifo.out() << ((count_t) 0) << uint8_t(pin->isHigh() ? 0 : 1);
+            fifo.write((count_t) 0, uint8_t(pin->isHigh() ? 0 : 1));
             comparator->interruptOff();
         } else {
             wasEmptyPeriod = true;
@@ -107,7 +106,7 @@ public:
     inline void on(Body body) {
         count_t length ;
         uint8_t value;
-        if (fifo.in() >> length >> value) {
+        if (fifo.read(&length, &value)) {
             body(Pulse(value == 1, length));
         }
     }
@@ -117,7 +116,7 @@ public:
         for (uint8_t i = maxPulses; i > 0; i--) {
             count_t length ;
             uint8_t value;
-            if (fifo.in() >> length >> value) {
+            if (fifo.read(&length, &value)) {
                 body(Pulse(value == 1, length));
             } else {
                 return;

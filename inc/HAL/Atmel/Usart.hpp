@@ -35,36 +35,17 @@ public:
     }
 };
 
-template<typename info, uint8_t Capacity>
-class UsartFifo: public Fifo<Capacity> {
-public:
-    void uncheckedWrite(uint8_t b) {
-        AtomicScope _;
-
-        Fifo<Capacity>::uncheckedWrite(b);
-        *info::ucsrb |= _BV(UDRIE0);
-        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
-        *info::ucsra |= _BV(TXC0);
-    }
-
-    bool write(uint8_t b) {
-        AtomicScope _;
-        bool result = Fifo<Capacity>::write(b);
-        *info::ucsrb |= _BV(UDRIE0);
-        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
-        *info::ucsra |= _BV(TXC0);
-        return result;
-    }
-
-    inline Streams::Writer<UsartFifo, Streams::BlockingWriteSemantics<UsartFifo>> out() {
-        return Streams::Writer<UsartFifo, Streams::BlockingWriteSemantics<UsartFifo>>(*this);
-    }
-};
-
 template <typename info, uint8_t writeFifoCapacity>
 class UsartTx {
-    typedef UsartFifo<info, writeFifoCapacity> fifo_t;
-    fifo_t writeFifo;
+    typedef UsartTx<info, writeFifoCapacity> This;
+    Fifo<writeFifoCapacity>  writeFifo;
+
+    static void startWriting() {
+        *info::ucsrb |= _BV(UDRIE0);
+        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
+        *info::ucsra |= _BV(TXC0);
+    }
+
 protected:
     void onSendComplete() {
         // clear the TXC bit -- "can be cleared by writing a one to its bit location"
@@ -85,12 +66,26 @@ public:
         AtomicScope::SEI _;
     }
 
-    inline Streams::Writer<fifo_t, Streams::BlockingWriteSemantics<fifo_t>> out() {
-        return writeFifo.out();
+    template <typename... types>
+    void write(types... args) {
+        writeOrBlock (args...);
     }
 
-    inline void write(char ch) {
-        writeFifo.write(ch);
+    template <typename... types>
+    void writeOrBlock(types... args) {
+        writeFifo.template writeOrBlockWith<&This::startWriting>(args...);
+
+        AtomicScope _;
+        if (writeFifo.hasContent()) {
+            startWriting();
+        }
+    }
+
+    template <typename... types>
+    bool writeIfSpace(types... args) {
+        return writeFifo.writeIfSpace(args...);
+        startWriting(); // that's OK this late, assuming that completing the FIFO write is very much faster
+                        // than pushing bytes out the USART.
     }
 
     void flush() {
@@ -104,7 +99,9 @@ public:
 };
 
 template <typename info, uint8_t readFifoCapacity>
-class UsartRx {
+class UsartRx:
+    public Streams::ReadingDelegate<UsartRx<info, readFifoCapacity>, AbstractFifo>
+{
     Fifo<readFifoCapacity> readFifo;
 protected:
     inline void onReceive() {
@@ -113,34 +110,8 @@ protected:
     }
 
 public:
-    UsartRx() {
+    UsartRx(): Streams::ReadingDelegate<UsartRx<info, readFifoCapacity>, AbstractFifo>(&readFifo) {
         AtomicScope::SEI _;
-    }
-
-    inline Streams::Reader<AbstractFifo> in() {
-        return readFifo.in();
-    }
-
-    inline void clear() {
-        readFifo.clear();
-    }
-
-    inline void uncheckedRead(uint8_t &i) {
-        readFifo.uncheckedRead(i);
-    }
-
-    inline uint8_t getReadAvailable() {
-        return readFifo.getReadAvailable();
-    }
-
-    template <typename Proto>
-    inline Streams::ReaderState expect() {
-        return readFifo.expect<Proto>();
-    }
-
-    template <typename Proto, typename T>
-    inline Streams::ReaderState readAs(T &t) {
-        return readFifo.readAs<Proto,T>(t);
     }
 };
 

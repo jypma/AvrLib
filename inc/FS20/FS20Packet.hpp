@@ -9,14 +9,14 @@
 #define FS20PACKET_HPP_
 
 #include "Serial/SerialTx.hpp"
-#include "Streams/Streamable.hpp"
+#include "Streams/Protocol.hpp"
 
 namespace FS20 {
 
 using namespace Streams;
 using namespace Serial;
 
-struct FS20Packet: public Streamable<FS20Packet> {
+struct FS20Packet {
     static const uint8_t prefix[];
     static const uint8_t postfix[];
 
@@ -54,16 +54,17 @@ struct FS20Packet: public Streamable<FS20Packet> {
     uint8_t getExpectedChecksum() const;
     bool isChecksumCorrect() const;
 
-    typedef Format<
-        Binary<uint8_t, &FS20Packet::houseCodeHi>,
-        Binary<uint8_t, &FS20Packet::houseCodeLo>,
-        Binary<uint8_t, &FS20Packet::address>,
-        Binary<uint8_t, &FS20Packet::command>,
-        Conditional<&FS20Packet::hasCommandExt,
-            Binary<uint8_t, &FS20Packet::commandExt>
+    typedef Protocol<FS20Packet> P;
+    typedef P::Seq<
+        P::Binary<uint8_t, &FS20Packet::houseCodeHi>,
+        P::Binary<uint8_t, &FS20Packet::houseCodeLo>,
+        P::Binary<uint8_t, &FS20Packet::address>,
+        P::Binary<uint8_t, &FS20Packet::command>,
+        P::Conditional<&FS20Packet::hasCommandExt,
+            P::Binary<uint8_t, &FS20Packet::commandExt>
         >,
-        Binary<uint8_t, &FS20Packet::checksum>
-    > Proto;
+        P::Binary<uint8_t, &FS20Packet::checksum>
+    > DefaultProtocol;
 };
 
 }

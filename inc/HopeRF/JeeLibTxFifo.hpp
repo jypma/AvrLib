@@ -23,31 +23,28 @@ public:
     PacketIndex packetIndex = PacketIndex::PREAMBLE1;
 
 public:
-    JeeLibTxFifo(target_t &target): fifo(&data, target) {}
+    JeeLibTxFifo(target_t &target): fifo(data, target) {}
 
     ChunkedFifoCB<callback_t, target_t> &getChunkedFifo() {
         return fifo;
     }
 
-    Writer<ChunkedFifoCB<callback_t, target_t>> out_ook(SerialConfig *type) {
-        auto out = fifo.out();
-        out << type;
-        return out;
+    template <typename T>
+    bool write_ook(SerialConfig *type, T *packet) {
+        auto type_ptr = (uintptr_t) type;
+        return fifo.write(type_ptr, packet);
     }
 
-    Writer<ChunkedFifoCB<callback_t, target_t>> out_fsk(uint8_t header) {
-        auto out = fifo.out();
-        SerialConfig *type = nullptr;
-        out << type;
-        out << header;
-        return out;
+    template <typename... types>
+    bool write_fsk(uint8_t header, types...args) {
+        return fifo.write(uintptr_t(0), header, args...);
     }
 
     /** Returns whether or not this indeed is an FSK packet, i.e. SerialConfig was nullptr calling out(). */
     bool readStart() {
         fifo.readStart();
         SerialConfig *type;
-        if (fifo.in() >> type) {
+        if (fifo.read((uintptr_t*) (&type))) {
             if (type == nullptr) {
                 crc.reset();
                 packetIndex = PacketIndex::PREAMBLE1;
@@ -81,7 +78,7 @@ public:
                 packetIndex = HEADER;
                 break;
             case HEADER:
-                fifo.read(b);
+                fifo.read(&b);
                 crc.append(b);
                 packetIndex = LENGTH;
                 break;
@@ -91,7 +88,7 @@ public:
                 packetIndex = (b > 0) ? DATA : CRCLSB;
                 break;
             case DATA:
-                fifo.read(b);
+                fifo.read(&b);
                 crc.append(b);
                 if (fifo.getReadAvailable() == 0) packetIndex = CRCLSB;
                 break;

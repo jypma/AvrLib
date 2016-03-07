@@ -255,6 +255,23 @@ template<typename>
        : public __add_rvalue_reference_helper<_Tp>
        { };
 
+     template<typename>
+       struct remove_cv;
+
+template<typename _Tp, typename>
+struct __remove_pointer_helper
+{ typedef _Tp     type; };
+
+template<typename _Tp, typename _Up>
+struct __remove_pointer_helper<_Tp, _Up*>
+{ typedef _Up     type; };
+
+/// remove_pointer
+template<typename _Tp>
+struct remove_pointer
+: public __remove_pointer_helper<_Tp, typename remove_cv<_Tp>::type>
+{ };
+
 }
 
 

@@ -38,7 +38,7 @@ TEST(FS20DecoderTest, fs20_decoder_can_decode_correct_bit_sequence) {
     sendData(decoder, seq1, std::extent<decltype(seq1)>::value);
 
     FS20Packet pkt;
-    EXPECT_TRUE(decoder.in() >> pkt);
+    EXPECT_TRUE(decoder.read(&pkt));
     EXPECT_EQ(27, pkt.houseCodeHi);
     EXPECT_EQ(255, pkt.houseCodeLo);
     EXPECT_EQ(0, pkt.address);
@@ -53,7 +53,7 @@ TEST(FS20DecoderTest, fs20_decoder_can_decode_correct_bit_sequence_2) {
     sendData(decoder, seq1, std::extent<decltype(seq1)>::value);
 
     FS20Packet pkt;
-    EXPECT_TRUE(decoder.in() >> pkt);
+    EXPECT_TRUE(decoder.read(&pkt));
     EXPECT_EQ(27, pkt.houseCodeHi);
     EXPECT_EQ(255, pkt.houseCodeLo);
     EXPECT_EQ(0, pkt.address);
@@ -68,7 +68,7 @@ TEST(FS20DecoderTest, fs20_decoder_ignores_packet_with_parity_error) {
     sendData(decoder, seq1, std::extent<decltype(seq1)>::value);
 
     FS20Packet pkt;
-    EXPECT_FALSE(decoder.in() >> pkt);
+    EXPECT_FALSE(decoder.read(&pkt));
 }
 
 TEST(FS20DecoderTest, fs20_decoder_ignores_packet_with_checksum_error_but_correct_parity) {
@@ -78,7 +78,7 @@ TEST(FS20DecoderTest, fs20_decoder_ignores_packet_with_checksum_error_but_correc
     sendData(decoder, seq1, std::extent<decltype(seq1)>::value);
 
     FS20Packet pkt;
-    EXPECT_FALSE(decoder.in() >> pkt);
+    EXPECT_FALSE(decoder.read(&pkt));
 }
 
 }
@@ -119,7 +119,7 @@ TEST(FS20DecoderTest, fs20_decoder_can_decode_correct_bit_sequence_on_prescaler_
     sendData(decoder, seq1, std::extent<decltype(seq1)>::value);
 
     FS20Packet pkt;
-    EXPECT_TRUE(decoder.in() >> pkt);
+    EXPECT_TRUE(decoder.read(&pkt));
     EXPECT_EQ(27, pkt.houseCodeHi);
     EXPECT_EQ(255, pkt.houseCodeLo);
     EXPECT_EQ(0, pkt.address);

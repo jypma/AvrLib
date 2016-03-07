@@ -23,7 +23,7 @@ public:
 
     Pulse getNextPulse() {
         Pulse pulse;
-        return (fifo.in() >> pulse) ? pulse : Pulse::empty();
+        return fifo.read(&pulse) ? pulse : Pulse::empty();
     }
 
     bool isHighOnIdle() {
@@ -31,7 +31,7 @@ public:
     }
 
     void append(Pulse const &pulse) {
-        fifo.out() << pulse;
+        fifo.write(&pulse);
     }
 };
 

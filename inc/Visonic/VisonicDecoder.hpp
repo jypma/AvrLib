@@ -10,6 +10,7 @@
 
 #include "Serial/PulseCounter.hpp"
 #include "Logging.hpp"
+#include "Streams/Protocol.hpp"
 
 namespace Visonic {
 
@@ -17,7 +18,7 @@ using namespace Time;
 using namespace Streams;
 using namespace Serial;
 
-class VisonicPacket: public Streams::Streamable<VisonicPacket> {
+class VisonicPacket {
 public:
     uint8_t data[5];
     uint8_t lastBit;
@@ -43,11 +44,12 @@ public:
         data[0] = (data[0] << left);
     }
 
-    typedef Format<
-        Array<uint8_t, 5, &VisonicPacket::data>,
-        Binary<uint8_t, &VisonicPacket::lastBit>,
-        Binary<bool, &VisonicPacket::flipped>
-    > Proto;
+    typedef Protocol<VisonicPacket> P;
+    typedef P::Seq<
+        P::Array<uint8_t, 5, &VisonicPacket::data>,
+        P::Binary<uint8_t, &VisonicPacket::lastBit>,
+        P::Binary<bool, &VisonicPacket::flipped>
+    > DefaultProtocol;
 };
 
 template <typename pulsecounter_t, uint8_t fifoSize = 50>
@@ -72,7 +74,7 @@ private:
     void writePacket() {
         packet.flipped = haveFlipped;
         log::timeStart();
-        fifo.out() << packet;
+        fifo.write(&packet);
         log::timeEnd();
     }
 
@@ -208,8 +210,8 @@ public:
         }
     }
 
-    inline Reader<AbstractFifo> in() {
-        return fifo.in();
+    inline ReadResult read(VisonicPacket *p) {
+        return fifo.read(p);
     }
 
 };
