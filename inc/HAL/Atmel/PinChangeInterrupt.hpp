@@ -123,6 +123,14 @@ public:
         INT::support::template interruptOnFalling<bitmask>();
     }
 
+    /**
+     * TODO have this call the handler repeatedly _while_ the pin is low. Currently,
+     * we just call interruptOnFalling().
+     */
+    void interruptOnLow() {
+        interruptOnFalling();
+    }
+
     void interruptOff() {
         INT::support::template interruptOff<bitmask>();
     }
