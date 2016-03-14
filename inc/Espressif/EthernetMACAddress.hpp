@@ -2,13 +2,13 @@
 #define ETHERNET_MAC_ADDRESS_H
 
 #include <stdint.h>
-#include "Streams/Streamable.hpp"
+#include "Streams/Protocol.hpp"
 
 namespace Espressif {
 
 using namespace Streams;
 
-class EthernetMACAddress: public Streamable<EthernetMACAddress> {
+class EthernetMACAddress {
     uint8_t data1, data2, data3, data4, data5, data6;
 public:
     EthernetMACAddress(uint8_t d1,uint8_t d2,uint8_t d3,uint8_t d4,uint8_t d5,uint8_t d6):
@@ -32,19 +32,20 @@ public:
     inline uint8_t byte5() const { return data5; }
     inline uint8_t byte6() const { return data6; }
 
-    typedef Format<
-        Hexadecimal<uint8_t, &EthernetMACAddress::data1>,
-        Token<STR(":")>,
-        Hexadecimal<uint8_t, &EthernetMACAddress::data2>,
-        Token<STR(":")>,
-        Hexadecimal<uint8_t, &EthernetMACAddress::data3>,
-        Token<STR(":")>,
-        Hexadecimal<uint8_t, &EthernetMACAddress::data4>,
-        Token<STR(":")>,
-        Hexadecimal<uint8_t, &EthernetMACAddress::data5>,
-        Token<STR(":")>,
-        Hexadecimal<uint8_t, &EthernetMACAddress::data6>
-    > Proto;
+    typedef Protocol<EthernetMACAddress> P;
+    typedef P::Seq<
+        P::Hexadecimal<uint8_t, &EthernetMACAddress::data1>,
+        STR(":"),
+        P::Hexadecimal<uint8_t, &EthernetMACAddress::data2>,
+        STR(":"),
+        P::Hexadecimal<uint8_t, &EthernetMACAddress::data3>,
+        STR(":"),
+        P::Hexadecimal<uint8_t, &EthernetMACAddress::data4>,
+        STR(":"),
+        P::Hexadecimal<uint8_t, &EthernetMACAddress::data5>,
+        STR(":"),
+        P::Hexadecimal<uint8_t, &EthernetMACAddress::data6>
+    > DefaultProtocol;
 };
 
 }

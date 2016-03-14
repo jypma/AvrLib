@@ -8,7 +8,6 @@
 #ifndef ESP8266_HPP_
 #define ESP8266_HPP_
 
-#include "Streams/Streamable.hpp"
 #include "ChunkedFifo.hpp"
 #include "EEPROM.hpp"
 #include "Streams/Scanner.hpp"
@@ -16,6 +15,8 @@
 #include "Time/RealTimer.hpp"
 #include "Time/Units.hpp"
 #include "Espressif/EthernetMACAddress.hpp"
+#include "Streams/StreamingDecl.hpp"
+#include "Logging.hpp"
 
 namespace Espressif {
 
@@ -34,18 +35,19 @@ template<
     uint8_t txFifoSize = 64,
     uint8_t rxFifoSize = 64
 >
-class ESP8266 {
+class ESP8266:
+    public Streams::ReadingDelegate<ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize>, ChunkedFifo>
+{
     typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize> This;
+    typedef Logging::Log<Loggers::ESP8266> log;
 
-    template <typename... Fields> using Format = Parts::Format<This, Fields...>;
-    template <ChunkedFifo This::*field, typename Separator = Format<This>> using Chunk = Parts::Chunk<This, field, Separator>;
 public:
     enum class State: uint8_t { RESYNCING, RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, GETTING_MAC_ADDRESS, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
 private:
     Fifo<txFifoSize> txFifoData;
-    ChunkedFifo txFifo = &txFifoData;
+    ChunkedFifo txFifo = txFifoData;
     Fifo<rxFifoSize> rxFifoData;
-    ChunkedFifo rxFifo = &rxFifoData;
+    ChunkedFifo rxFifo = rxFifoData;
     State state = State::RESTARTING;
     tx_pin_t *tx;
     rx_pin_t *rx;
@@ -60,20 +62,20 @@ private:
     constexpr static auto IDLE_TIMEOUT = 1_min;
 
     void disable_mux() {
-        tx->out() << F("AT+CIPMUX=0") << endl;
+        tx->write(F("AT+CIPMUX=0"), endl);
         state = State::DISABLING_MUX;
         watchdog.reset(COMMAND_TIMEOUT);
     }
 
 public:
     void resync() {
-        tx->out() << F("AT") << endl;
+        tx->write(F("AT"), endl);
         state = State::RESYNCING;
         watchdog.reset(COMMAND_TIMEOUT);
     }
 
     void restart() {
-        tx->out() << F("AT+RST") << endl;
+        tx->write(F("AT+RST"), endl);
         state = State::RESTARTING;
         watchdog.reset(10_s);
     }
@@ -87,168 +89,183 @@ public:
     }
 private:
     void resyncing() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+        scan(*rx, [this] (auto &read) {
+            if (read(F("OK\r\n"))) {
                 this->disable_mux();
-            });
+            }
         });
     }
 
     void restarting() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("ready")>>>(s, [this] {
-                tx->out() << F("ATE0") << endl;
+        scan(*rx, [this] (auto &read) {
+            if (read(F("ready"))) {
+                tx->write(F("ATE0"), endl);
                 state = State::DISABLING_ECHO;
                 watchdog.reset(COMMAND_TIMEOUT);
-            });
+            }
         });
     }
 
     void disabling_echo() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
-                tx->out() << F("AT+CWMODE_CUR=1") << endl;
+        scan(*rx, [this] (auto &read) {
+            if (read(F("OK\r\n"))) {
+                tx->write(F("AT+CWMODE_CUR=1"), endl);
                 state = State::SETTING_STATION_MODE;
                 watchdog.reset(COMMAND_TIMEOUT);
-            });
+            }
         });
     }
 
     void setting_station_mode() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
-                tx->out() << F("AT+CIPSTAMAC_CUR?") << endl;
+        scan(*rx, [this] (auto &read) {
+            if (read(F("OK\r\n"))) {
+                tx->write(F("AT+CIPSTAMAC_CUR?"), endl);
                 state = State::GETTING_MAC_ADDRESS;
                 watchdog.reset(COMMAND_TIMEOUT);
-            });
+            }
         });
     }
 
     void getting_mac_address() {
-        scan(*rx, mac, [this] (auto s) {
-            on<EthernetMACAddress::Proto>(s, [this] {
+        scan(*rx, [this] (auto &read) {
+            if (read(&mac)) {
                 macKnown = true;
-            });
-            on<Parts::Format<EthernetMACAddress, Token<STR("OK\r\n")>>>(s, [this] {
-                tx->out() << F("AT+CWLAP") << endl;
+            } else if (read(F("OK\r\n"))) {
+                tx->write(F("AT+CWLAP"), endl);
                 state = State::LISTING_ACCESS_POINTS;
                 watchdog.reset(CONNECT_TIMEOUT);
-            });
+            }
         });
     }
 
     void listing_access_points() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
-                tx->out() << F("AT+CWJAP_CUR=\"") << accessPoint << F("\",\"") << password << F("\"") << endl;
+        scan(*rx, [this] (auto &read) {
+            if (read(F("OK\r\n"))) {
+                tx->write(F("AT+CWJAP_CUR=\""), accessPoint, F("\",\""), password, F("\""), endl);
                 state = State::CONNECTING_APN;
                 watchdog.reset(CONNECT_TIMEOUT);
-            });
+            }
         });
     }
 
     void connecting_apn() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+        scan(*rx, [this] (auto &read) {
+            if (read(F("OK\r\n"))) {
                 this->disable_mux();
-            });
-            on<Format<Token<STR("FAIL\r\n")>>>(s, [this] {
+            } else if (read(F("FAIL\r\n"))) {
                 // Failed to connect to wifi, restart
                 this->restart();
-            });
+            }
         });
     }
 
     void disabling_mux() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
-                tx->out() << F("AT+CIPCLOSE") << endl;
+        scan(*rx, [this] (auto &read) {
+            if (read(F("OK\r\n"))) {
+                tx->write(F("AT+CIPCLOSE"), endl);
                 state = State::CLOSING_OLD_CONNECTION;
                 watchdog.reset(COMMAND_TIMEOUT);
-            });
+            }
         });
     }
 
     void closing_old_connection() {
-        scan(*rx, [this] (auto s) {
-            auto connect = [this] {
+        scan(*rx, [this] (auto &read) {
+            // if deleting old conn fails, try to connect anyways.
+            // Datasheet: "Prints UNLINK when there is no connection"
+            if (read(F("OK\r\n")) || read(F("ERROR\r\n")) || read(F("UNLINK\r\n"))) {
                 // local UDP port is always 4123
-                tx->out() << F("AT+CIPSTART=\"UDP\",\"") << remoteIP << F("\",") << dec(remotePort) << F(",4123,0") << endl;
+                tx->write(F("AT+CIPSTART=\"UDP\",\""), remoteIP, F("\","), dec(remotePort), F(",4123,0"), endl);
                 state = State::CONNECTING_UDP;
                 watchdog.reset(COMMAND_TIMEOUT);
-            };
-
-            on<Format<Token<STR("OK\r\n")>>>(s, connect);
-            on<Format<Token<STR("ERROR\r\n")>>>(s, connect);     // if deleting old conn fails, try to connect anyways.
-            on<Format<Token<STR("UNLINK\r\n")>>>(s, connect);    // Datasheet: "Prints UNLINK when there is no connection"
+            }
         });
     }
 
     void connecting_udp() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR("OK\r\n")>>>(s, [this] {
+        scan(*rx, [this] (auto &read) {
+            if (read(F("OK\r\n"))) {
                 state = State::CONNECTED;
                 watchdog.reset(IDLE_TIMEOUT);
-            });
-            on<Format<Token<STR("ERROR\r\n")>>>(s, [this] {
+            } else if (read(F("ERROR\r\n"))) {
                 // Could be "ALREADY CONNECTED"
                 this->restart();
-            });
+            }
         });
     }
 
     void connected() {
-        scan(*rx, *this, [this] (auto s) {
-            on<Format<
-                Token<STR("+IPD,")>,
-                Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
-            >(s, [this] {
+        log::debug("Scan while connected");
+        scan(*rx, [this] (auto &read) {
+            uint8_t length;
+            rxFifo.writeStart();
+            if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
+                log::debug("  Got some data, %d bytes", length);
+                rxFifo.writeEnd();
                 watchdog.reset(IDLE_TIMEOUT);
-            });
+            } else {
+                log::debug("  No data");
+                rxFifo.writeAbort();
+            }
         });
 
         if (txFifo.hasContent()) {
+            log::debug("Transmitting");
             txFifo.readStart();
             auto len = txFifo.getReadAvailable();
             txFifo.readAbort();
-            tx->out() << F("AT+CIPSEND=") << dec(len) << endl;
+            tx->write(F("AT+CIPSEND="), dec(len), endl);
             state = State::SENDING_LENGTH;
         }
     }
 
     void sending_length() {
-        scan(*rx, [this] (auto s) {
-            on<Format<Token<STR(">")>>>(s, [this] {
-                tx->out() << txFifo.in();
-                state = State::SENDING_DATA;
-                watchdog.reset(COMMAND_TIMEOUT);
-            });
+        scan(*rx, [this] (auto &read) {
+            if (read(F(">"))) {
+                txFifo.readStart();
+                if (tx->write(txFifo)) {
+                    txFifo.readEnd();
+                    state = State::SENDING_DATA;
+                    watchdog.reset(COMMAND_TIMEOUT);
+                } else {
+                    txFifo.readEnd(); // couldn't write, let's drop this chunk. But we're out of sync now.
+                    this->restart();
+                }
+            }
         });
     }
 
     void sending_data() {
-        scan(*rx, *this, [this] (auto s) {
-            on<Format<
-                Token<STR("+IPD,")>,
-                Chunk<&This::rxFifo, Format<Token<STR(":")>>>>
-            >(s, [this] {
-                // we got some data, it's already in rxFifo.
+        log::debug("Scan while sending data");
+        scan(*rx, [this] (auto &read) {
+            uint8_t length;
+            rxFifo.writeStart();
+            if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
+                log::debug("  Got some data");
+                rxFifo.writeEnd();
                 watchdog.reset(COMMAND_TIMEOUT);
-            });
-            on<Format<Token<STR("SEND OK")>>>(s, [this] {
+            } else if (read(F("SEND OK"))) {
+                log::debug("  Got confirm");
+                rxFifo.writeAbort();
                 state = State::CONNECTED;
                 watchdog.reset(IDLE_TIMEOUT);
-            });
-            on<Format<Token<STR("ERROR")>>>(s, [this] {
+            } else if (read(F("ERROR"))) {
+                log::debug("  Got error");
+                rxFifo.writeAbort();
                 state = State::CONNECTED;
                 watchdog.reset(IDLE_TIMEOUT);
-            });
+            } else {
+                log::debug("  Got nothing");
+                rxFifo.writeAbort();
+            }
         });
     }
 
 
 public:
-    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, powerdown_pin_t &_pd, rt_t &rt): tx(&_tx), rx(&_rx), pd_pin(&_pd), watchdog(rt) {
+    ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, powerdown_pin_t &_pd, rt_t &rt):
+        Streams::ReadingDelegate<ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize>, ChunkedFifo>(&rxFifo),
+        tx(&_tx), rx(&_rx), pd_pin(&_pd), watchdog(rt) {
         pd_pin->configureAsOutput();
         pd_pin->setHigh();
         state = State::RESTARTING;
@@ -291,12 +308,14 @@ public:
         }
     }
 
-    inline Writer<ChunkedFifo> out() {
-        return txFifo.out();
+    template <typename... types>
+    bool write(types... args) {
+        return txFifo.write(args...);
     }
 
-    inline Reader<ChunkedFifo> in() {
-        return rxFifo.in();
+    template <typename... types>
+    Streams::ReadResult read(types... args) {
+        return rxFifo.read(args...);
     }
 };
 
@@ -318,6 +337,8 @@ ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, reset_p
 }
 
 }
+
+#include "Streams/Streaming.hpp"
 
 #endif /* ESP8266_HPP_ */
 

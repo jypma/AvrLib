@@ -4,21 +4,24 @@
 #include "Fifo.hpp"
 #include "ChunkedFifo.hpp"
 #include "CRC.hpp"
-#include "Streams/Reader.hpp"
 
 namespace HopeRF{
 
 enum class JeeLibState: uint8_t { length, data };
 
 template <int groupId = 5, int fifoSize = 32, bool checkCrc = true>
-class JeeLibRxFifo {
+class JeeLibRxFifo:
+    public Streams::ReadingDelegate<JeeLibRxFifo<groupId, fifoSize, checkCrc>, ChunkedFifo>
+{
     Fifo<fifoSize> data;
-    ChunkedFifo fifo = { &data };
+    ChunkedFifo fifo = data;
     CRC16 crc;
     JeeLibState state;
     uint8_t remaining;
 
 public:
+    JeeLibRxFifo(): Streams::ReadingDelegate<JeeLibRxFifo<groupId, fifoSize, checkCrc>, ChunkedFifo>(&fifo) {}
+
     static constexpr uint8_t MAX_LENGTH = 64;
 
     void writeStart(uint8_t b) {
@@ -67,14 +70,6 @@ public:
 
     inline void writeAbort() {
         fifo.writeAbort();
-    }
-
-    inline Streams::Reader<ChunkedFifo> in() {
-        return fifo.in();
-    }
-
-    inline bool hasContent() const {
-        return fifo.hasContent();
     }
 };
 

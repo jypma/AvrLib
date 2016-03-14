@@ -8,113 +8,68 @@
 #ifndef SCANNER_HPP_
 #define SCANNER_HPP_
 
-#include "Reader.hpp"
 #include "Logging.hpp"
+#include "ReadResult.hpp"
 
 namespace Streams {
 
-struct NoTarget {};
+namespace Impl {
 
-template <typename fifo_t, typename target_t>
-class ScannerSemantics {
-    target_t *target;
-public:
-    ScannerSemantics(target_t &t): target(&t) {}
+using Streams::ReadResult;
 
-    template <typename format>
-    inline ReaderState scan(fifo_t &fifo) const {
-        return fifo.template readAs<format>(*target);
-    }
-};
-
-template<typename fifo_t>
-class ScannerSemantics<fifo_t, NoTarget> {
-public:
-    template <typename format>
-    inline ReaderState scan(fifo_t &fifo) const {
-        return fifo.template expect<format>();
-    }
-};
-
-template <typename fifo_t, typename sem_t>
+template <typename fifo_t>
 class Scanner {
-    typedef Logging::Log<Loggers::Streams> log;
+    typedef Logging::Log<Loggers::Scanner> log;
 
     fifo_t *fifo;
-    uint8_t available;
-    ReaderState state = ReaderState::Invalid;
-    const sem_t semantics;
+    ReadResult state = ReadResult::Invalid;
+
 public:
-    Scanner(fifo_t &f, const sem_t s): fifo(&f), semantics(s) {
-        available = fifo->getReadAvailable();
-    }
+    Scanner(fifo_t &_fifo): fifo(&_fifo) {}
+    Scanner(const Scanner<fifo_t>& that) = delete;
 
-    template <typename format, typename F>
-    void on(F f) {
-        if (state == ReaderState::Valid) {
-            // We've already handled a valid case, hence ignore the other branches.
-            return;
-        }
-
-        ReaderState thisResult = semantics.template scan<format>(*fifo);
-        log::debug("one branch said %d", thisResult);
-
-        if (thisResult == ReaderState::Valid) {
-            state = ReaderState::Valid;
-            f();
-        } else if (thisResult == ReaderState::Incomplete) {
-            state = ReaderState::Incomplete;
-        } else if (thisResult == ReaderState::Partial) {
-            state = ReaderState::Partial;
-        }
-    }
-
-    bool notDone() {
-        if (available > 0 && state == ReaderState::Invalid) {
+    /** Returns whether the scanning body should be attempted again */
+    bool again() {
+        if (state == ReadResult::Invalid && fifo->getReadAvailable() > 0) {
             uint8_t dropped;
             fifo->uncheckedRead(dropped);
-            log::debug("  state invalid, dropped %c", dropped);
-            available--;
+            log::debug("  state invalid, dropped %d", dropped);
             return true;
         } else {
             return false;
         }
     }
+
+    template <typename... types>
+    bool operator() (types... args) {
+        if (state == ReadResult::Valid) {
+            // We've already handled a valid case, hence ignore the other branches.
+            return false;
+        }
+
+        ReadResult result = fifo->read(args...);
+        log::debug ("  got result %d in state %d", result, state);
+        if (result != ReadResult::Invalid) {
+            state = result;
+            return state == ReadResult::Valid;
+        } else {
+            // We've gotten a full or partial match, don't do the other branches.
+            return false;
+        }
+    }
 };
 
-template<typename fifo_t>
-Scanner<fifo_t,ScannerSemantics<fifo_t,NoTarget>> scanner(fifo_t &fifo) {
-    return Scanner<fifo_t,ScannerSemantics<fifo_t,NoTarget>>(fifo, ScannerSemantics<fifo_t,NoTarget>());
-}
-
-template<typename fifo_t, typename target_t>
-Scanner<fifo_t,ScannerSemantics<fifo_t,target_t>> scanner(fifo_t &fifo, target_t &target) {
-    return Scanner<fifo_t,ScannerSemantics<fifo_t,target_t>>(fifo, ScannerSemantics<fifo_t,target_t>(target));
 }
 
 template<typename fifo_t, typename Body>
 void scan(fifo_t &fifo, Body body) {
-    typedef Logging::Log<Loggers::Streams> log;
-    log::debug("Scanning");
-    auto s = scanner(fifo);
-    do {
-        body(&s);
-    } while (s.notDone());
-}
+    typedef Logging::Log<Loggers::Scanner> log;
+    log::debug("Starting a scan");
 
-template<typename fifo_t, typename target_t, typename Body>
-void scan(fifo_t &fifo, target_t &target, Body body) {
-    typedef Logging::Log<Loggers::Streams> log;
-    log::debug("Scanning");
-    auto s = scanner(fifo, target);
+    Impl::Scanner<fifo_t> s(fifo);
     do {
-        body(&s);
-    } while (s.notDone());
-}
-
-template<typename format, typename scanner_t, typename lambda_t>
-inline void on(scanner_t *scanner, lambda_t f) {
-    scanner->template on<format>(f);
+        body(s);
+    } while (s.again());
 }
 
 }

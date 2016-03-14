@@ -1,30 +1,31 @@
 #include "Streams/Format.hpp"
 
-using namespace Streams;
+using namespace Streams::Impl;
 
-void Format::format(write_f write, void *ctx, Decimal<uint8_t> v) {
-    if (v.value > 99) {
-        write(ctx, '0' + (v.value / 100));
-        v.value %= 100;
-        write(ctx, '0' + (v.value / 10));
-        v.value %= 10;
-    } else if (v.value > 9) {
-        write(ctx, '0' + (v.value / 10));
-        v.value %= 10;
+bool Format::format(write_f write, void *ctx, Impl::Decimal<uint8_t> dec) {
+    uint8_t v = dec.value;
+    if (v > 99) {
+        if (!write(ctx, '0' + (v / 100))) return false;
+        v %= 100;
+        if (!write(ctx, '0' + (v / 10))) return false;
+        v %= 10;
+    } else if (v > 9) {
+        if (!write(ctx, '0' + (v / 10))) return false;
+        v %= 10;
     }
-    write(ctx, '0' + v.value);
+    return write(ctx, '0' + v);
 }
 
-void Format::format(write_f write, void *ctx, Decimal<int8_t> v) {
+bool Format::format(write_f write, void *ctx, Impl::Decimal<int8_t> v) {
     if (v.value < 0) {
-        write(ctx, '-');
-        format(write, ctx, dec(uint8_t(-v.value)));
+        if (!write(ctx, '-')) return false;
+        return format(write, ctx, dec(uint8_t(-v.value)));
     } else {
-        format(write, ctx, dec(uint8_t(v.value)));
+        return format(write, ctx, dec(uint8_t(v.value)));
     }
 }
 
-void Format::format(write_f write, void *ctx, Decimal<uint16_t> v) {
+bool Format::format(write_f write, void *ctx, Impl::Decimal<uint16_t> v) {
     const uint16_t n = v.value;
 
     uint8_t d4, d3, d2, d1, q;
@@ -57,27 +58,27 @@ void Format::format(write_f write, void *ctx, Decimal<uint16_t> v) {
                 d4 = q;
 
                 if (d4 != 0) {
-                    write(ctx, d4 + '0' );
+                    if (!write(ctx, d4 + '0' )) return false;
                 }
-                write(ctx, d3 + '0' );
+                if (!write(ctx, d3 + '0' )) return false;
             }
-            write(ctx, d2 + '0' );
+            if (!write(ctx, d2 + '0' )) return false;
         }
-        write(ctx, d1 + '0' );
+        if (!write(ctx, d1 + '0' )) return false;
     }
-    write(ctx, d0 + '0' );
+    return write(ctx, d0 + '0' );
 }
 
-void Format::format(write_f write, void *ctx, Decimal<int16_t> v) {
+bool Format::format(write_f write, void *ctx, Impl::Decimal<int16_t> v) {
     if (v.value < 0) {
-        write(ctx, '-');
-        format(write, ctx, dec(uint16_t(-v.value)));
+        if (!write(ctx, '-')) return false;
+        return format(write, ctx, dec(uint16_t(-v.value)));
     } else {
-        format(write, ctx, dec(uint16_t(v.value)));
+        return format(write, ctx, dec(uint16_t(v.value)));
     }
 }
 
-void Format::format(write_f write, void *ctx, Decimal<uint32_t> v) {
+bool Format::format(write_f write, void *ctx, Impl::Decimal<uint32_t> v) {
     const uint32_t n = v.value;
 
     const uint8_t n0 = n & 0x1F;
@@ -129,49 +130,49 @@ void Format::format(write_f write, void *ctx, Decimal<uint32_t> v) {
 
     bool started = false;
     if (q != 0) {
-        write (ctx, q + '0');
+        if (!write (ctx, q + '0')) return false;
         started = true;
     }
     if (started || d8 != 0) {
-        write (ctx, d8 + '0');
+        if (!write (ctx, d8 + '0')) return false;
         started = true;
     }
     if (started || d7 != 0) {
-        write (ctx, d7 + '0');
+        if (!write (ctx, d7 + '0')) return false;
         started = true;
     }
     if (started || d6 != 0) {
-        write (ctx, d6 + '0');
+        if (!write (ctx, d6 + '0')) return false;
         started = true;
     }
     if (started || d5 != 0) {
-        write (ctx, d5 + '0');
+        if (!write (ctx, d5 + '0')) return false;
         started = true;
     }
     if (started || d4 != 0) {
-        write (ctx, d4 + '0');
+        if (!write (ctx, d4 + '0')) return false;
         started = true;
     }
     if (started || d3 != 0) {
-        write (ctx, d3 + '0');
+        if (!write (ctx, d3 + '0')) return false;
         started = true;
     }
     if (started || d2 != 0) {
-        write (ctx, d2 + '0');
+        if (!write (ctx, d2 + '0')) return false;
         started = true;
     }
     if (started || d1 != 0) {
-        write (ctx, d1 + '0');
+        if (!write (ctx, d1 + '0')) return false;
         started = true;
     }
-    write(ctx, d0 + '0');
+    return write(ctx, d0 + '0');
 }
 
-void Format::format(write_f write, void *ctx, Decimal<int32_t> v) {
+bool Format::format(write_f write, void *ctx, Impl::Decimal<int32_t> v) {
     if (v.value < 0) {
-        write(ctx, '-');
-        format(write, ctx, dec(uint32_t(-v.value)));
+        if (!write(ctx, '-')) return false;
+        return format(write, ctx, dec(uint32_t(-v.value)));
     } else {
-        format(write, ctx, dec(uint32_t(v.value)));
+        return format(write, ctx, dec(uint32_t(v.value)));
     }
 }

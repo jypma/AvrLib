@@ -83,14 +83,14 @@ public:
  * bytes are the serial data to send.
  */
 class ChunkPulseSource: public AbstractSerialSource {
-    ChunkedFifo *fifo;
+    AbstractChunkedFifo *fifo;
 
     void nextDataByte();
 
     void nextBit();
 
 public:
-    ChunkPulseSource(ChunkedFifo &_fifo): fifo(&_fifo) {}
+    ChunkPulseSource(AbstractChunkedFifo &_fifo): fifo(&_fifo) {}
 
     Pulse getNextPulse();
 };

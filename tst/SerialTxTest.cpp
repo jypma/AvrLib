@@ -126,7 +126,7 @@ void transmitTestBytes(SerialConfig &config, uint8_t byte1, uint8_t byte2, fifo_
 
 TEST(SerialTxTest, all_config_parts_are_transmitted_for_two_byte_messages) {
     Fifo<32> data;
-    ChunkedFifo fifo(&data);
+    ChunkedFifo fifo(data);
     uint8_t prefix[] = { 0b100 };
     uint8_t postfix[] = { 0 };
     SerialConfig config = { false, prefix, 3, {false, 10}, {true, 20}, {true, 30}, {false, 40}, SerialParity::EVEN, SerialBitOrder::LSB_FIRST, postfix, 1 };
@@ -135,15 +135,15 @@ TEST(SerialTxTest, all_config_parts_are_transmitted_for_two_byte_messages) {
     MockPin pin;
     auto tx = pulseTx(comparator, pin, source);
 
-    fifo.out() << &config << uint8_t(42) << uint8_t(24);
-    fifo.out() << &config << uint8_t(43) << uint8_t(34);
+    fifo.write(uintptr_t(&config), uint8_t(42), uint8_t(24));
+    fifo.write(uintptr_t(&config), uint8_t(43), uint8_t(34));
     transmitTestBytes(config, 42, 24, fifo, comparator, pin, tx);
     transmitTestBytes(config, 43, 34, fifo, comparator, pin, tx);
 }
 
 TEST(SerialTxTest, all_config_parts_are_transmitted_for_single_byte_messages) {
     Fifo<32> data;
-    ChunkedFifo fifo(&data);
+    ChunkedFifo fifo(data);
     uint8_t prefix[] = { 0b100 };
     uint8_t postfix[] = { 0 };
     SerialConfig config = { false, prefix, 3, {false, 10}, {true, 20}, {true, 30}, {false, 40}, SerialParity::EVEN, SerialBitOrder::LSB_FIRST, postfix, 1 };
@@ -152,15 +152,15 @@ TEST(SerialTxTest, all_config_parts_are_transmitted_for_single_byte_messages) {
     MockPin pin;
     auto tx = pulseTx(comparator, pin, source);
 
-    fifo.out() << &config << uint8_t(42);
-    fifo.out() << &config << uint8_t(43);
+    fifo.write((uintptr_t)(&config), uint8_t(42));
+    fifo.write((uintptr_t)(&config), uint8_t(43));
     transmitTestBytes(config, 42, 0, fifo, comparator, pin, tx);
     transmitTestBytes(config, 43, 0, fifo, comparator, pin, tx);
 }
 
 TEST(SerialTxTest, msb_first_messages_are_transmitted_correctly) {
     Fifo<32> data;
-    ChunkedFifo fifo(&data);
+    ChunkedFifo fifo(data);
     uint8_t prefix[] = { 0b100 };
     uint8_t postfix[] = { 0 };
     SerialConfig config = { false, prefix, 3, {false, 10}, {true, 20}, {true, 30}, {false, 40}, SerialParity::EVEN, SerialBitOrder::MSB_FIRST, postfix, 1 };
@@ -169,22 +169,22 @@ TEST(SerialTxTest, msb_first_messages_are_transmitted_correctly) {
     MockPin pin;
     auto tx = pulseTx(comparator, pin, source);
 
-    fifo.out() << &config << uint8_t(42) << uint8_t(24);
-    fifo.out() << &config << uint8_t(43) << uint8_t(34);
+    fifo.write((uintptr_t)(&config), uint8_t(42), uint8_t(24));
+    fifo.write((uintptr_t)(&config), uint8_t(43), uint8_t(34));
     transmitTestBytes(config, 42, 24, fifo, comparator, pin, tx);
     transmitTestBytes(config, 43, 34, fifo, comparator, pin, tx);
 }
 
 TEST(SerialTxTest, startSend_with_empty_config_and_empty_packet_causes_no_side_effect) {
     Fifo<32> data;
-    ChunkedFifo fifo(&data);
+    ChunkedFifo fifo(data);
     SerialConfig config = { false, nullptr, 0, {false, 10}, {true, 20}, {true, 30}, {false, 40}, SerialParity::NONE, SerialBitOrder::MSB_FIRST, nullptr, 0 };
     ChunkPulseSource source = { fifo };
     MockComparator comparator;
     MockPin pin;
     auto tx = pulseTx(comparator, pin, source);
 
-    fifo.out() << &config;
+    fifo.write((uintptr_t) &config);
     tx.sendFromSource();
 
     EXPECT_EQ(0, comparator.target);
@@ -229,7 +229,7 @@ TEST(SerialTxTest, can_send_rs232_8n1_data) {
     StreamPulseSource source(data, config);
     auto tx = pulseTx(comparator, pin, source);
 
-    data.out() << uint8_t(42) << uint8_t(24);
+    data.write(uint8_t(42), uint8_t(24));
     tx.sendFromSource();
 
     uint8_t t = 5;

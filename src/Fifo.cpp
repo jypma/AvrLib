@@ -27,21 +27,6 @@ uint8_t AbstractFifo::getSpace() const {
            bufferSize - 1;
 }
 
-bool AbstractFifo::write(uint8_t b) {
-    AtomicScope _;
-
-    if (hasSpace()) {
-        buffer[writePos] = b;
-        writePos++;
-        if (writePos >= bufferSize) {
-            writePos -= bufferSize;
-        }
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void AbstractFifo::uncheckedWrite(uint8_t b) {
     buffer[writePos] = b;
     writePos++;
@@ -64,21 +49,6 @@ bool AbstractFifo::reserve(volatile uint8_t * &ptr) {
     }
 }
 
-bool AbstractFifo::read(uint8_t &b) {
-    AtomicScope _;
-
-    if (hasContent()) {
-        b = buffer[readPos];
-        readPos++;
-        if (readPos >= bufferSize) {
-            readPos -= bufferSize;
-        }
-        return true;
-    } else {
-        return false;
-    }
-}
-
 void AbstractFifo::uncheckedRead(uint8_t &b) {
     b = buffer[readPos];
     readPos++;
@@ -94,8 +64,8 @@ void AbstractFifo::clear() {
     writePos = 0;
     writeMark = NO_MARK;
     readMark = NO_MARK;
-    readMarkInvocations = 0;
-    writeMarkInvocations = 0;
+    reading = false;
+    writing = false;
 }
 
 bool AbstractFifo::isEmpty() const {
@@ -123,59 +93,55 @@ uint8_t AbstractFifo::peek() const {
 }
 
 void AbstractFifo::writeStart() {
-    if (writeMarkInvocations == 0) {
+    if (!isWriting()) {
        writeMark = writePos;
+       writing = true;
     }
-    writeMarkInvocations++;
 }
 
 void AbstractFifo::writeEnd() {
-    if (writeMarkInvocations > 0) {
-        writeMarkInvocations--;
-        if (writeMarkInvocations == 0) {
-            writeMark = NO_MARK;
-        }
+    AtomicScope _;
+
+    if (isWriting()) {
+        writing = false;
+        writeMark = NO_MARK;
     }
 }
 
 void AbstractFifo::writeAbort() {
     AtomicScope _;
 
-    if (writeMarkInvocations > 0) {
-        writeMarkInvocations--;
-        if (writeMarkInvocations == 0) {
-            writePos = writeMark;
-            writeMark = NO_MARK;
-            abortedWrites++;
-        }
+    if (isWriting()) {
+        writing = false;
+        writePos = writeMark;
+        writeMark = NO_MARK;
+        abortedWrites++;
     }
 }
 
 void AbstractFifo::readStart() {
-    if (readMarkInvocations == 0) {
+    if (!isReading()) {
+        reading = true;
         readMark = readPos;
     }
-    readMarkInvocations++;
 }
 
 void AbstractFifo::readEnd()  {
-    if (readMarkInvocations > 0) {
-        readMarkInvocations--;
-        if (readMarkInvocations == 0) {
-            readMark = NO_MARK;
-        }
+    AtomicScope _;
+
+    if (isReading()) {
+        reading = false;
+        readMark = NO_MARK;
     }
 }
 
 void AbstractFifo::readAbort() {
     AtomicScope _;
 
-    if (readMarkInvocations > 0) {
-        readMarkInvocations--;
-        if (readMarkInvocations == 0) {
-            readPos = readMark;
-            readMark = NO_MARK;
-        }
+    if (isReading()) {
+        reading = false;
+        readPos = readMark;
+        readMark = NO_MARK;
     }
 }
 

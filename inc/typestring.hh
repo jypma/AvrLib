@@ -19,6 +19,9 @@
 
 #include <avr/pgmspace.h>
 
+template <uint8_t length>
+struct StringInProgmem {};
+
 namespace irqus {
 
 /*~
@@ -50,6 +53,16 @@ public:
 
     static constexpr char const * cend() noexcept
     { return &vals[sval]; }
+
+    // Quick hack to allow integration into Reading.hpp
+    template <typename T>
+    static constexpr StringInProgmem<size()> * forReading(T *t) noexcept {
+        return (StringInProgmem<size()> *) data();
+    }
+    template <typename T>
+    static constexpr StringInProgmem<size()> * forWriting(const T *t) noexcept {
+        return (StringInProgmem<size()> *) data();
+    }
 
     static char charAt(uint8_t i) noexcept {
         return pgm_read_byte(&(vals[i]));

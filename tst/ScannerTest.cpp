@@ -1,301 +1,285 @@
 #include <gtest/gtest.h>
-#include "Streams/Streamable.hpp"
+#include "Fifo.hpp"
 #include "Streams/Scanner.hpp"
-
-using namespace Streams;
 
 namespace ScannerTest {
 
+using namespace Streams;
+
 TEST(ScannerTest, scan_can_find_a_token_in_a_fifo) {
-    struct T: public Streamable<T> {
-        uint8_t ch = 0;
-        bool invoked = false;
+    uint8_t ch = 0;
+    bool invoked = false;
 
-        T() {
-            auto fifo = Fifo<16>();
-            fifo.out() << "abcdef";
+    Fifo<16> fifo;
+    fifo.write(F("abcdef"));
 
-            scan(fifo, *this, [this] (auto s) {
-                on<Format<Token<STR("abd")>>>(s, [] { FAIL(); });
-                on<Format<Token<STR("cde")>, Binary<uint8_t, &T::ch>>>(s, [this] { invoked = true; });
-                on<Format<Token<STR("e")>>>(s, [] { FAIL(); });
-            });
+    scan(fifo, [&] (auto &read) {
+        if (read(F("abd"))) { FAIL(); }
+        if (read(F("cde"), &ch)) { invoked = true; }
+        if (read(F("e"))) { FAIL(); }
+    });
 
-            EXPECT_EQ('f', ch);
-            EXPECT_EQ(0, fifo.getSize());
-            EXPECT_TRUE(invoked);
-        }
-    } t;
+    EXPECT_EQ('f', ch);
+    EXPECT_EQ(0, fifo.getSize());
+    EXPECT_TRUE(invoked);
 }
 
 
 TEST(ScannerTest, chunk_with_prefix_and_separator_can_be_read) {
-    struct T: public Streamable<T> {
-        Fifo<24> storage;
-        ChunkedFifo fifo = &storage;
-        bool invoked = false;
+    Fifo<24> storage;
+    ChunkedFifo fifo = storage;
+    bool invoked = false;
 
-        T() {
-            auto testdata = Fifo<24>();
-            testdata.out() << "+++DATA5:abcde+++";
+    auto testdata = Fifo<24>();
+    testdata.write(F("+++DATA5:abcde+++"));
 
-            scan(testdata, *this, [this] (auto s) {
-                on<Format<
-                    Token<STR("DATA")>,
-                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
-                >(s, [this] {
-                    invoked = true;
-                });
-            });
-
-            EXPECT_TRUE(invoked);
-            EXPECT_EQ(6, fifo.getSize());     // "abcde" has been put into the chunked fifo, plus length
-            EXPECT_EQ(3, testdata.getSize()); // "+++" at the end is still left
+    fifo.writeStart();
+    scan(testdata, [&] (auto &read) {
+        uint8_t length;
+        if (read(F("DATA"), Decimal(&length), F(":"), ChunkWithLength(&length, fifo))) {
+            fifo.writeEnd();
+            invoked = true;
         }
-    } t;
+    });
+
+    EXPECT_TRUE(invoked);
+    EXPECT_EQ(6, fifo.getSize());     // "abcde" has been put into the chunked fifo, plus length
+    //TODO expect read from fifo once ChunkedFifo has read(...)
 }
 
 TEST(ScannerTest, chunk_with_two_digit_length_can_be_read) {
-    struct T: public Streamable<T> {
-        Fifo<40> storage;
-        ChunkedFifo fifo = &storage;
-        bool invoked = false;
+    Fifo<40> storage;
+    ChunkedFifo fifo = storage;
+    bool invoked = false;
 
-        T() {
-            auto testdata = Fifo<40>();
-            testdata.out() << "+++DATA10:abcdefghij+++";
+    auto testdata = Fifo<40>();
+    testdata.write(F("+++DATA10:abcdefghij+++"));
 
-            scan(testdata, *this, [this] (auto s) {
-                on<Format<
-                    Token<STR("DATA")>,
-                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
-                >(s, [this] {
-                    invoked = true;
-                });
-            });
-
-            EXPECT_TRUE(invoked);
-            EXPECT_EQ(11, fifo.getSize());     // "abcdefghij" has been put into the chunked fifo, plus length
-            EXPECT_EQ(3, testdata.getSize());  // "+++" at the end is still left
+    fifo.writeStart();
+    scan(testdata, [&] (auto &read) {
+        uint8_t length;
+        if (read(F("DATA"), Decimal(&length), F(":"), ChunkWithLength(&length, fifo))) {
+            fifo.writeEnd();
+            invoked = true;
         }
-    } t;
+    });
+
+    EXPECT_TRUE(invoked);
+    EXPECT_EQ(11, fifo.getSize());     // "abcdefghij" has been put into the chunked fifo, plus length
+    //EXPECT_EQ(3, testdata.getSize());  // "+++" at the end is still left
 }
 
 TEST(ScannerTest, chunk_with_three_digit_length_thats_too_large_for_output_fifo_is_read_and_discarded) {
-    struct T: public Streamable<T> {
-        Fifo<40> storage;
-        ChunkedFifo fifo = &storage;
-        bool invoked = false;
+    Fifo<40> storage;
+    ChunkedFifo fifo = storage;
+    bool invoked = false;
 
-        T() {
-            auto testdata = Fifo<254>();
-            testdata.out() << "DATA240:";
-            for (int i = 0; i < 240; i++) testdata.write(i);
+    auto testdata = Fifo<254>();
+    testdata.write(F("DATA240:"));
+    for (uint8_t i = 0; i < 240; i++) testdata.write(i);
 
-            scan(testdata, *this, [this] (auto s) {
-                on<Format<
-                    Token<STR("DATA")>,
-                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
-                >(s, [this] {
-                    invoked = true;
-                });
-            });
-
-            EXPECT_TRUE(invoked);
-            EXPECT_EQ(0, fifo.getSize()); // Chunk was discarded since it's too big
-            EXPECT_EQ(0, testdata.getSize()); // All test data was read
+    fifo.writeStart();
+    scan(testdata, [&] (auto &read) {
+        uint8_t length;
+        if (read(F("DATA"), Decimal(&length), F(":"), ChunkWithLength(&length, fifo))) {
+            fifo.writeEnd();
+            invoked = true;
         }
-    } t;
+    });
+
+    EXPECT_TRUE(invoked);
+    EXPECT_EQ(1, fifo.getSize()); // Chunk was discarded, but we still got an empty hit.
+    EXPECT_EQ(0, testdata.getSize()); // All test data was read
 }
 
 TEST(ScannerTest, chunk_is_not_read_on_incorrect_separator) {
-    struct T: public Streamable<T> {
-        Fifo<24> storage;
-        ChunkedFifo fifo = &storage;
+    Fifo<24> storage;
+    ChunkedFifo fifo = storage;
 
-        T() {
-            auto testdata = Fifo<24>();
-            testdata.out() << "+++DATA5_abcde+++";
+    auto testdata = Fifo<24>();
+    testdata.write(F("+++DATA5_abcde+++"));
 
-            scan(testdata, *this, [this] (auto s) {
-                on<Format<
-                    Token<STR("DATA")>,
-                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
-                >(s, [this] {
-                    FAIL();
-                });
-            });
-
-            EXPECT_TRUE(fifo.isEmpty());
+    fifo.writeStart();
+    scan(testdata, [&] (auto &read) {
+        uint8_t length;
+        if (read(F("DATA"), Decimal(&length), F(":"), ChunkWithLength(&length, fifo))) {
+            fifo.writeEnd();
+            FAIL();
         }
-    } t;
+    });
+
+    EXPECT_TRUE(fifo.isEmpty());
 }
 
 TEST(ScannerTest, incomplete_chunk_is_ignored_until_data_is_available) {
-    struct T: public Streamable<T> {
-        Fifo<24> storage;
-        ChunkedFifo fifo = &storage;
+    Fifo<24> storage;
+    ChunkedFifo fifo = storage;
 
-        T() {
-            auto matcher = [this] (auto s) {
-                on<Format<
-                    Token<STR("DATA")>,
-                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
-                >(s, [this] {
-
-                });
-            };
-
-            auto testdata = Fifo<24>();
-            testdata.out() << "+++DA";
-            scan(testdata, *this, matcher);
-
-            EXPECT_EQ(2, testdata.getSize()); // "+++" has been eaten
-
-            testdata.out() << "TA5:abc";
-            scan(testdata, *this, matcher);
-
-            EXPECT_EQ(9, testdata.getSize());
-
-            testdata.out() << "de+++";
-            scan(testdata, *this, matcher);
-
-            EXPECT_EQ(3, testdata.getSize()); // the remaining +++ at the end
-            EXPECT_EQ(6, storage.getSize());  // "abcde" + length
+    fifo.writeStart();
+    auto matcher = [&] (auto &read) {
+        uint8_t length;
+        if (read(F("DATA"), Decimal(&length), F(":"), ChunkWithLength(&length, fifo))) {
+            fifo.writeEnd();
         }
-    } t;
+    };
 
+    auto testdata = Fifo<24>();
+    testdata.write(F("+++DA"));
+    scan(testdata, matcher);
+
+    EXPECT_EQ(2, testdata.getSize()); // "+++" has been eaten
+
+    testdata.write(F("TA5:abc"));
+    scan(testdata, matcher);
+
+    EXPECT_EQ(9, testdata.getSize());
+
+    testdata.write(F("de+++"));
+    scan(testdata, matcher);
+
+    EXPECT_EQ(3, testdata.getSize()); // the remaining +++ at the end
+    EXPECT_EQ(6, storage.getSize());  // "abcde" + length
 }
 
 
 TEST(ScannerTest, scan_can_match_first_branch_if_second_branch_is_longer) {
-    struct T: public Streamable<T> {
-        bool invoked = false;
+    bool invoked = false;
 
-        T() {
-            auto testdata = Fifo<24>();
-            testdata.out() << "+DATA";
+    auto testdata = Fifo<24>();
+    testdata.write(F("+DATA"));
 
-            scan(testdata, [this] (auto s) {
-                on<Format<Token<STR("DATA")>>>(s, [this] {
-                    invoked = true;
-                });
-                on<Format<Token<STR("BOOHOO")>>>(s, [this] {
-                    FAIL();
-                });
-            });
-
-            EXPECT_TRUE(invoked);
+    scan(testdata, [&] (auto &read) {
+        if (read(F("DATA"))) {
+            invoked = true;
         }
-    } t;
+        if (read(F("BOOHOO"))) {
+            FAIL();
+        }
+    });
+
+    EXPECT_TRUE(invoked);
 }
 
 TEST(ScannerTest, scan_does_not_eat_chars_that_are_correct_prefix) {
-    struct T: public Streamable<T> {
-        bool invoked = false;
+    bool invoked = false;
 
-        T() {
-            auto matcher = [this] (auto s) {
-                on<Format<Token<STR("DATA")>>>(s, [this] {
-                    invoked = true;
-                });
-            };
-
-            auto testdata = Fifo<24>();
-            testdata.out() << "+DA";
-            scan(testdata, matcher);
-            EXPECT_EQ(2, testdata.getSize()); // "+" has been eaten since it's not part of the token
-            testdata.out() << "TA";
-            scan(testdata, matcher);
-            EXPECT_TRUE(invoked);
+    auto matcher = [&] (auto &read) {
+        if (read(F("DATA"))) {
+            invoked = true;
         }
-    } t;
+    };
+
+    auto testdata = Fifo<24>();
+    testdata.write(F("+DA"));
+    scan(testdata, matcher);
+    EXPECT_EQ(2, testdata.getSize()); // "+" has been eaten since it's not part of the token
+    testdata.write(F("TA"));
+    scan(testdata, matcher);
+    EXPECT_TRUE(invoked);
 }
 
 TEST(ScannerTest, scan_does_not_eat_chars_when_receiving_chunk_one_by_one) {
-    struct T: public Streamable<T> {
-        AbstractFifo testdata = Fifo<24>();
-        Fifo<24> storage;
-        ChunkedFifo fifo = &storage;
-        bool invoked = false;
+    AbstractFifo testdata = Fifo<24>();
+    Fifo<24> storage;
+    ChunkedFifo fifo = storage;
+    bool invoked = false;
+    fifo.writeStart();
 
-        void loop() {
-            scan(testdata, *this, [this] (auto s) {
-                on<Format<
-                    Token<STR("DATA")>,
-                    Chunk<&T::fifo, Format<Token<STR(":")>>>>
-                >(s, [this] {
-                    invoked = true;
-                });
-            });
-        }
+    auto loop = [&] {
+        scan(testdata, [&] (auto &read) {
+            uint8_t length;
+            if (read(F("DATA"), Decimal(&length), F(":"), ChunkWithLength(&length, fifo))) {
+                invoked = true;
+                fifo.writeEnd();
+            }
+        });
+    };
 
-        T() {
-            testdata.out() << "+";
-            loop();
-            EXPECT_EQ(0, testdata.getSize());
+    testdata.write(F("+"));
+    loop();
+    EXPECT_EQ(0, testdata.getSize());
 
-            testdata.out() << "D";
-            loop();
-            EXPECT_EQ(1, testdata.getSize());
+    testdata.write(F("D"));
+    loop();
+    EXPECT_EQ(1, testdata.getSize());
 
-            testdata.out() << "A";
-            loop();
-            EXPECT_EQ(2, testdata.getSize());
+    testdata.write(F("A"));
+    loop();
+    EXPECT_EQ(2, testdata.getSize());
 
-            testdata.out() << "T";
-            loop();
-            EXPECT_EQ(3, testdata.getSize());
+    testdata.write(F("T"));
+    loop();
+    EXPECT_EQ(3, testdata.getSize());
 
-            testdata.out() << "A";
-            loop();
-            EXPECT_EQ(4, testdata.getSize());
+    testdata.write(F("A"));
+    loop();
+    EXPECT_EQ(4, testdata.getSize());
 
-            testdata.out() << "3";
-            loop();
-            EXPECT_EQ(5, testdata.getSize());
+    testdata.write(F("3"));
+    loop();
+    EXPECT_EQ(5, testdata.getSize());
 
-            testdata.out() << ":";
-            loop();
-            EXPECT_EQ(6, testdata.getSize());
+    testdata.write(F(":"));
+    loop();
+    EXPECT_EQ(6, testdata.getSize());
 
-            testdata.out() << "a";
-            loop();
-            EXPECT_EQ(7, testdata.getSize());
+    testdata.write(F("a"));
+    loop();
+    EXPECT_EQ(7, testdata.getSize());
 
-            testdata.out() << "b";
-            loop();
-            EXPECT_EQ(8, testdata.getSize());
+    testdata.write(F("b"));
+    loop();
+    EXPECT_EQ(8, testdata.getSize());
 
-            testdata.out() << "c";
-            loop();
-            EXPECT_EQ(0, testdata.getSize());
-            EXPECT_TRUE(invoked);
-            EXPECT_EQ(4, fifo.getSize());     // "abc" has been put into the chunked fifo, plus length
-        }
-    } t;
+    testdata.write(F("c"));
+    loop();
+    EXPECT_EQ(0, testdata.getSize());
+    EXPECT_TRUE(invoked);
+    EXPECT_EQ(4, fifo.getSize());     // "abc" has been put into the chunked fifo, plus length
 }
 
 TEST(ScannerTest, scan_can_match_first_branch_if_second_branch_is_longer_but_matches_prefix) {
-    struct T: public Streamable<T> {
-        bool invoked = false;
+    bool invoked = false;
 
-        T() {
-            auto testdata = Fifo<24>();
-            testdata.out() << "+DATA";
+    auto testdata = Fifo<24>();
+    testdata.write(F("+DATA"));
 
-            scan(testdata, [this] (auto s) {
-                on<Format<Token<STR("DATA")>>>(s, [this] {
-                    invoked = true;
-                });
-                on<Format<Token<STR("+OOHOO")>>>(s, [this] {
-                    FAIL();
-                });
-            });
-
-            EXPECT_TRUE(invoked);
+    scan(testdata, [&] (auto &read) {
+        if (read(F("DATA"))) {
+            invoked = true;
         }
-    } t;
+        else if (read(F("+OOHOO"))) {
+            FAIL();
+        }
+    });
+
+    EXPECT_TRUE(invoked);
+}
+
+TEST(ScannerTest, scanner_can_read_ints) {
+    Fifo<16> fifo;
+    for (uint8_t i = 0; i < 14; i++) {
+        fifo.write(i);
+    }
+
+    scan(fifo, [] (auto &read) {
+        uint8_t uint8;
+        int8_t int8;
+        uint16_t uint16;
+        int16_t int16;
+        uint32_t uint32;
+        int32_t int32;
+        if (read(&uint8, &int8, &uint16, &int16, &uint32, &int32)) {
+            EXPECT_EQ(0x00, uint8);
+            EXPECT_EQ(0x01, int8);
+            EXPECT_EQ(0x0302, uint16);   // little endian -> LSByte is read first
+            EXPECT_EQ(0x0504, int16);
+            EXPECT_EQ(0x09080706, uint32);
+            EXPECT_EQ(0x0D0C0B0A, int32);
+        } else {
+            FAIL();
+        }
+    });
 }
 
 }
