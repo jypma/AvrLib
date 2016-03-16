@@ -37,7 +37,7 @@ TEST(RealTimerTest, timer_callback_increments_time) {
     EXPECT_EQ(0, rt.millis());
     EXPECT_EQ(0, rt.micros());
 
-    decltype(rt)::onTimerOverflowHandler::invoke(rt);
+    decltype(rt)::onTimerOverflowHandler::invoke(&rt);
 
     EXPECT_EQ(256, rt.counts());
     EXPECT_EQ(4, rt.millis());
@@ -54,7 +54,7 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called) {
 
     std::thread background([&rt]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        decltype(rt)::onTimerOverflowHandler::invoke(rt);
+        decltype(rt)::onTimerOverflowHandler::invoke(&rt);
     });
 
     waited2 = false;
@@ -74,7 +74,7 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparoun
 
     std::thread background([&rt]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        decltype(rt)::onTimerOverflowHandler::invoke(rt);
+        decltype(rt)::onTimerOverflowHandler::invoke(&rt);
     });
 
     waited3 = false;

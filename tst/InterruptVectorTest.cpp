@@ -4,7 +4,7 @@
 #include "HAL/Atmel/InterruptVectors.hpp"
 
 #define __mk_ALL_ISRS \
-    FOR_EACH(__mkISR, USART_RX_, USART_UDRE_)
+    FOR_EACH(__mkISR, USART_RX_, USART_UDRE_, INT0_)
 
 
 namespace InterruptVectorTest {
@@ -36,11 +36,36 @@ struct TypeWithTwoHandlers {
     INTERRUPT_HANDLER2(INTERRUPT_VECTOR(USART_UDRE), onUSART_UDRE);
 };
 
+struct WrappingVector {
+    typedef INTERRUPT_VECTOR(INT0) VECT;
+    static bool invoked;
+
+    template <typename body_t>
+    static void wrap(body_t body) {
+        invoked = true;
+        body();
+    }
+};
+
+bool WrappingVector::invoked = false;
+
+struct TypeWithWrappedVector {
+    typedef TypeWithWrappedVector This;
+    bool invoked = false;
+
+    void onINT0() {
+        invoked = true;
+    }
+
+    INTERRUPT_HANDLER1(WrappingVector, onINT0);
+};
+
 TypeWithHandler testPin1;
 TypeWithHandler testPin2;
 TypeWithTwoHandlers testPin3;
+TypeWithWrappedVector testWrapped;
 
-mkISRS(testPin1, testPin2, testPin3);
+mkISRS(testPin1, testPin2, testPin3, testWrapped);
 
 TEST(InterruptVectorTest, invoking_interrupt_handler_should_forward_to_method_and_can_chain) {
     testPin1.invoked = false;
@@ -62,5 +87,14 @@ TEST(InterruptVectorTest, two_different_interrupt_handlers_can_be_registered_and
     EXPECT_FALSE(testPin3.invokedRX);
     EXPECT_TRUE(testPin3.invokedUDRE);
 }
+
+TEST(InterruptVectorTest, wrapping_vector_is_recognized_and_applied) {
+    WrappingVector::invoked = false;
+    testWrapped.invoked = false;
+    INT0_vect();
+    EXPECT_TRUE(WrappingVector::invoked);
+    EXPECT_TRUE(testWrapped.invoked);
+}
+
 }
 

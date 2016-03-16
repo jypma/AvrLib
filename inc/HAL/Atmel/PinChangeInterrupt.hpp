@@ -32,13 +32,11 @@ class PinChangeSupport {
         }
     }
 
-    static void disablePCINTIfNeeded() {
+    static inline __attribute__((always_inline)) void disablePCINTIfNeeded() {
         AtomicScope _;
 
-        if ((PCICR & PCIE) != 0) {
-            if (*pcintInfo::pcmsk == 0) { // no more handlers are registered
-                PCICR &= ~PCIE;
-            }
+        if (*pcintInfo::pcmsk == 0) { // no more handlers are registered
+            PCICR &= ~PCIE;
         }
     }
 
@@ -93,7 +91,7 @@ struct PinChangeVector {
 
     template <typename body_t>
     static void wrap(body_t body) {
-        support::wrap(body);
+        support::template wrap<bitmask>(body);
     }
 };
 

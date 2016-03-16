@@ -307,7 +307,7 @@ private:
     SerialConfig fs20SerialConfig = FS20::FS20Packet::serialConfig<comparator_t>();
 
     void onComparator() {
-        ookTx_t::onComparatorHandler::invoke(ookTx);
+        ookTx_t::onComparatorHandler::invoke(&ookTx);
     }
 
 public:

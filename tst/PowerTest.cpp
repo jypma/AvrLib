@@ -19,7 +19,7 @@ TEST(PowerTest, sleep_adjusts_timer) {
     auto power = Power<MockRealTimer>(rt);
     onSleep_cpu = [&power] {
         // simulate always waking up by watchdog
-        decltype(power)::onWatchdogHandler::invoke(power);
+        decltype(power)::onWatchdogHandler::invoke(&power);
     };
     power.sleepFor(Milliseconds<>(1000), SleepMode::POWER_DOWN);
     EXPECT_EQ(992, rt.slept); // nearest multiple of 16

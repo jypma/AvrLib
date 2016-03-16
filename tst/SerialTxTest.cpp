@@ -42,11 +42,11 @@ uint8_t expect_zero(tx_t &tx, uint8_t start, MockComparator &comparator, MockPin
     std::cout << "expect zero invoke A" << std::endl;
     EXPECT_EQ(uint8_t(start + 10), comparator.target);
     EXPECT_FALSE(pin.high);
-    tx_t::onComparatorHandler::invoke(tx);
+    tx_t::onComparatorHandler::invoke(&tx);
     std::cout << "expect zero invoke B" << std::endl;
     EXPECT_EQ(uint8_t(start + 10 + 20), comparator.target);
     EXPECT_TRUE(pin.high);
-    tx_t::onComparatorHandler::invoke(tx);
+    tx_t::onComparatorHandler::invoke(&tx);
     return start + 10 + 20;
 }
 
@@ -55,11 +55,11 @@ uint8_t expect_one(tx_t &tx, uint8_t start, MockComparator &comparator, MockPin 
     std::cout << "expect one invoke A" << std::endl;
     EXPECT_EQ(uint8_t(start + 30), comparator.target);
     EXPECT_TRUE(pin.high);
-    tx_t::onComparatorHandler::invoke(tx);
+    tx_t::onComparatorHandler::invoke(&tx);
     std::cout << "expect one invoke B" << std::endl;
     EXPECT_EQ(uint8_t(start + 30 + 40), comparator.target);
     EXPECT_FALSE(pin.high);
-    tx_t::onComparatorHandler::invoke(tx);
+    tx_t::onComparatorHandler::invoke(&tx);
     return start + 30 + 40;
 }
 
@@ -196,7 +196,7 @@ template<typename tx_t>
 uint8_t expect_rs232_zero(tx_t &tx, uint8_t start, MockComparator &comparator, MockPin &pin) {
     EXPECT_EQ(uint8_t(start + 10), comparator.target);
     EXPECT_FALSE(pin.high);
-    tx_t::onComparatorHandler::invoke(tx);
+    tx_t::onComparatorHandler::invoke(&tx);
     return start + 10;
 }
 
@@ -204,7 +204,7 @@ template<typename tx_t>
 uint8_t expect_rs232_one(tx_t &tx, uint8_t start, MockComparator &comparator, MockPin &pin) {
     EXPECT_EQ(uint8_t(start + 10), comparator.target);
     EXPECT_TRUE(pin.high);
-    tx_t::onComparatorHandler::invoke(tx);
+    tx_t::onComparatorHandler::invoke(&tx);
     return start + 10;
 }
 

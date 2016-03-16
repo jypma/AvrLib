@@ -76,7 +76,7 @@ TEST(ButtonTest, button_should_pick_up_button_press_in_interrupt_only) {
 
     pin.high = false;
     rt.count++;
-    decltype(button)::onInterruptHandler::invoke(button);
+    decltype(button)::onInterruptHandler::invoke(&button);
     EXPECT_FALSE(pin.intOn);
     pin.high = true; // simulate release before invoking nextEvent()
 
@@ -92,7 +92,7 @@ TEST(ButtonTest, button_should_pick_up_interrupt_driven_change) {
 
     pin.high = false;
     rt.count++;
-    decltype(button)::onInterruptHandler::invoke(button);
+    decltype(button)::onInterruptHandler::invoke(&button);
     EXPECT_EQ(ButtonEvent::PRESSED, button.nextEvent());
     EXPECT_FALSE(pin.intOn);
 

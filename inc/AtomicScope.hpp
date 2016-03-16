@@ -26,18 +26,18 @@ public:
      */
     class SEI {
     public:
-        inline SEI() {
+        inline __attribute__((always_inline)) SEI() {
             cli();
         }
-        inline ~SEI() {
+        inline __attribute__((always_inline)) ~SEI() {
             sei();
         }
     };
 
-    inline AtomicScope(): oldSREG(SREG) {
+    inline __attribute__((always_inline)) AtomicScope(): oldSREG(SREG) {
         cli();
     }
-    inline ~AtomicScope() {
+    inline __attribute__((always_inline)) ~AtomicScope() {
         SREG = oldSREG;
     }
 };

@@ -23,13 +23,13 @@ struct enable_ifelse<true, _Tp, Fallback>
 };
 
 template <typename VectorName, typename T, void (T::*f)(), typename check = void>
-struct Handler {
-    typedef VectorName VECT;
-    typedef T Type;
+class Handler {
     static constexpr void (T::*function)() = f;
-
-    static void invoke(T &t) {
-        (t.*f)();
+public:
+    typedef T Type;
+    typedef VectorName VECT;
+    static void invoke(T * const t) {
+        (t->*f)();
     }
 };
 
@@ -47,14 +47,14 @@ struct Handler {
  * actual class that is listening on this handler.
  */
 template <typename VectorName, typename T, void (T::*f)()>
-struct Handler<VectorName, T, f, typename std::enable_if<std::is_class<typename VectorName::VECT>::value>::type> {
-    typedef typename VectorName::VECT VECT;
-    typedef T Type;
+class Handler<VectorName, T, f, typename std::enable_if<std::is_class<typename VectorName::VECT>::value>::type> {
     static constexpr void (T::*function)() = f;
-
-    static void invoke(T &t) {
-        VectorName::wrap([&t] {
-            (t.*f)();
+public:
+    typedef T Type;
+    typedef typename VectorName::VECT VECT;
+    static void invoke(T * const t) {
+        VectorName::wrap([t] {
+            (t->*f)();
         });
     }
 };
@@ -69,7 +69,7 @@ struct Callback {};
     template <typename handler, typename handler::Type &t> \
     struct Callback<handler, t, typename std::enable_if<std::is_same<typename handler::VECT, Vector##vect >::value>::type>: public Vector##vect { \
         static inline void on##vect () { \
-            (t.*handler::function)(); \
+            handler::invoke(&t); \
         } \
     }; \
 \

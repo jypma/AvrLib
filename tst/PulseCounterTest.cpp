@@ -82,14 +82,14 @@ TEST(PulseCounterTest, pulsecounter_reacts_to_changes_only_after_minimum_length)
 
     // first transition: longer than minimum length: comparator fires first, with pin unchanged. Pin change fires afterwards.
     comp.value = 20;
-    decltype(pc)::onComparatorHandler::invoke(pc);
+    decltype(pc)::onComparatorHandler::invoke(&pc);
     EXPECT_TRUE(pin.isInterruptOn);
     EXPECT_TRUE(comp.isInterruptOn);
     EXPECT_EQ(20, comp.target);
 
     comp.value = 24;
     pin.high = true;
-    decltype(pc)::onPinChangedHandler::invoke(pc);
+    decltype(pc)::onPinChangedHandler::invoke(&pc);
     EXPECT_FALSE(pin.isInterruptOn);
     EXPECT_TRUE(comp.isInterruptOn);
     EXPECT_EQ(44, comp.target);
