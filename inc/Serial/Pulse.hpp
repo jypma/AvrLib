@@ -23,7 +23,10 @@ public:
     constexpr Pulse(): high(false), duration(0) {}
     constexpr Pulse(const bool _high, const uint16_t _duration): high(_high), duration(_duration) {}
 
-    uint16_t getDuration() const {
+    /**
+     * Returns the pulse's duration, in timer counts.
+     */
+    constexpr uint16_t getDuration() const {
         return duration;
     }
     bool isHigh() const {
@@ -50,16 +53,42 @@ public:
     > DefaultProtocol;
 };
 
+template <typename prescaled_t>
+class PulseOn: public Pulse {
+public:
+    using Pulse::Pulse;
+
+    template <typename duration_t>
+    constexpr bool operator > (const duration_t duration) const {
+        return getDuration() > uint16_t(toCountsOn<prescaled_t>(duration));
+    }
+
+    template <typename duration_t>
+    constexpr bool operator < (const duration_t duration) const {
+        return getDuration() < uint16_t(toCountsOn<prescaled_t>(duration));
+    }
+
+    template <typename duration_t>
+    constexpr bool operator >= (const duration_t duration) const {
+        return getDuration() >= toCountsOn<prescaled_t>(duration);
+    }
+
+    template <typename duration_t>
+    constexpr bool operator <= (const duration_t duration) const {
+        return getDuration() <= toCountsOn<prescaled_t>(duration);
+    }
+};
+
 template <typename prescaled_t, typename Value>
-Pulse constexpr highPulseOn(Value duration) {
+PulseOn<prescaled_t> constexpr highPulseOn(Value duration) {
     constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration);
-    return Pulse(true, value);
+    return { true, value };
 }
 
 template <typename prescaled_t, typename Value>
-Pulse constexpr lowPulseOn(Value duration) {
+PulseOn<prescaled_t> constexpr lowPulseOn(Value duration) {
     constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration);
-    return Pulse(false, value);
+    return { false, value };
 }
 
 }

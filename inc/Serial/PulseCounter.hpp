@@ -31,6 +31,7 @@ public:
     typedef PulseCounter<_comparator_t,pin_t,fifo_length> This;
     typedef _comparator_t comparator_t;
     typedef typename comparator_t::value_t count_t;
+    PulseCounter (const PulseCounter<_comparator_t, pin_t, fifo_length> &) = default;
 
 private:
     typedef Logging::Log<Loggers::Serial> log;
@@ -76,8 +77,7 @@ private:
         }
     }
 
-public:
-    PulseCounter(comparator_t &_comparator, pin_t &_pin, count_t _minimumLength = 15):
+    PulseCounter(pin_t &_pin, comparator_t &_comparator, count_t _minimumLength):
         comparator(&_comparator), pin(&_pin), minimumLength(_minimumLength) {
         start = comparator->getValue();
 
@@ -88,6 +88,11 @@ public:
         comparator->setTarget(start + minimumLength);
         comparator->interruptOn();
     }
+
+public:
+    template <typename minimumLength_t>
+    PulseCounter(comparator_t &_comparator, pin_t &_pin, const minimumLength_t minimumLength):
+      PulseCounter(_pin, _comparator, toCountsOn<comparator_t>(minimumLength)) {}
 
     ~PulseCounter() {
         comparator->interruptOff();
@@ -107,7 +112,7 @@ public:
         count_t length ;
         uint8_t value;
         if (fifo.read(&length, &value)) {
-            body(Pulse(value == 1, length));
+            body(PulseOn<_comparator_t>(value == 1, length));
         }
     }
 
@@ -117,7 +122,7 @@ public:
             count_t length ;
             uint8_t value;
             if (fifo.read(&length, &value)) {
-                body(Pulse(value == 1, length));
+                body(PulseOn<_comparator_t>(value == 1, length));
             } else {
                 return;
             }
@@ -130,7 +135,7 @@ public:
 
 template <int fifo_length = 128, typename _comparator_t, typename pin_t, typename minimumLength_t>
 inline PulseCounter<_comparator_t,pin_t,fifo_length> pulseCounter(_comparator_t &comparator, pin_t &pin, const minimumLength_t minimumLength) {
-    return PulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin, toCountsOn(comparator, minimumLength));
+    return PulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin, minimumLength);
 }
 
 }
