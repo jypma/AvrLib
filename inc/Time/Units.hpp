@@ -106,6 +106,24 @@ public:
         return result;
     }
 
+    template <typename prescaled_t>
+    static constexpr uint64_t toMillis() {
+        constexpr float countsPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2);
+        constexpr float max = 0xFFFFFFFF * countsPerMs;
+
+        constexpr float v = TimeUnit<cv...>::to_uint64;
+        return (v >= max) ? 0xFFFFFFFF : v / countsPerMs;
+    }
+
+    template <typename prescaled_t>
+    static constexpr uint64_t toMicros() {
+        constexpr float countsPerUs = float(uint64_t(F_CPU) / 1000000) / (1 << prescaled_t::prescalerPower2);
+        constexpr float max = 0xFFFFFFFF * countsPerUs;
+
+        constexpr float v = TimeUnit<cv...>::to_uint64;
+        return (v >= max) ? 0xFFFFFFFF : v / countsPerUs;
+    }
+
     template <int percentage>
     static constexpr MultipliedTimeUnit<Counts<cv...>,percentage> percent() {
         return MultipliedTimeUnit<Counts<cv...>,percentage>();
@@ -141,6 +159,10 @@ class Microseconds: public TimeUnit<cv...> {
 public:
     static constexpr Microseconds<cv...> instance = Microseconds();
 
+    static constexpr uint64_t toMicroseconds() {
+        return TimeUnit<cv...>::to_uint64;
+    }
+
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toCounts() {
         constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value / 1000;
@@ -160,6 +182,16 @@ public:
         static_assert(result > 1,
                 "Number of ticks for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
+    }
+
+    template <typename prescaled_t>
+    static constexpr uint64_t toMillis() {
+        return TimeUnit<cv...>::to_uint64 / 1000;
+    }
+
+    template <typename prescaled_t>
+    static constexpr uint64_t toMicros() {
+        return TimeUnit<cv...>::to_uint64;
     }
 
     template <int percentage>
@@ -196,6 +228,16 @@ public:
         static_assert(result > 1,
                 "Number of ticks for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
+    }
+
+    template <typename prescaled_t>
+    static constexpr uint64_t toMillis() {
+        return TimeUnit<cv...>::to_uint64;
+    }
+
+    template <typename prescaled_t>
+    static constexpr uint64_t toMicros() {
+        return TimeUnit<cv...>::to_uint64 * 1000;
     }
 
     template <int percentage>
@@ -360,10 +402,21 @@ constexpr auto toTicksOn() {
     return ut64_t<duration_t::template toTicks<prescaled_t>()>();
 }
 
+template <typename prescaled_t, typename duration_t>
+constexpr ut64_t<duration_t::template toMillis<prescaled_t>()> toMillisOn() {
+    return ut64_t<duration_t::template toMillis<prescaled_t>()>();
+}
+
 template <typename prescaled_t, typename time_t>
 Milliseconds<> toMillisOn(const time_t time) {
     return time.template toMillisOn<prescaled_t>();
 }
+
+template <typename prescaled_t, typename duration_t>
+constexpr ut64_t<duration_t::template toMicros<prescaled_t>()> toMicrosOn() {
+    return ut64_t<duration_t::template toMicros<prescaled_t>()>();
+}
+
 
 }
 

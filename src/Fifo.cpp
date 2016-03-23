@@ -20,19 +20,11 @@ uint8_t AbstractFifo::getReadAvailable() const {
 
 uint8_t AbstractFifo::getSpace() const {
     AtomicScope _;
-    const auto write_pos = writePos;  // an on-going write DOES count to eating up space
-    const auto read_pos = markedOrReadPos();
-    return (write_pos > read_pos) ? bufferSize - write_pos + read_pos - 1 :
-           (write_pos < read_pos) ? read_pos - write_pos - 1 :
-           bufferSize - 1;
+    return _getSpace();
 }
 
 void AbstractFifo::uncheckedWrite(uint8_t b) {
-    buffer[writePos] = b;
-    writePos++;
-    if (writePos >= bufferSize) {
-        writePos -= bufferSize;
-    }
+    _uncheckedWrite(b);
 }
 
 bool AbstractFifo::reserve(volatile uint8_t * &ptr) {

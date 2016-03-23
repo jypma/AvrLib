@@ -41,9 +41,11 @@ class UsartTx {
     Fifo<writeFifoCapacity>  writeFifo;
 
     static void startWriting() {
-        *info::ucsrb |= _BV(UDRIE0);
-        // clear the TXC bit -- "can be cleared by writing a one to its bit location"
-        *info::ucsra |= _BV(TXC0);
+        if ((*info::ucsrb & _BV(UDRIE0)) == 0) {
+            *info::ucsrb |= _BV(UDRIE0);
+            // clear the TXC bit -- "can be cleared by writing a one to its bit location"
+            *info::ucsra |= _BV(TXC0);
+        }
     }
 
 protected:
@@ -83,9 +85,14 @@ public:
 
     template <typename... types>
     bool writeIfSpace(types... args) {
-        return writeFifo.writeIfSpace(args...);
-        startWriting(); // that's OK this late, assuming that completing the FIFO write is very much faster
-                        // than pushing bytes out the USART.
+        bool result = writeFifo.writeIfSpace(args...);
+
+        AtomicScope _;
+        if (writeFifo.hasContent()) {
+            startWriting();
+        }
+
+        return result;
     }
 
     void flush() {

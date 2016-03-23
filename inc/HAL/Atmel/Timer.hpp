@@ -33,11 +33,11 @@ public:
     static typename info::value_t getValue() {
         return *info::tcnt;
     }
-    static void interruptOn() {
+    __attribute__((always_inline)) inline static void interruptOn() {
         *info::tifr |= _BV(info::tifr_bit); // Datasheet: "OCF is cleared by writing logic 1 to the bit"
         *info::timsk |= _BV(info::timsk_bit);
     }
-    static void interruptOff() {
+    __attribute__((always_inline)) inline static void interruptOff() {
         *info::timsk &= ~_BV(info::timsk_bit);
     }
 

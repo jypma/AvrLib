@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "gcc_type_traits.h"
+#include "TypeTraits.hpp"
 
 namespace Streams {
 namespace Impl {
@@ -48,9 +49,6 @@ template<uint8_t count> struct StreamedSizeReading<uint8_t (*) [count]>: public 
 template<uint8_t count> struct StreamedSizeWriting<uint8_t (*) [count]>: public FixedSize<count> {};
 template<uint8_t count> struct StreamedSizeWriting<const uint8_t (*) [count]>: public FixedSize<count> {};
 
-template<typename T>
-struct exists { typedef void type; };
-
 template <typename enum_t>
 struct StreamedSizeReading<enum_t, typename exists<typename std::remove_pointer<enum_t>::type::type>::type>:
     public FixedSize<sizeof(typename std::remove_pointer<enum_t>::type::type)> {};
@@ -62,6 +60,13 @@ struct StreamedSizeWriting<enum_t, typename exists<typename enum_t::type>::type>
 template<> struct StreamedSizeWriting<uint8_t EEPROM::*>: public FixedSize<1> {};
 template<> struct StreamedSizeWriting<uint16_t EEPROM::*>: public FixedSize<2> {};
 template<> struct StreamedSizeWriting<uint32_t EEPROM::*>: public FixedSize<4> {};
+
+template <uint8_t length>
+struct StreamedSizeWriting<StringInProgmem<length>*>: public FixedSize<length> {};
+
+//we don't enable fixed-size reading(checking) of strings, since we need partial matches during scanning
+//template <uint8_t length>
+//struct StreamedSizeReading<StringInProgmem<length>*>: public FixedSize<length> {};
 
 }
 

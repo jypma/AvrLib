@@ -212,6 +212,7 @@ TEST(WritingTest, can_write_padding) {
 struct Struct1 {
     uint8_t a;
     uint8_t b;
+    Struct1(uint8_t _a, uint8_t _b): a(_a), b(_b) {}
 
     typedef Protocol<Struct1> P;
     typedef P::Seq<
@@ -220,20 +221,33 @@ struct Struct1 {
     > DefaultProtocol;
 
     bool hasA() const { return a > 0; }
+
+    typedef P::Seq<
+        P::Binary<uint8_t, &Struct1::a>,
+        P::Conditional<&Struct1::hasA,
+            P::Binary<uint8_t, &Struct1::b>
+        >
+    > AlternateProto;
 };
 
-TEST(WritingTest, can_write_const_struct_with_default_protocol) {
+TEST(WritingTest, can_write_struct_with_default_protocol) {
     Fifo<8> fifo;
-    const Struct1 s = {1, 2};
+    Struct1 s = {1, 2};
     fifo.write(&s);
+    EXPECT_EQ(2, fifo.getSize());
+    EXPECT_TRUE(fifo.read(FB(1,2)));
+    EXPECT_TRUE(fifo.isEmpty());
+
+    const Struct1 cs = {1, 2};
+    fifo.write(&cs);
     EXPECT_EQ(2, fifo.getSize());
     EXPECT_TRUE(fifo.read(FB(1,2)));
     EXPECT_TRUE(fifo.isEmpty());
 }
 
-TEST(WritingTest, can_write_const_struct_with_specific_protocol) {
+TEST(WritingTest, can_write_struct_with_specific_protocol) {
     Fifo<8> fifo;
-    const Struct1 s = {42, 2};
+    Struct1 s = {42, 2};
     typedef Protocol<Struct1> P;
     typedef P::Seq<
         P::Binary<uint8_t, &Struct1::a>,
@@ -242,6 +256,14 @@ TEST(WritingTest, can_write_const_struct_with_specific_protocol) {
     > CustomProto;
 
     fifo.write(as<CustomProto>(&s));
+    EXPECT_EQ(5, fifo.getSize());
+    EXPECT_TRUE(fifo.read(FB(42)));
+    EXPECT_TRUE(fifo.read(F("42")));
+    EXPECT_TRUE(fifo.read(F("2A")));
+    EXPECT_TRUE(fifo.isEmpty());
+
+    const Struct1 cs = {42, 2};
+    fifo.write(as<CustomProto>(&cs));
     EXPECT_EQ(5, fifo.getSize());
     EXPECT_TRUE(fifo.read(FB(42)));
     EXPECT_TRUE(fifo.read(F("42")));
@@ -455,6 +477,30 @@ TEST(WritingTest, does_not_write_decimal_delegate_fifo_that_isnt_reading) {
     input.delegate.write(FB(1,2,3));
     EXPECT_TRUE(fifo.write(dec(&input)));
     EXPECT_TRUE(fifo.isEmpty());
+}
+
+TEST(WritingTest, can_write_literal_strings) {
+    Fifo<16> fifo;
+    EXPECT_TRUE(fifo.write("hello"));
+    EXPECT_EQ(5, fifo.getSize());
+    EXPECT_TRUE(fifo.read(F("hello")));
+}
+
+TEST(WritingTest, can_skip_literal_strings_if_no_space) {
+    Fifo<4> fifo;
+    EXPECT_FALSE(fifo.write("hello"));
+    EXPECT_EQ(0, fifo.getSize());
+}
+
+struct Struct1Sub: public Struct1 {
+    Struct1Sub(uint8_t a, uint8_t b): Struct1(a,b) {}
+};
+
+TEST(WritingTest, can_write_subclass_of_struct_with_specific_proto_in_parent) {
+    Fifo<8> fifo;
+    Struct1Sub s = {1, 2};
+    fifo.write(as<Struct1::AlternateProto>(&s));
+    EXPECT_EQ(2, fifo.getSize());
 }
 
 }

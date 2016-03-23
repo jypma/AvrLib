@@ -51,6 +51,13 @@ public:
         P::Binary<bool, &Pulse::high>,
         P::Binary<uint16_t, &Pulse::duration>
     > DefaultProtocol;
+
+    typedef P::Seq<
+        STR("h="),
+        P::Decimal<bool, &Pulse::high>,
+        STR(",d="),
+        P::Decimal<uint16_t, &Pulse::duration>
+    > TEXT;
 };
 
 template <typename prescaled_t>

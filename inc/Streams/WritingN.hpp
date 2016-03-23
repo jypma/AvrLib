@@ -45,7 +45,6 @@ struct WriteN {
 
 template<typename head_t, typename... tail_t>
 struct WriteN<typename std::enable_if<StreamedSizeWriting<head_t>::fixed>::type, head_t, tail_t...> {
-    typedef Logging::Log<Loggers::Streams> log;
 
     // head_t is fixed size
     static constexpr uint8_t fixedSize = StreamedSizeWriting<head_t>::size + WriteN<void, tail_t...>::fixedSize;
@@ -53,7 +52,6 @@ struct WriteN<typename std::enable_if<StreamedSizeWriting<head_t>::fixed>::type,
     template <typename sem, typename fifo_t>
     static bool apply(fifo_t &fifo, head_t head, tail_t... tail) {
         if (sem::canWrite(fifo, fixedSize)) {
-            log::debug("space is good, starting to write");
             return applyUnchecked<sem>(fifo, head, tail...);
         } else {
             return false;
@@ -62,18 +60,13 @@ struct WriteN<typename std::enable_if<StreamedSizeWriting<head_t>::fixed>::type,
 
     template <typename sem, typename fifo_t>
     static bool applyUnchecked(fifo_t &fifo, head_t head, tail_t... tail) {
-        if (write1unchecked<sem>(fifo, head)) {
-            return WriteN<void,tail_t...>::template applyUnchecked<sem>(fifo, tail...);
-        } else {
-            return false;
-        }
+        write1unchecked<sem>(fifo, head);
+        return WriteN<void,tail_t...>::template applyUnchecked<sem>(fifo, tail...);
     }
 };
 
 template<typename head_t, typename... tail_t>
 struct WriteN<typename std::enable_if<!StreamedSizeWriting<head_t>::fixed>::type, head_t, tail_t...> {
-    typedef Logging::Log<Loggers::Streams> log;
-
     // head_t is not fixed size
     static constexpr uint8_t fixedSize = 0;
 

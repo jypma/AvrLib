@@ -74,7 +74,7 @@ public:
     }
 
     template <uint8_t bitmask>
-    static void interruptOff() {
+    __attribute__((always_inline)) inline static void interruptOff() {
         *pcintInfo::pcmsk &= ~bitmask;
         disablePCINTIfNeeded();
     }
@@ -129,7 +129,7 @@ public:
         interruptOnFalling();
     }
 
-    void interruptOff() {
+    __attribute__((always_inline)) inline void interruptOff() {
         INT::support::template interruptOff<bitmask>();
     }
 };

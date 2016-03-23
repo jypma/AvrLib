@@ -10,6 +10,8 @@ struct MockComparator {
     typedef uint8_t value_t;
     typedef HAL::Atmel::InterruptVectors::VectorTIMER0_COMPA_ INT;
 
+    static constexpr uint8_t prescalerPower2 = 10;
+
     value_t value = 0;
     value_t target = 0;
     bool isInterruptOn = false;

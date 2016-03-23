@@ -22,14 +22,10 @@ namespace Impl {
  */
 template <typename fifo_t>
 ReadResult read1(fifo_t &fifo, ChunkWithLength c) {
-    typedef Logging::Log<Loggers::Streams> log;
 
-    log::debug("Reading chunk of size %d", *c.length);
     uint8_t count = *c.length;
     if (fifo.getReadAvailable() >= count) {
-        log::debug("  enough bytes are available.");
         if (c.fifo->isWriting() && c.fifo->getSpace() >= count) {
-            log::debug("  target ChunkedFifo is writing and has space.");
             for (; count > 0; count--) {
                 uint8_t ch;
                 fifo.uncheckedRead(ch);

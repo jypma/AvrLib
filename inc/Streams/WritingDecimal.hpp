@@ -31,6 +31,16 @@ bool write1(fifo_t &fifo, const Decimal<uint8_t> value) {
 }
 
 template <typename sem, typename fifo_t>
+bool write1(fifo_t &fifo, const Decimal<bool> value) {
+    if (sem::canWrite(fifo, 1)) {
+        sem::write(fifo, value.value ? '1' : '0');
+        return true;
+    } else {
+        return false;
+    }
+}
+
+template <typename sem, typename fifo_t>
 bool write1(fifo_t &fifo, const Decimal<int8_t> value) {
     return write1decimalInt<sem>(fifo, value);
 }
@@ -62,7 +72,7 @@ bool write1(fifo_t &fifo, const Decimal<read_delegate_t*> d) {
         for (uint8_t i = count; i > 0; i--) {
             uint8_t item;
             d.value->uncheckedRead(item);
-            if (!Format::format(&(writeFunc<sem,fifo_t>), &fifo, dec(item))) return false;
+            if (!write1decimalInt<sem>(fifo, dec(item))) return false;
             if (i > 1) {
                 if (sem::canWrite(fifo, 1)) {
                     sem::write(fifo, ',');
@@ -71,6 +81,21 @@ bool write1(fifo_t &fifo, const Decimal<read_delegate_t*> d) {
                 }
             }
         }
+    }
+    return true;
+}
+
+template <typename sem, typename fifo_t, typename int_t>
+bool write1(fifo_t &fifo, const Decimal<ArraySlice<int_t>> d) {
+    for (uint8_t i = d.value.first; i < d.value.until; i++) {
+        if (i > d.value.first) {
+            if (sem::canWrite(fifo, 1)) {
+                sem::write(fifo, ',');
+            } else {
+                return false;
+            }
+        }
+        if (!write1decimalInt<sem>(fifo, dec(d.value.array[i]))) return false;
     }
     return true;
 }

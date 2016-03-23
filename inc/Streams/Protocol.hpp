@@ -1,6 +1,8 @@
 #ifndef STREAMS_PROTOCOL_HPP_
 #define STREAMS_PROTOCOL_HPP_
 
+#include "gcc_type_traits.h"
+#include "TypeTraits.hpp"
 #include "ReadResult.hpp"
 
 namespace Streams {
@@ -24,6 +26,11 @@ ReadResult read1(fifo_t &fifo, WithProtocol<T, P> wrapper) {
 }
 
 template <typename sem, typename fifo_t, typename T, typename P>
+bool write1(fifo_t &fifo, WithProtocol<T, P> wrapper) {
+    return P::template write1<sem>(fifo, wrapper.t);
+}
+
+template <typename sem, typename fifo_t, typename T, typename P>
 bool write1(fifo_t &fifo, WithProtocolConst<T, P> wrapper) {
     return P::template write1<sem>(fifo, wrapper.t);
 }
@@ -39,46 +46,28 @@ namespace Streams {
 
 template <typename This>
 struct Protocol {
-    /** Implementation-private. Do not use. */
-    template <typename element>
-    struct Single {
-        template <typename fifo_t>
-        static ReadResult read1(fifo_t &fifo, This *t) {
-            return Impl::readN(fifo, ReadResult::Valid, element::forReading(t));
-        }
-
-        template <typename sem, typename fifo_t>
-        static bool write1(fifo_t &fifo, const This *t) {
-            return Impl::write1<sem>(fifo, element::forWriting(t));
-        }
-    };
 
     /** Indicates a sequence of protocol elements that should be written/read one after the other */
-    template <typename... elements>
-    struct Seq;
+    template <typename... types>
+    struct Seq {
+        typedef This T;
 
-    template <typename... elements>
-    struct Single<Seq<elements...>>: public Seq<elements...> {
-
-    };
-
-    template <typename e1, typename e2, typename... rest>
-    struct Seq<e1, e2, rest...>{
         template <typename fifo_t>
         static ReadResult read1(fifo_t &fifo, This *t) {
-            return Impl::readN(fifo, ReadResult::Valid, e1::forReading(t), e2::forReading(t), rest::forReading(t)...);
+            return Impl::readN(fifo, ReadResult::Valid, types::forReading(t)...);
         }
 
         template <typename sem, typename fifo_t>
         static bool write1(fifo_t &fifo, const This *t) {
-            return Impl::writeN<sem>(fifo, e1::forWriting(t), e2::forWriting(t), rest::forWriting(t)...);
+            return Impl::writeN<sem>(fifo, types::forWriting(t)...);
         }
     };
 
-    template <typename one>
-    struct Seq<one>: public Single<one> {
+    template <typename... types>
+    struct Seq<Seq<types...>>: public Seq<types...> {};
 
-    };
+    template <typename T>
+    using Single = Seq<T>;
 
     /** Serializes a field as binary, little endian */
     template <typename int_t, int_t This::*field>
@@ -176,18 +165,52 @@ struct Protocol {
     };
 };
 
+template <typename tp, typename = void>
+struct has_T: std::false_type {};
+
+template <typename tp>
+struct has_T<tp, typename exists<typename tp::T>::type>: std::true_type {};
+
+namespace find_T_Impl {
+
+template<typename check, typename... types>
+struct find_T {
+    // fallback for empty
+    // T was not found in any arguments
+};
+
+template<typename head_t, typename... tail_t>
+struct find_T<typename std::enable_if<has_T<head_t>::value>::type, head_t, tail_t...> {
+    // has has T
+    typedef typename head_t::T type;
+};
+
+template<typename head_t, typename... tail_t>
+struct find_T<typename std::enable_if<!has_T<head_t>::value>::type, head_t, tail_t...> {
+    // has no T
+    typedef typename find_T<void, tail_t...>::type type;
+};
+
+}
+
+template <typename... types> using find_T = find_T_Impl::find_T<void, types...>;
+
 /**
  * Returns a wrapper indicating to read/write [t] using the protocol given as template parameters.
  * This can be used in order to read/write a struct that does not have a DefaultProtocol typedef
  * (or customize a struct that does have one).
  */
-template <typename... elements, typename T>
-Impl::WithProtocol<T, typename Protocol<T>::template Seq<elements...>> as(T *t) {
+template <typename... types>
+Impl::WithProtocol<typename find_T<types...>::type,
+                   typename Protocol<typename find_T<types...>::type>::template Seq<types...>>
+                   as (typename find_T<types...>::type *t) {
     return t;
 }
 
-template <typename... elements, typename T>
-Impl::WithProtocolConst<T, typename Protocol<T>::template Seq<elements...>> as(const T *t) {
+template <typename... types>
+Impl::WithProtocolConst<typename find_T<types...>::type,
+                        typename Protocol<typename find_T<types...>::type>::template Seq<types...>>
+                        as (const typename find_T<types...>::type *t) {
     return t;
 }
 

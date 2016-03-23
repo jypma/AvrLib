@@ -15,7 +15,7 @@ public:
     /**
      * Disables raising any interrupts for this pin
      */
-    void interruptOff() {
+    __attribute__((always_inline)) inline void interruptOff() {
         info::off();
     }
 
@@ -24,7 +24,7 @@ public:
      * You should call interruptOff() from your handler, otherwise it might be
      * repeatedly invoked if the pin is still low when the interrupt handler returns.
      */
-    void interruptOnLow() {
+    __attribute__((always_inline)) inline void interruptOnLow() {
         info::on(0);
     }
 
@@ -32,7 +32,7 @@ public:
      * Invokes an attached interrupt handler whenever the pin changes value. Only works when
      * the I/O clock is running.
      */
-    void interruptOnChange() {
+    __attribute__((always_inline)) inline void interruptOnChange() {
         info::on(1);
     }
 
@@ -40,7 +40,7 @@ public:
      * Invokes an attached interrupt handler whenever the pin goes from low to high. Only works when
      * the I/O clock is running.
      */
-    void interruptOnRising() {
+    __attribute__((always_inline)) inline void interruptOnRising() {
         info::on(2);
     }
 
@@ -48,7 +48,7 @@ public:
      * Invokes an attached interrupt handler whenever the pin goes from high to low. Only works when
      * the I/O clock is running.
      */
-    void interruptOnFalling() {
+    __attribute__((always_inline)) inline void interruptOnFalling() {
         info::on(3);
     }
 };

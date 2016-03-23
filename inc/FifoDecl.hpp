@@ -15,11 +15,11 @@ class AbstractFifo: public Streams::Impl::StreamingDefaultWriteIfSpace<AbstractF
     const uint8_t bufferSize;
     volatile uint8_t readPos = 0;
     volatile uint8_t writePos = 0;
-    uint8_t writeMark = NO_MARK;
-    uint8_t readMark = NO_MARK;
+    volatile uint8_t writeMark = NO_MARK;
+    volatile uint8_t readMark = NO_MARK;
     uint8_t abortedWrites = 0;
-    bool reading = false;
-    bool writing = false;
+    volatile bool reading = false;
+    volatile bool writing = false;
 
 public:
     inline bool isWriting() const {
@@ -36,7 +36,8 @@ private:
     inline uint8_t markedOrReadPos() const {
         return isReading() ? readMark : readPos;
     }
-    inline bool _isFull() const {
+
+    __attribute__((always_inline)) inline bool _isFull() const {
         uint8_t lastWritePos = markedOrReadPos();
         if (lastWritePos == 0) {
             lastWritePos = bufferSize - 1;
@@ -45,7 +46,8 @@ private:
         }
         return writePos == lastWritePos;
     }
-    inline bool _hasSpace() const {
+
+    __attribute__((always_inline)) inline bool _hasSpace() const {
         uint8_t lastWritePos = markedOrReadPos();
         if (lastWritePos == 0) {
             lastWritePos = bufferSize - 1;
@@ -53,6 +55,22 @@ private:
             lastWritePos--;
         }
         return writePos != lastWritePos;
+    }
+
+    __attribute__((always_inline)) inline uint8_t _getSpace() const {
+        const auto write_pos = writePos;  // an on-going write DOES count to eating up space
+        const auto read_pos = markedOrReadPos();
+        return (write_pos > read_pos) ? bufferSize - write_pos + read_pos - 1 :
+               (write_pos < read_pos) ? read_pos - write_pos - 1 :
+               bufferSize - 1;
+    }
+
+    __attribute__((always_inline)) inline void _uncheckedWrite(uint8_t b) {
+        buffer[writePos] = b;
+        writePos++;
+        if (writePos >= bufferSize) {
+            writePos -= bufferSize;
+        }
     }
 
 public:
@@ -134,16 +152,22 @@ public:
         return avail;
     }
 
-    /** Only for use in interrupts. Inlined, and does not disable interrupt flag. */
+    /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */
     __attribute__((always_inline)) inline void fastwrite(uint8_t b) {
         if (_hasSpace()) {
-            buffer[writePos] = b;
-            writePos++;
-            if (writePos >= bufferSize) {
-                writePos -= bufferSize;
-            }
+            _uncheckedWrite(b);
         }
     }
+
+    /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */
+    // TODO make template for these variations, like normal write.
+    __attribute__((always_inline)) inline void fastwrite(uint8_t b1, uint8_t b2) {
+        if (_getSpace() >= 2) {
+            _uncheckedWrite(b1);
+            _uncheckedWrite(b2);
+        }
+    }
+
 };
 
 /**

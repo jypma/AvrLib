@@ -1,7 +1,11 @@
 BUGS
 ====
+ - Create a TypedFifo, templated on sizeof(T), without the generic write and read methods; 
+    * only one T at a time
+    * maybe on(T, lambda)
+ - refactor out MockComparator and MockRealTimer
  - find out why pulseCounter.minimumLength is somehow applied x2
-   
+ - Have F("12") for length <= 2 (or 3) just be plain C strings, since they use as much mem but much faster.   
 -  Add JSON (or protobuf?) types for easier packet output.
      
  - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at

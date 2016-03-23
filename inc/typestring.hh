@@ -41,6 +41,9 @@ private:
     static constexpr char const   vals[sizeof...(C)+1] PROGMEM = { C...,'\0' };
     static constexpr unsigned int sval = sizeof...(C);
 public:
+    static constexpr StringInProgmem<sval> * instance() noexcept {
+        return (StringInProgmem<sval> *) data();
+    }
 
     static constexpr char const * data() noexcept
     { return &vals[0]; }

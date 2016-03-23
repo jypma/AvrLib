@@ -3,6 +3,8 @@
 #define LOGGING_HPP_
 
 #include "Strings.hpp"
+#include "Fifo.hpp"
+#include "Streams/Format.hpp"
 
 #include <avr/io.h>
 
@@ -41,29 +43,37 @@ struct TimingEnabled {
 };
 
 struct MessagesDisabled {
-    inline static void debug(const char *fmt, ...) {}
+    template <typename... types>
+    inline static void debug(types... args) {}
+
+    static constexpr bool isDebugEnabled() { return false; }
 };
 
-extern void (*onMessage)(const char *msg);
+template <typename... types>
+extern void onMessage(types... args);
+
+#define LOGGING_TO(var) template <typename... types> void ::Logging::onMessage(types... args) { var.writeIfSpace(args...); }
 
 template <typename loggerName = STR("")>
 struct MessagesEnabled {
+    static constexpr bool isDebugEnabled() { return true; }
 #ifndef AVR
-    inline static void debug(const char *fmt, ...) {
+    template <typename... types>
+    inline static void debug(types... args) {
         printf("[%9s ] ", loggerName::data());
-        va_list argp;
-        va_start(argp, fmt);
-        vprintf(fmt, argp);
-        va_end(argp);
+        Fifo<250> out;
+        out.write(args...);
+        while (out.hasContent()) {
+            uint8_t ch;
+            out.read(&ch);
+            printf("%c", ch);
+        }
         printf("\n");
     }
 #else
-    inline static void debug(const char *fmt, ...) {
-        // TODO implement on-chip debug message mechanism, pluggable? wifi?
-        if (onMessage != nullptr) {
-            onMessage(loggerName::data());
-            onMessage(fmt);
-        }
+    template <typename... types>
+    inline static void debug(types... args) {
+        onMessage(loggerName::instance(), F(": "), args..., ::Streams::endl);
     }
 #endif
 };
@@ -77,17 +87,17 @@ struct Log: public TimingDisabled, public MessagesDisabled{
 
 #include "LoggingSettings.hpp"
 
-template <typename pin_t>
-void debugTimePrint(pin_t pin) {
-    /*
-     * TODO route this to message logging instead
-    if (debugTimingsCount > 0) {
-        for (uint8_t i = 0; i < debugTimingsCount; i++) {
-          pin.out() << Streams::dec(debugTimings[i]) << " ";
-        }
-        pin.out() << Streams::endl;
-    }
-    */
+namespace Logging {
+
+inline void printTimings() {
+    typedef Logging::Log<Loggers::Timing> log;
+    //static uint8_t lastCount = 0;
+    //if (debugTimingCount != lastCount) {
+        log::debug(Streams::Decimal(debugTimings, 0, debugTimingsCount));
+    //    lastCount = debugTimingCount;
+    //}
+}
+
 }
 
 #endif /* DEBUG_HPP_ */

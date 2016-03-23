@@ -25,6 +25,13 @@ struct Hexadecimal {
     constexpr explicit Hexadecimal(T v): value(v) {}
 };
 
+template <typename int_t>
+struct ArraySlice {
+    const int_t *array;
+    uint8_t first;
+    uint8_t until;
+};
+
 class Format {
 public:
     typedef bool (write_f)(void *ctx, uint8_t value);
@@ -41,17 +48,22 @@ public:
 
 // FIXME rename to Decimal and bump class to Impl namespace
 template <typename T>
-inline Impl::Decimal<T> dec(T v) {
+inline Impl::Decimal<T> constexpr dec(T v) {
     return Impl::Decimal<T> { v };
 }
 
 template <typename T>
-inline Impl::Decimal<T> Decimal(T v) {
+inline Impl::Decimal<T> constexpr Decimal(T v) {
     return Impl::Decimal<T> { v };
 }
 
+template <typename int_t>
+inline Impl::Decimal<Impl::ArraySlice<int_t>> constexpr Decimal(const int_t *array, uint8_t first, uint8_t count) {
+    return Impl::Decimal<Impl::ArraySlice<int_t>> { { array, first, uint8_t(first + count) } };
+}
+
 template <typename T>
-inline Impl::Hexadecimal<T> Hexadecimal(T v) {
+inline Impl::Hexadecimal<T> constexpr Hexadecimal(T v) {
     return Impl::Hexadecimal<T> { v };
 }
 
