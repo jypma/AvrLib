@@ -8,8 +8,6 @@ namespace DHT {
 namespace Impl {
 
 /**
- * TODO see if this can be power supplied by a pin
- *
  * DHT11 driver. Gets a measurement on startup after which it goes to idle. Call measure() to initiate another measurement.
  *
  *      /------------\
@@ -25,12 +23,13 @@ namespace Impl {
  *     VCC/  |     \GND
  *           \DATA
  *
- * @param pin_t Pin that the DHT11 is connected to. We'll use the internal pull-up resistor of the micro.
+ * @param datapin_t DATA pin. We'll use the internal pull-up resistor of the micro.
+ * @param powerpin_t VCC pin. The sensor will be powered by the microcontroller.
  */
-template <typename pin_t, typename comparator_t, typename rt_t>
-class DHT11: public DHT<pin_t, comparator_t, rt_t> {
-    typedef DHT11<pin_t, comparator_t, rt_t> This;
-    typedef DHT<pin_t, comparator_t, rt_t> Super;
+template <typename datapin_t, typename powerpin_t, typename comparator_t, typename rt_t>
+class DHT11: public DHT<datapin_t, powerpin_t, comparator_t, rt_t> {
+    typedef DHT11<datapin_t, powerpin_t, comparator_t, rt_t> This;
+    typedef DHT<datapin_t, powerpin_t, comparator_t, rt_t> Super;
 protected:
     void onComparator() {
         Super::onComparator();
@@ -39,11 +38,11 @@ protected:
         Super::onPin();
     }
 public:
-    using DHT<pin_t, comparator_t, rt_t>::DHT;
+    using DHT<datapin_t, powerpin_t, comparator_t, rt_t>::DHT;
 
     /**
      * Returns the temperature in tenths of degrees celcius, e.g. 320 for 32 degrees celcius.
-     * However, the DHT11's precision is whole degrees only.
+     * However, the DHT11's precision is whole degrees only, and only temperatures between 0..100 degrees C.
      */
     int16_t getTemperature() const {
         return Super::getData(2) * 10;
@@ -57,15 +56,15 @@ public:
         return Super::getData(0) * 10;
     }
 
-    INTERRUPT_HANDLER1(typename pin_t::INT, onPin);
+    INTERRUPT_HANDLER1(typename datapin_t::INT, onPin);
     INTERRUPT_HANDLER2(typename comparator_t::INT, onComparator);
 };
 
 }
 
-template <typename pin_t, typename comparator_t, typename rt_t>
-Impl::DHT11<pin_t, comparator_t, rt_t> DHT11(pin_t &pin, comparator_t &comp, rt_t &rt) {
-    return { pin, comp, rt };
+template <typename datapin_t, typename powerpin_t, typename comparator_t, typename rt_t>
+Impl::DHT11<datapin_t, powerpin_t, comparator_t, rt_t> DHT11(datapin_t &pin, powerpin_t &power, comparator_t &comp, rt_t &rt) {
+    return { pin, power, comp, rt };
 }
 
 }

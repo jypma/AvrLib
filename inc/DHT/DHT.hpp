@@ -13,19 +13,20 @@ using namespace Time;
 using namespace Streams;
 
 enum class DHTState: uint8_t {
-    IDLE, BOOTING, SIGNALING, SYNC_LOW, SYNC_HIGH, RECEIVING_LOW, RECEIVING_HIGH
+    OFF, BOOTING, IDLE, SIGNALING, SYNC_LOW, SYNC_HIGH, RECEIVING_LOW, RECEIVING_HIGH
 };
 
 namespace Impl {
 
 /** Abstract base class for all DHT-based temperature & humidity sensors */
-template <typename pin_t, typename comparator_t, typename rt_t>
+template <typename datapin_t, typename powerpin_t, typename comparator_t, typename rt_t>
 class DHT {
     typedef Logging::Log<Loggers::DHT11> log;
 
-    pin_t *pin;
-    DHTState state = DHTState::BOOTING;
-    PulseCounter<comparator_t, pin_t, 250> counter;
+    datapin_t *pin;
+    powerpin_t *power;
+    DHTState state;
+    PulseCounter<comparator_t, datapin_t, 250> counter;
     VariableDeadline<rt_t> timeout;
     uint8_t bit = 7;
     uint8_t pos = 0;
@@ -33,15 +34,35 @@ class DHT {
     bool seenHigh = false;
     uint8_t lastFailure = 0;
 public:
+    void powerOff() {
+        power->setLow();
+        state = DHTState::OFF;
+    }
+
+    void powerOn() {
+        if (state == DHTState::OFF) {
+            log::debug(F("Booting"));
+            pin->configureAsInputWithPullup();
+            power->setHigh();
+            timeout.reset(1_s);
+            state = DHTState::BOOTING;
+        }
+    }
+
     void measure() {
-        if (state == DHTState::IDLE || state == DHTState::BOOTING || state == DHTState::SIGNALING) {
+        if (state == DHTState::OFF) {
+            powerOn();
+        } else if (state == DHTState::IDLE || state == DHTState::BOOTING || state == DHTState::SIGNALING) {
             log::debug(F("Starting measurement"));
             pin->configureAsOutput();
             pin->setLow();
             timeout.reset(18_ms);
             state = DHTState::SIGNALING;
+        } else {
+            log::debug(F("Still booting, or measurement already in progress."));
         }
     }
+
 protected:
     void onComparator() {
         decltype(counter)::onComparatorHandler::invoke(&counter);
@@ -156,17 +177,19 @@ private:
     }
 
 public:
-    DHT(pin_t &_pin, comparator_t &_comparator, rt_t &_rt):
+    DHT(datapin_t &_pin, powerpin_t &_power, comparator_t &_comparator, rt_t &_rt):
         pin(&_pin),
+        power(&_power),
+        state(DHTState::OFF),
         counter(_comparator, _pin),
         timeout(deadline(_rt)) {
-        log::debug(F("Booting"));
-        pin->configureAsInputWithPullup();
-        timeout.reset(1_s);
+        power->configureAsOutput();
+        powerOn();
     }
 
     void loop() {
         switch(state) {
+        case DHTState::OFF: break;
         case DHTState::IDLE: break;
         case DHTState::BOOTING: booting(); break;
         case DHTState::SIGNALING: signaling(); break;

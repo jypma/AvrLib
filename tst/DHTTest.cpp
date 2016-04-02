@@ -62,6 +62,11 @@ struct MockPin {
         high = false;
     }
 
+    void setHigh() {
+        EXPECT_TRUE(isOutput);
+        high = true;
+    }
+
     bool isHigh() {
         return high;
     }
@@ -90,13 +95,36 @@ struct MockRealTimer {
     }
 };
 
-TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
+TEST(DHTTest, powers_on_before_measuring) {
     MockComparator comparator;
-    MockPin pin;
+    MockPin pin, power;
     MockRealTimer rt;
 
-    auto dht = DHT11(pin, comparator, rt);
+    auto dht = DHT11(pin, power, comparator, rt);
+    dht.powerOff();
     EXPECT_FALSE(pin.isOutput);
+    EXPECT_TRUE(power.isOutput);
+    EXPECT_FALSE(power.high);
+
+    dht.measure();
+    EXPECT_TRUE(power.high);
+
+    // after 1 second, pin should be pulled low for 18ms
+    rt.advance(1_s);
+    dht.loop();
+    EXPECT_TRUE(pin.isOutput);
+    EXPECT_FALSE(pin.high);
+}
+
+TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
+    MockComparator comparator;
+    MockPin pin, power;
+    MockRealTimer rt;
+
+    auto dht = DHT11(pin, power, comparator, rt);
+    EXPECT_FALSE(pin.isOutput);
+    EXPECT_TRUE(power.isOutput);
+    EXPECT_TRUE(power.high);
 
     // after 1 second, pin should be pulled low for 18ms
     rt.advance(1_s);
@@ -161,8 +189,8 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     sendTestByte(0);
     sendTestByte(59);
 
-    EXPECT_EQ(32, dht.getHumidity());
-    EXPECT_EQ(27, dht.getTemperature());
+    EXPECT_EQ(320, dht.getHumidity());
+    EXPECT_EQ(270, dht.getTemperature());
     EXPECT_EQ(DHTState::IDLE, dht.getState());
     EXPECT_FALSE(pin.isInterruptOn);
     EXPECT_FALSE(comparator.isInterruptOn);
@@ -207,8 +235,8 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     sendTestByte(0);
     sendTestByte(59);
 
-    EXPECT_EQ(2, dht.getHumidity());
-    EXPECT_EQ(42, dht.getTemperature());
+    EXPECT_EQ(20, dht.getHumidity());
+    EXPECT_EQ(420, dht.getTemperature());
     EXPECT_EQ(DHTState::IDLE, dht.getState());
     EXPECT_FALSE(pin.isInterruptOn);
     EXPECT_FALSE(comparator.isInterruptOn);
@@ -216,10 +244,10 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
 
 TEST(DHTTest, dht22_reads_negative_temperatures) {
     MockComparator comparator;
-    MockPin pin;
+    MockPin pin, power;
     MockRealTimer rt;
 
-    auto dht = DHT22(pin, comparator, rt);
+    auto dht = DHT22(pin, power, comparator, rt);
     EXPECT_FALSE(pin.isOutput);
 
     // after 1 second, pin should be pulled low for 18ms
