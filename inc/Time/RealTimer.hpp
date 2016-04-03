@@ -262,13 +262,18 @@ public:
     }
 
     template <typename value>
-    void reset(value v) {
+    void reset() {
         static constexpr uint32_t delay = toCountsOn<rt_t, value>();
         static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
         AtomicScope _;
         calculateNextCounts(rt->counts(), delay);
         elapsed = false;
+    }
+
+    template <typename value>
+    void reset(value v) {
+        reset<value>();
     }
 
     void cancel() {

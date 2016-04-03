@@ -1,5 +1,6 @@
 BUGS
 ====
+ - Decimal format for time: rt.millis() etc. for debug output
  - Create a TypedFifo, templated on sizeof(T), without the generic write and read methods; 
     * only one T at a time
     * maybe on(T, lambda)
