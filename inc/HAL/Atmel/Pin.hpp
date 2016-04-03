@@ -196,17 +196,22 @@ public:
     }
 };
 
-template <typename info>
-class PinWithPinChange: public Pin<info>, public PinChangeInterrupt<typename info::pcintInfo, _BV(info::pcintBit)> {
+template <typename base, typename info>
+class WithPinChange: public base, public PinChangeInterrupt<typename info::pcintInfo, _BV(info::pcintBit)> {};
 
-};
-template <typename info>
-class PinWithPinChangeOption: public Pin<info> {
+template <typename base, typename info>
+class WithPinChangeOption: public base {
 public:
-    static PinWithPinChange<info> withInterrupt() {
-        return PinWithPinChange<info>();
+    static WithPinChange<base, info> withInterrupt() {
+        return WithPinChange<base, info>();
     }
 };
+
+template <typename info>
+class PinWithPinChange: public WithPinChange<Pin<info>, info> {};
+
+template <typename info>
+class PinWithPinChangeOption: public WithPinChangeOption<Pin<info>, info> {};
 
 } // namespace AVR
 } // namespace HAL

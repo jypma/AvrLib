@@ -356,6 +356,8 @@ struct PinOnPortD {
     static constexpr volatile uint8_t *port = &PORTD;
     static constexpr volatile uint8_t *pin = &PIND;
     static constexpr uint8_t bitmask = _BV(bit);
+    typedef Info::PCInt2Info pcintInfo;
+    static constexpr uint8_t pcintBit = bit;
 };
 
 template <uint8_t bit>
@@ -364,6 +366,8 @@ struct PinOnPortB {
     static constexpr volatile uint8_t *port = &PORTB;
     static constexpr volatile uint8_t *pin = &PINB;
     static constexpr uint8_t bitmask = _BV(bit);
+    typedef Info::PCInt0Info pcintInfo;
+    static constexpr uint8_t pcintBit = bit;
 };
 
 template <uint8_t bit>
@@ -374,6 +378,7 @@ struct PinOnPortC {
     static constexpr volatile uint8_t *pcmsk = &PCMSK1;
     static constexpr uint8_t bitmask = _BV(bit);
     typedef Info::PCInt1Info pcintInfo;
+    static constexpr uint8_t pcintBit = bit;
 };
 
 struct PinPD0Info: public PinOnPortD<0> {
@@ -424,27 +429,21 @@ struct PinPB5Info: public PinOnPortB<5>, public GPIOPin {};
 
 struct PinPC0Info: public PinOnPortC<0>, public GPIOPin {
     static constexpr uint8_t adc_mux = 0;
-    static constexpr uint8_t pcintBit = 0;
 };
 struct PinPC1Info: public PinOnPortC<1>, public GPIOPin {
     static constexpr uint8_t adc_mux = 1;
-    static constexpr uint8_t pcintBit = 1;
 };
 struct PinPC2Info: public PinOnPortC<2>, public GPIOPin {
     static constexpr uint8_t adc_mux = 2;
-    static constexpr uint8_t pcintBit = 2;
 };
 struct PinPC3Info: public PinOnPortC<3>, public GPIOPin {
     static constexpr uint8_t adc_mux = 3;
-    static constexpr uint8_t pcintBit = 3;
 };
 struct PinPC4Info: public PinOnPortC<4>, public GPIOPin {
     static constexpr uint8_t adc_mux = 4;
-    static constexpr uint8_t pcintBit = 4;
 };
 struct PinPC5Info: public PinOnPortC<5>, public GPIOPin {
     static constexpr uint8_t adc_mux = 5;
-    static constexpr uint8_t pcintBit = 5;
 };
 struct PinA6Info {
     static constexpr uint8_t adc_mux = 6;
@@ -567,9 +566,10 @@ constexpr PinPD3_t<timer2_t> PinPD3(timer2_t &timer) {
 /**
  * Declares pin PD4 / PCINT20 / XCK (TODO) / T0 (TODO) / Arduino Digital 4.
  */
-typedef Pin<Info::PinPD4Info> PinPD4;
+typedef PinWithPinChangeOption<Info::PinPD4Info> PinPD4;
 
-template <typename timer0_t = NoTimer> using PinPD5_t = PinOnComparatorB<Info::PinPD5Info,timer0_t>;
+template <typename timer0_t>
+class PinPD5_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPD5Info,timer0_t>,Info::PinPD5Info> {};
 
 /**
  * Declares pin PD5 / PCINT21 / OC0B / T1 (TODO) / Arduino Digital 5, without timer capability.
@@ -589,8 +589,8 @@ constexpr PinPD5_t<timer0_t> PinPD5(timer0_t &timer) {
     return PinPD5_t<timer0_t>(timer);
 }
 
-
-template <typename timer0_t = NoTimer> using PinPD6_t = PinOnComparatorA<Info::PinPD6Info,timer0_t>;
+template <typename timer0_t>
+class PinPD6_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPD6Info,timer0_t>,Info::PinPD6Info> {};
 
 /**
  * Declares pin PD6 / PCINT22 / OC0A / AIN0 (TODO) / Arduino Digital 6, without timer capability.
@@ -613,14 +613,15 @@ constexpr PinPD6_t<timer0_t> PinPD6(timer0_t &timer) {
 /**
  * Declares pin PD7 / PCINT23 / AIN1 (TODO) / Arduino Digital 7.
  */
-typedef Pin<Info::PinPD7Info> PinPD7;
+typedef PinWithPinChangeOption<Info::PinPD7Info> PinPD7;
 
 /**
  * Declares pin PB0 / PCINT0 / CLKO (TODO) / ICP1 (TODO) / Arduino Digital 8.
  */
-typedef Pin<Info::PinPB0Info> PinPB0;
+typedef PinWithPinChangeOption<Info::PinPB0Info> PinPB0;
 
-template <typename timer1_t = NoTimer> using PinPB1_t = PinOnComparatorA<Info::PinPB1Info,timer1_t>;
+template <typename timer1_t>
+class PinPB1_t: public WithPinChangeOption<PinOnComparatorA<Info::PinPB1Info,timer1_t>,Info::PinPB1Info> {};
 
 /**
  * Declares pin PB1 / PCINT1 / OC1A / Arduino Digital 9, without timer capability.
@@ -640,7 +641,8 @@ constexpr PinPB1_t<timer1_t> PinPB1(timer1_t &timer) {
     return PinPB1_t<timer1_t>(timer);
 }
 
-template <typename timer1_t = NoTimer> using PinPB2_t = PinOnComparatorB<Info::PinPB2Info,timer1_t>;
+template <typename timer1_t>
+class PinPB2_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPB2Info,timer1_t>,Info::PinPB2Info> {};
 
 /**
  * Declares pin PB2 / PCINT2 / SS / OC1B / Arduino Digital 10, without timer capability.
@@ -660,7 +662,8 @@ constexpr PinPB2_t<timer1_t> PinPB2(timer1_t &timer) {
     return PinPB2_t<timer1_t>(timer);
 }
 
-template <typename timer2_t = NoTimer> using PinPB3_t = PinOnComparatorA<Info::PinPB3Info,timer2_t>;
+template <typename timer2_t>
+class PinPB3_t: public WithPinChangeOption<PinOnComparatorA<Info::PinPB3Info,timer2_t>,Info::PinPB3Info> {};
 
 /**
  * Declares pin PB3 / PCINT3 / MOSI / OC2A / Arduino Digital 11, without timer capability.
@@ -683,12 +686,12 @@ constexpr PinPB3_t<timer2_t> PinPB3(timer2_t &timer) {
 /**
  * Declares pin PB4 / PCINT4 / MISO / Arduino Digital 12.
  */
-typedef Pin<Info::PinPB4Info> PinPB4;
+typedef PinWithPinChangeOption<Info::PinPB4Info> PinPB4;
 
 /**
  * Declares pin PB5 / PCINT5 / SCK / Arduino Digital 13.
  */
-typedef Pin<Info::PinPB5Info> PinPB5;
+typedef PinWithPinChangeOption<Info::PinPB5Info> PinPB5;
 
 /**
  * Declares pin PC0 / ADC0 / PCINT8 / Arduino Analog 0.
