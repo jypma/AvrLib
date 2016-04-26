@@ -44,7 +44,7 @@ public:
             log::debug(F("Booting"));
             pin->configureAsInputWithPullup();
             power->setHigh();
-            timeout.reset(1_s);
+            timeout.schedule(1_s);
             state = DHTState::BOOTING;
         }
     }
@@ -56,7 +56,7 @@ public:
             log::debug(F("Starting measurement"));
             pin->configureAsOutput();
             pin->setLow();
-            timeout.reset(18_ms);
+            timeout.schedule(18_ms);
             state = DHTState::SIGNALING;
         } else {
             log::debug(F("Still booting, or measurement already in progress."));

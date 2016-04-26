@@ -760,6 +760,33 @@ typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
         PCINT1_, \
         PCINT2_)
 
+// --------------------------------- Arduino stuff -------------------------------------
+
+#define ArduinoPinD0 ::Hal::Atmel::PinPD0
+#define ArduinoPinD1 ::Hal::Atmel::PinPD1
+#define ArduinoPinD2 ::Hal::Atmel::PinPD2
+#define ArduinoPinD3 ::Hal::Atmel::PinPD3
+#define ArduinoPinD4 ::Hal::Atmel::PinPD4
+#define ArduinoPinD5 ::Hal::Atmel::PinPD5
+#define ArduinoPinD6 ::Hal::Atmel::PinPD6
+#define ArduinoPinD7 ::Hal::Atmel::PinPD7
+#define ArduinoPinD8 ::Hal::Atmel::PinPB0
+#define ArduinoPinD9 ::Hal::Atmel::PinPB1
+#define ArduinoPinD10 ::Hal::Atmel::PinPB2
+#define ArduinoPinD11 ::Hal::Atmel::PinPB3
+#define ArduinoPinD12 ::Hal::Atmel::PinPB4
+#define ArduinoPinD13 ::Hal::Atmel::PinPB5
+#define ArduinoPinA0 ::Hal::Atmel::PinPC0
+#define ArduinoPinA1 ::Hal::Atmel::PinPC1
+#define ArduinoPinA2 ::Hal::Atmel::PinPC2
+#define ArduinoPinA3 ::Hal::Atmel::PinPC3
+#define ArduinoPinA4 ::Hal::Atmel::PinPC4
+#define ArduinoPinA5 ::Hal::Atmel::PinPC5
+#define ArduinoPinA6 ::Hal::Atmel::PinPC6
+#define ArduinoPinA7 ::Hal::Atmel::PinPC7
+
+// --------------------------------- JeeNode stuff -------------------------------------
+
 /**
  * Declares JeeNode Port 1 Analog
  */

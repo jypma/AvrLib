@@ -64,20 +64,20 @@ private:
     void disable_mux() {
         tx->write(F("AT+CIPMUX=0"), endl);
         state = State::DISABLING_MUX;
-        watchdog.reset(COMMAND_TIMEOUT);
+        watchdog.schedule(COMMAND_TIMEOUT);
     }
 
 public:
     void resync() {
         tx->write(F("AT"), endl);
         state = State::RESYNCING;
-        watchdog.reset(COMMAND_TIMEOUT);
+        watchdog.schedule(COMMAND_TIMEOUT);
     }
 
     void restart() {
         tx->write(F("AT+RST"), endl);
         state = State::RESTARTING;
-        watchdog.reset(10_s);
+        watchdog.schedule(10_s);
     }
 
     EthernetMACAddress getMACAddress() {
@@ -101,7 +101,7 @@ private:
             if (read(F("ready"))) {
                 tx->write(F("ATE0"), endl);
                 state = State::DISABLING_ECHO;
-                watchdog.reset(COMMAND_TIMEOUT);
+                watchdog.schedule(COMMAND_TIMEOUT);
             }
         });
     }
@@ -111,7 +111,7 @@ private:
             if (read(F("OK\r\n"))) {
                 tx->write(F("AT+CWMODE_CUR=1"), endl);
                 state = State::SETTING_STATION_MODE;
-                watchdog.reset(COMMAND_TIMEOUT);
+                watchdog.schedule(COMMAND_TIMEOUT);
             }
         });
     }
@@ -121,7 +121,7 @@ private:
             if (read(F("OK\r\n"))) {
                 tx->write(F("AT+CIPSTAMAC_CUR?"), endl);
                 state = State::GETTING_MAC_ADDRESS;
-                watchdog.reset(COMMAND_TIMEOUT);
+                watchdog.schedule(COMMAND_TIMEOUT);
             }
         });
     }
@@ -133,7 +133,7 @@ private:
             } else if (read(F("OK\r\n"))) {
                 tx->write(F("AT+CWLAP"), endl);
                 state = State::LISTING_ACCESS_POINTS;
-                watchdog.reset(CONNECT_TIMEOUT);
+                watchdog.schedule(CONNECT_TIMEOUT);
             }
         });
     }
@@ -143,7 +143,7 @@ private:
             if (read(F("OK\r\n"))) {
                 tx->write(F("AT+CWJAP_CUR=\""), accessPoint, F("\",\""), password, F("\""), endl);
                 state = State::CONNECTING_APN;
-                watchdog.reset(CONNECT_TIMEOUT);
+                watchdog.schedule(CONNECT_TIMEOUT);
             }
         });
     }
@@ -164,7 +164,7 @@ private:
             if (read(F("OK\r\n"))) {
                 tx->write(F("AT+CIPCLOSE"), endl);
                 state = State::CLOSING_OLD_CONNECTION;
-                watchdog.reset(COMMAND_TIMEOUT);
+                watchdog.schedule(COMMAND_TIMEOUT);
             }
         });
     }
@@ -177,7 +177,7 @@ private:
                 // local UDP port is always 4123
                 tx->write(F("AT+CIPSTART=\"UDP\",\""), remoteIP, F("\","), dec(remotePort), F(",4123,0"), endl);
                 state = State::CONNECTING_UDP;
-                watchdog.reset(COMMAND_TIMEOUT);
+                watchdog.schedule(COMMAND_TIMEOUT);
             }
         });
     }
@@ -186,7 +186,7 @@ private:
         scan(*rx, [this] (auto &read) {
             if (read(F("OK\r\n"))) {
                 state = State::CONNECTED;
-                watchdog.reset(IDLE_TIMEOUT);
+                watchdog.schedule(IDLE_TIMEOUT);
             } else if (read(F("ERROR\r\n"))) {
                 // Could be "ALREADY CONNECTED"
                 this->restart();
@@ -202,7 +202,7 @@ private:
             if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
                 log::debug("  Got some data, %d bytes", length);
                 rxFifo.writeEnd();
-                watchdog.reset(IDLE_TIMEOUT);
+                watchdog.schedule(IDLE_TIMEOUT);
             } else {
                 log::debug("  No data");
                 rxFifo.writeAbort();
@@ -226,7 +226,7 @@ private:
                 if (tx->write(txFifo)) {
                     txFifo.readEnd();
                     state = State::SENDING_DATA;
-                    watchdog.reset(COMMAND_TIMEOUT);
+                    watchdog.schedule(COMMAND_TIMEOUT);
                 } else {
                     txFifo.readEnd(); // couldn't write, let's drop this chunk. But we're out of sync now.
                     this->restart();
@@ -243,17 +243,17 @@ private:
             if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
                 log::debug("  Got some data");
                 rxFifo.writeEnd();
-                watchdog.reset(COMMAND_TIMEOUT);
+                watchdog.schedule(COMMAND_TIMEOUT);
             } else if (read(F("SEND OK"))) {
                 log::debug("  Got confirm");
                 rxFifo.writeAbort();
                 state = State::CONNECTED;
-                watchdog.reset(IDLE_TIMEOUT);
+                watchdog.schedule(IDLE_TIMEOUT);
             } else if (read(F("ERROR"))) {
                 log::debug("  Got error");
                 rxFifo.writeAbort();
                 state = State::CONNECTED;
-                watchdog.reset(IDLE_TIMEOUT);
+                watchdog.schedule(IDLE_TIMEOUT);
             } else {
                 log::debug("  Got nothing");
                 rxFifo.writeAbort();
@@ -269,7 +269,7 @@ public:
         pd_pin->configureAsOutput();
         pd_pin->setHigh();
         state = State::RESTARTING;
-        watchdog.reset(5_s);
+        watchdog.schedule(5_s);
     }
 
     State getState() const {

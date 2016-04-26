@@ -64,7 +64,7 @@ class HCSR501 {
             motion = true;
             pin->interruptOff();
             power->setLow();
-            timeout.template reset<delay>();
+            timeout.template schedule<delay>();
         }
     }
 
@@ -72,7 +72,7 @@ class HCSR501 {
         motion = false;
         power->setHigh();
         state = State::INITIALIZING;
-        timeout.reset(5_s);
+        timeout.schedule(5_s);
     }
 
     void sleeping() {

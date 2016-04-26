@@ -463,4 +463,15 @@ TEST(ReadingTest, reading_fixed_size_protocol_only_checks_available_bytes_once) 
     Streams::Impl::read(fifo, &s);
     EXPECT_EQ(1, fifo.getReadAvailableCount);
 }
+
+TEST(ReadingTest, reading_char_verifies_expected_character) {
+    Fifo<16> fifo;
+    fifo.write('h','1','2');
+    EXPECT_FALSE(fifo.read('q'));
+    EXPECT_EQ(3, fifo.getSize());
+    EXPECT_TRUE(fifo.read('h'));
+    EXPECT_EQ(2, fifo.getSize());
+    EXPECT_TRUE(fifo.read('1','2'));
+    EXPECT_TRUE(fifo.isEmpty());
+}
 }

@@ -154,6 +154,8 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
     spi.rx.write(uint8_t(193)); // 2nd CRC byte
     spi.tx.clear();
     decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    Logging::Log<Loggers::Main>::debug(dec(&spi.tx));
+
     EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
     EXPECT_TRUE(spi.tx.read(FB(0,0,0,130,13,130,221))); // Idle + turn on RX
     EXPECT_TRUE(rfm.hasContent());

@@ -13,6 +13,10 @@ public:
     constexpr RuntimeTimeUnit(uint32_t v): value(v) {}
     constexpr uint32_t getValue() const { return value; }
     constexpr bool operator== (const This that) const { return that.value == value; }
+    constexpr bool operator< (const This that) const { return value < that.value; }
+    constexpr bool operator<= (const This that) const { return value <= that.value; }
+    constexpr bool operator> (const This that) const { return value > that.value; }
+    constexpr bool operator>= (const This that) const { return value >= that.value; }
 };
 
 template <char... cv> class Milliseconds;

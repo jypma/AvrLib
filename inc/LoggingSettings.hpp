@@ -9,6 +9,7 @@ namespace Loggers {
     class ESP8266;
     class DHT11;
     class Timing;
+    class Main;
 }
 
 namespace Logging {
@@ -26,9 +27,10 @@ namespace Logging {
      * or invoke the macro LOGGING_TO(var) with "var" being a USART TX pin, or fifo that is regularly emptied.
      */
 
-    template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
+    template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
+    //template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
-    template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
+    //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
     //template<> class Log<Loggers::DHT11>: public MessagesEnabled<STR("DHT11")> {};
 #else
     //template<> class Log<Loggers::VisonicDecoder>: public TimingEnabled, public MessagesEnabled<STR("Vison")> {};
@@ -39,5 +41,6 @@ namespace Logging {
     template<> class Log<Loggers::RFM12>: public MessagesEnabled<STR("RFM12")> {};
     template<> class Log<Loggers::ESP8266>: public MessagesEnabled<STR("ESP8266")> {};
     template<> class Log<Loggers::DHT11>: public MessagesEnabled<STR("DHT11")> {};
+    template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
 #endif
 }

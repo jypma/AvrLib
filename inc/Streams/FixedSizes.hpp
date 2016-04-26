@@ -41,6 +41,7 @@ template<> struct StreamedSizeWriting<int64_t>: public FixedSize<8> {};
 
 template<> struct StreamedSizeReading<char*>: public FixedSize<sizeof(char)> {};
 template<> struct StreamedSizeWriting<char>: public FixedSize<sizeof(char)> {};
+template<> struct StreamedSizeReading<char>: public FixedSize<sizeof(char)> {};
 
 template<> struct StreamedSizeReading<bool*>: public FixedSize<1> {};
 template<> struct StreamedSizeWriting<bool>: public FixedSize<1> {};

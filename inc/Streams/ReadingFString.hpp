@@ -47,6 +47,17 @@ ReadResult read1(fifo_t &fifo, StringInProgmem<length> *v) {
     return verifyFromProgmem(fifo, (uint8_t*) v, length);
 }
 
+template <typename fifo_t>
+ReadResult read1unchecked(fifo_t &fifo, char expected) {
+    uint8_t ch;
+    fifo.uncheckedRead(ch);
+    if (ch == expected) {
+        return ReadResult::Valid;
+    } else {
+        return ReadResult::Invalid;
+    }
+}
+
 }
 }
 

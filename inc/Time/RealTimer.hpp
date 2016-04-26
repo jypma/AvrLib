@@ -192,6 +192,27 @@ protected:
     bool isNow(uint32_t currentTime);
     void calculateNextCounts(uint32_t startTime, uint32_t delay);
     uint32_t getTimeLeft(uint32_t currentTime) const;
+public:
+    /**
+     * Returns whether the deadline has already elapsed, i.e. is not scheduled.
+     */
+    bool isElapsed() {
+        return elapsed;
+    }
+
+    /**
+     * Returns whether the deadline is scheduled to elapsed some time in the future.
+     */
+    bool isScheduled() {
+        return !elapsed;
+    }
+
+    /**
+     * Cancels any scheduled elapsing of this deadline.
+     */
+    void cancel() {
+        elapsed = true;
+    }
 };
 
 template <typename rt_t, typename value, typename check = void>
@@ -209,7 +230,7 @@ public:
         return AbstractDeadline::isNow(rt->counts());
     }
 
-    void reset() {
+    void schedule() {
         AtomicScope _;
         calculateNextCounts(rt->counts(), delay);
         elapsed = false;
@@ -235,7 +256,7 @@ public:
         return AbstractDeadline::isNow(rt->ticks());
     }
 
-    void reset() {
+    void schedule() {
         AtomicScope _;
         calculateNextCounts(rt->ticks(), delay);
         elapsed = false;
@@ -262,7 +283,7 @@ public:
     }
 
     template <typename value>
-    void reset() {
+    void schedule() {
         static constexpr uint32_t delay = toCountsOn<rt_t, value>();
         static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
@@ -272,12 +293,8 @@ public:
     }
 
     template <typename value>
-    void reset(value v) {
-        reset<value>();
-    }
-
-    void cancel() {
-        elapsed = true;
+    void schedule(value v) {
+        schedule<value>();
     }
 
     Counts<> timeLeft() const {
@@ -445,7 +462,7 @@ public:
         done = false;
         haveSentComplete = false;
         atStart = false;
-        Super::reset(d);
+        Super::schedule(d);
     }
 
     AnimatorEvent nextEvent() {

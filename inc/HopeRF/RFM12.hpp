@@ -32,7 +32,7 @@ enum class RFM12Band: uint8_t {
     _433MHz = 1, _868Mhz = 2, _915MHz = 3
 };
 
-enum class RFM12Mode: uint8_t { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK };
+enum class RFM12Mode: uint8_t { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK, SLEEP };
 
 template <typename spi_t,
           typename ss_pin_t,
@@ -54,6 +54,9 @@ public:
 private:
     struct CB {
         static void onWriteEnd(This &rfm) {
+            if (rfm.mode == Mode::SLEEP) {
+                rfm.idle();
+            }
             rfm.sendOrListen();
         }
     };
@@ -65,6 +68,7 @@ private:
     ss_pin_t *ss_pin;
     int_pin_t *int_pin;
     comparator_t *comparator;
+    bool listenOnIdle = true;
 
     void command(uint16_t cmd) {
         ss_pin->setLow();
@@ -105,10 +109,10 @@ private:
     void sendOrListen() { // rf12_recvStart
         AtomicScope _;
 
-        if (mode == Mode::LISTENING && txFifo.hasContent()) {
+        if ((mode == Mode::LISTENING || mode == Mode::SLEEP) && txFifo.hasContent()) {
             idle();
         }
-        if (mode == Mode::IDLE) {
+        if (mode == Mode::IDLE || mode == Mode::SLEEP) {
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
                 if (txFifo.readStart()) {
@@ -124,10 +128,17 @@ private:
                     ookTx.sendFromSource();
                 }
             } else {
-                log::debug("sendOrListen(): listen");
-                mode = Mode::LISTENING;
-                int_pin->interruptOnLow();
-                command(0x82DD); // RF_RECEIVER_ON
+                if (listenOnIdle) {
+                    log::debug("sendOrListen(): listen");
+                    mode = Mode::LISTENING;
+                    int_pin->interruptOnLow();
+                    command(0x82DD); // RF_RECEIVER_ON
+                } else {
+                    log::debug("sendOrListen(): standby");
+                    mode = Mode::SLEEP;
+                    command(0xE000 | 0x0500); // RF_WAKEUP_TIMER
+                    command(0x8205); // RF_SLEEP_MODE
+                }
             }
         }
     }
@@ -151,7 +162,7 @@ private:
                     command(0xB8AA);     // RF_TXREG_WRITE 0xAA (postfix)
                     sendOrListen();
                 }
-            } else {
+            } else if (mode == Mode::LISTENING || mode == Mode::RECEIVING) {
                 // we are receiving / listening
                 //TODO consider moving the spi read block in here, to not have the double if.
 
@@ -169,7 +180,6 @@ private:
                     sendOrListen();
                 }
             }
-
         }
 
         // power-on reset
@@ -251,8 +261,6 @@ private:
             setHigh(high);
         }
         void onFinalTransition(bool high) const {
-            //rfm12->command(0x0000);
-            //rfm12->command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
             rfm12->command(0xB800); // RF_TXREG_WRITE, we need to clear the TX buffer to leave OOK mode.
                                     // If we don't, we'll end in endless interrupt loop.
             while (rfm12->int_pin->isLow()) {
@@ -273,19 +281,7 @@ private:
         Pulse getNextPulse() {
             rfm12->pulses++;
             Pulse result = ChunkPulseSource::getNextPulse();
-            /*if (result.isEmpty()) {
-
-                rfm12->command(0x0000);
-                rfm12->command(0x8205); // RF_SLEEP_MODE: DC (disable clk pin), enable lbd
-                rfm12->command(0xB800); // RF_TXREG_WRITE, we need to clear the TX buffer to leave OOK mode.
-                                        // If we don't, we'll end in endless interrupt loop.
-                while (rfm12->int_pin->isLow()) {
-                    rfm12->command(0x0000);
-                }
-
-                //rfm12->idle();
-                rfm12->sendOrListen();
-            } else*/ if (!result.isEmpty()) {
+            if (!result.isEmpty()) {
                 // because of SPI delays, and the DELAY and TRANSMITTER_ON messages being processed by the RFM12
                 // at different delays, we need to make an adjustment between the desired pulse lengths, and the actual
                 // forwarded pulse lengths.
@@ -319,8 +315,34 @@ public:
         enable(band);
     }
 
+    bool isIdle() const {
+        return mode == Mode::IDLE || mode == Mode::LISTENING || mode == Mode::SLEEP;
+    }
+
+    bool isSleeping() const {
+        return mode == Mode::SLEEP;
+    }
+
     void reset(RFM12Band band) {
         enable(band);
+    }
+
+    void onIdleListen() {
+        AtomicScope _;
+
+        listenOnIdle = true;
+        if (mode == Mode::SLEEP) {
+            sendOrListen();
+        }
+    }
+
+    void onIdleSleep() {
+        AtomicScope _;
+
+        listenOnIdle = false;
+        if (mode == Mode::IDLE || mode == Mode::LISTENING) {
+            sendOrListen();
+        }
     }
 
     Mode getMode() const {

@@ -69,7 +69,7 @@ public:
         } else {
             prevState = state;
             debouncing = true;
-            stopDebouncing.reset();
+            stopDebouncing.schedule();
             return state ? ButtonEvent::RELEASED : ButtonEvent::PRESSED;
         }
     }

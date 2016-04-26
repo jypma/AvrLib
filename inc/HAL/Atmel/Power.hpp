@@ -69,6 +69,57 @@ class Power {
     void onWatchdog() {
         _watchdogCounter++;
     }
+
+    bool doSleepFor(Milliseconds<> ms, SleepMode mode, SleepGranularity maxGranularity) {
+        bool interrupted = false;
+        uint32_t millisSleep = ms.getValue();
+        uint32_t msleft = millisSleep;
+        // only slow down for periods longer than the watchdog granularity
+        while (msleft >= 16) {
+            uint8_t wdp = 0; // wdp 0..9 corresponds to roughly 16..8192 ms
+            // calc wdp as log2(msleft/16), i.e. loop & inc while next value is ok
+            for (uint32_t m = msleft; m >= 32; m >>= 1)
+                if (++wdp >= uint8_t(maxGranularity))
+                    break;
+            _watchdogCounter = 0;
+            setWatchdogInterrupts(wdp);
+            sleep(mode);
+            setWatchdogInterrupts(-1); // off
+            // when interrupted, our best guess is that half the time has passed
+            uint32_t halfms = 8 << wdp;
+            msleft -= halfms;
+            if (_watchdogCounter == 0) {
+                interrupted = true; // lost some time, but got interrupted
+                break;
+            }
+            msleft -= halfms;
+        }
+
+        if (mode != SleepMode::IDLE) {
+            // adjust ticks for the delay we've just had. Not for IDLE, since timers keep running
+            // there.
+            millisSleep -= msleft;
+            auto ms = Milliseconds<>(millisSleep);
+            rt->haveSlept(ms);
+        }
+
+        return interrupted;
+    }
+
+    bool sleepUntilAnyLT(Milliseconds<> timeout, SleepMode mode) {
+        return doSleepFor(timeout, mode, SleepGranularity::_8000ms);
+    }
+
+    template <typename periodic_t, typename... periodic_ts>
+    bool sleepUntilAnyLT(Milliseconds<> timeout, SleepMode mode, const periodic_t &head, const periodic_ts&... tail) {
+        auto headTime = toMillisOn<rt_t>(head.timeLeft());
+        if (headTime < timeout) {
+            return sleepUntilAnyLT(headTime, mode, tail...);
+        } else {
+            return sleepUntilAnyLT(timeout, mode, tail...);
+        }
+    }
+
 public:
     Power(rt_t &_rt): rt(&_rt) {}
 
@@ -118,6 +169,11 @@ public:
         return sleepFor(p.timeLeft(), mode, SleepGranularity::_8000ms);
     }
 
+    template <typename periodic_t, typename... periodic_ts>
+    bool sleepUntilAny(SleepMode mode, const periodic_t &head, const periodic_ts&... tail) {
+        return sleepUntilAnyLT(toMillisOn<rt_t>(head.timeLeft()), mode, tail...);
+    }
+
     /**
      * Attempts to sleep (power down) for at most the given time.
      * A hardware or pin change interrupt can cause premature wake-up.
@@ -144,39 +200,7 @@ public:
     }
 
     bool sleepFor(Milliseconds<> ms, SleepMode mode, SleepGranularity maxGranularity) {
-        bool interrupted = false;
-        uint32_t millisSleep = ms.getValue();
-        uint32_t msleft = millisSleep;
-        // only slow down for periods longer than the watchdog granularity
-        while (msleft >= 16) {
-            uint8_t wdp = 0; // wdp 0..9 corresponds to roughly 16..8192 ms
-            // calc wdp as log2(msleft/16), i.e. loop & inc while next value is ok
-            for (uint32_t m = msleft; m >= 32; m >>= 1)
-                if (++wdp >= uint8_t(maxGranularity))
-                    break;
-            _watchdogCounter = 0;
-            setWatchdogInterrupts(wdp);
-            sleep(mode);
-            setWatchdogInterrupts(-1); // off
-            // when interrupted, our best guess is that half the time has passed
-            uint32_t halfms = 8 << wdp;
-            msleft -= halfms;
-            if (_watchdogCounter == 0) {
-                interrupted = true; // lost some time, but got interrupted
-                break;
-            }
-            msleft -= halfms;
-        }
-
-        if (mode != SleepMode::IDLE) {
-            // adjust ticks for the delay we've just had. Not for IDLE, since timers keep running
-            // there.
-            millisSleep -= msleft;
-            auto ms = Milliseconds<>(millisSleep);
-            rt->haveSlept(ms);
-        }
-
-        return interrupted;
+        return doSleepFor(ms, mode, maxGranularity);
     }
 
     INTERRUPT_HANDLER1(INTERRUPT_VECTOR(WDT), onWatchdog);

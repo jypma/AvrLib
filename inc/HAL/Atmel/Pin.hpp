@@ -16,22 +16,22 @@ public:
 
     typedef info info_t;
 
-    void configureAsOutput() const {
+    __attribute__((always_inline)) inline void configureAsOutput() const {
         info::configureAsGPIO();
         *info::ddr |= info::bitmask;
     }
 
-    void configureAsInputWithoutPullup() const {
+    __attribute__((always_inline)) inline void configureAsInputWithoutPullup() const {
         info::configureAsGPIO();
         *info::ddr &= ~info::bitmask;
         *info::port &= ~info::bitmask;
     }
-    void configureAsInputWithPullup() const {
+    __attribute__((always_inline)) inline void configureAsInputWithPullup() const {
         *info::ddr &= ~info::bitmask;
         *info::port |= info::bitmask;
     }
 
-    void setHigh (bool on) const {
+    __attribute__((always_inline)) inline void setHigh (bool on) const {
         if (on) {
             setHigh();
         } else {
@@ -39,19 +39,19 @@ public:
         }
     }
 
-    void setHigh() const {
+    __attribute__((always_inline)) inline void setHigh() const {
         *info::port |= info::bitmask;
     }
 
-    void setLow() const {
+    __attribute__((always_inline)) inline void setLow() const {
         *info::port &= ~info::bitmask;
     }
 
-    bool isHigh() const {
+    __attribute__((always_inline)) inline bool isHigh() const {
         return (*info::pin & info::bitmask) != 0;
     }
 
-    bool isLow() const {
+    __attribute__((always_inline)) inline bool isLow() const {
         return (*info::pin & info::bitmask) == 0;
     }
 };

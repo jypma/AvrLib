@@ -10,7 +10,7 @@ namespace Streams {
 class Padding {
     uint8_t length;
 public:
-    constexpr Padding (uint8_t l): length(l) {}
+    explicit constexpr Padding (uint8_t l): length(l) {}
     constexpr uint8_t getLength() const {
         return length;
     }

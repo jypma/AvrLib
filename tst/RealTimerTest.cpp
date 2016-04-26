@@ -127,10 +127,45 @@ TEST(RealTimerTest, periodic_returns_time_left) {
     EXPECT_EQ(Counts<>(200), p.timeLeft());
 }
 
-TEST(RealTimerTest, unelapsed_deadline_has_no_time_left) {
+TEST(RealTimerTest, unelapsed_periodic_deadline_has_no_time_left) {
     auto rt = MockRealTimer();
     auto p = deadline(rt, 200_counts);
     EXPECT_EQ(Counts<>(200), p.timeLeft());
+    rt.count = 201;
+    EXPECT_EQ(Counts<>(0), p.timeLeft());
+    rt.count = 401;
+    EXPECT_EQ(Counts<>(0), p.timeLeft());
+}
+
+TEST(RealTimerTest, cancelled_periodic_deadline_does_not_fire) {
+    auto rt = MockRealTimer();
+    auto p = deadline(rt, 200_counts);
+    p.cancel();
+    rt.count = 201;
+    EXPECT_FALSE(p.isNow());
+    p.schedule();
+    rt.count = 401;
+    EXPECT_TRUE(p.isNow());
+}
+
+TEST(RealTimerTest, fixed_deadline_elapses_after_timer_hits_and_isNow_is_called) {
+    auto rt = MockRealTimer();
+    auto p = deadline(rt, 200_counts);
+    EXPECT_TRUE(p.isScheduled());
+    EXPECT_FALSE(p.isElapsed());
+    rt.count = 201;
+    EXPECT_TRUE(p.isScheduled());
+    EXPECT_FALSE(p.isElapsed());
+    p.isNow();
+    EXPECT_FALSE(p.isScheduled());
+    EXPECT_TRUE(p.isElapsed());
+}
+
+TEST(RealTimerTest, unelapsed_variable_deadline_has_unlimited_time_left_until_first_use) {
+    auto rt = MockRealTimer();
+    auto p = deadline(rt);
+    EXPECT_EQ(Counts<>(0xFFFFFFFF), p.timeLeft());
+    p.schedule(200_counts);
     rt.count = 201;
     EXPECT_EQ(Counts<>(0), p.timeLeft());
     rt.count = 401;
@@ -170,7 +205,7 @@ TEST(RealTimerTest, deadline_can_be_reset) {
     auto rt = MockRealTimer();
     auto d = deadline(rt, 200_counts);
     rt.count = 100;
-    d.reset();
+    d.schedule();
 
     rt.count = 201;
     EXPECT_FALSE(d.isNow());
@@ -180,7 +215,7 @@ TEST(RealTimerTest, deadline_can_be_reset) {
     EXPECT_TRUE(d.isNow());
     EXPECT_FALSE(d.isNow());
 
-    d.reset();
+    d.schedule();
     EXPECT_FALSE(d.isNow());
 
     rt.count = 502;
@@ -223,13 +258,13 @@ TEST(RealTimerTest, variable_deadline_can_be_set_to_varying_timeouts) {
     EXPECT_FALSE(d.isNow());
     EXPECT_FALSE(d.isNow());
 
-    d.reset(200_counts);
+    d.schedule(200_counts);
     rt.count = 201;
 
     EXPECT_TRUE(d.isNow());
     EXPECT_FALSE(d.isNow());
 
-    d.reset(400_counts);
+    d.schedule(400_counts);
     rt.count = 402;
 
     EXPECT_FALSE(d.isNow());
@@ -246,7 +281,7 @@ TEST(RealTimerTest, variable_deadline_does_not_fire_after_cancel) {
     EXPECT_FALSE(d.isNow());
     EXPECT_FALSE(d.isNow());
 
-    d.reset(200_counts);
+    d.schedule(200_counts);
     rt.count = 201;
     d.cancel();
 
@@ -260,7 +295,7 @@ TEST(RealTimerTest, variable_deadline_copes_with_timer_wraparound) {
     auto d = deadline(rt);
 
     rt.count = 0xFFFFFF00;
-    d.reset(400_counts);
+    d.schedule(400_counts);
     rt.count = 400;
     EXPECT_TRUE(d.isNow());
 }

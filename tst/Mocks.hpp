@@ -91,6 +91,11 @@ struct MockRealTimer {
     constexpr static uint8_t prescalerPower2 = 10; // prescaler is 2^10 = 1024
 
     uint32_t c = 0;
+    int slept = 0;
+
+    void haveSlept(Milliseconds<> millis) {
+        slept += millis.getValue();
+    }
 
     template<typename duration_t>
     void advance(duration_t duration) {

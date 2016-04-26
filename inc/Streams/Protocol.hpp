@@ -110,11 +110,11 @@ struct Protocol {
     template <uint8_t length>
     struct Padding: public Single<Padding<length>> {
         static Streams::Padding forReading(This *t) {
-            return length;
+            return Streams::Padding(length);
         }
 
         static Streams::Padding forWriting(const This *t) {
-            return length;
+            return Streams::Padding(length);
         }
     };
 
