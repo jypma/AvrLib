@@ -54,6 +54,16 @@ public:
     __attribute__((always_inline)) inline bool isLow() const {
         return (*info::pin & info::bitmask) == 0;
     }
+
+    __attribute__((always_inline)) inline void configureAsOutputLow() const {
+        setLow();
+        configureAsOutput();
+    }
+
+    __attribute__((always_inline)) inline void configureAsOutputHigh() const {
+        setHigh();
+        configureAsOutput();
+    }
 };
 
 template <typename pinInfo, typename extInterruptInfo>

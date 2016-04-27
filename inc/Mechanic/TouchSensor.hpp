@@ -1,12 +1,14 @@
 #ifndef MECHANIC_TOUCHSENSOR_HPP_
 #define MECHANIC_TOUCHSENSOR_HPP_
 
-#include <util/delay.h>
 #include "AtomicScope.hpp"
+#include <Time/Units.hpp>
 
 namespace Mechanic {
 
 namespace Impl {
+
+using namespace Time;
 
 template <typename pin_t>
 class TouchSensor {
@@ -20,7 +22,7 @@ public:
     uint8_t measure() {
         pin->configureAsOutput();
         pin->setLow();
-        _delay_ms(1.0);
+        delay(10_us);
         AtomicScope _;
         pin->configureAsInputWithPullup();
 

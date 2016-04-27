@@ -11,7 +11,6 @@
 #include "ChunkedFifo.hpp"
 #include "EEPROM.hpp"
 #include "Streams/Scanner.hpp"
-#include <util/delay.h>
 #include "Time/RealTimer.hpp"
 #include "Time/Units.hpp"
 #include "Espressif/EthernetMACAddress.hpp"

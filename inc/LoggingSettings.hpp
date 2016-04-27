@@ -9,6 +9,7 @@ namespace Loggers {
     class ESP8266;
     class DHT11;
     class Timing;
+    class Dallas;
     class Main;
 }
 
@@ -28,6 +29,7 @@ namespace Logging {
      */
 
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
+    template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};
     //template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
     //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};

@@ -14,16 +14,28 @@
 #include "AtomicScope.hpp"
 #include <gcc_limits.h>
 #include <gcc_type_traits.h>
+#include <util/atomic.h>
+#include <avr/sleep.h>
 
 namespace HAL { namespace Atmel { namespace Impl { template <typename> class Power; }}}
 
 namespace Time {
 
+namespace Impl {
+
 inline void noop() {
 
 }
 
-template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = noop>
+}
+
+template <typename rt_t, typename value>
+struct Overflow {
+    static constexpr bool countsLargerThanUint31 = toCountsOn<rt_t,value>().value >= 0xFFFFFFF;
+    static constexpr bool countsLargerThanUint32 = !toCountsOn<rt_t,value>().is_uint32;
+};
+
+template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = Impl::noop>
 class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
     typedef RealTimer<timer_t,initialTicks,wait> This;
 
@@ -41,6 +53,37 @@ class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename time
         uint32_t delta = toTicksOn<This>(time).getValue();
         AtomicScope _;
         _ticks += delta;
+    }
+
+    void delayTicks(uint32_t ticksDelay) const {
+        auto startTime = ticks();
+        if (uint32_t(0xFFFFFFFF) - startTime < ticksDelay) {
+            // we expect a integer wraparound.
+            // first, wait for the int to overflow (with some margin)
+            while (ticks() > 1) {
+                wait();
+            }
+        }
+        uint32_t end = startTime + ticksDelay;
+        while (ticks() < end) {
+            wait();
+        }
+    }
+
+
+    void delayCounts(uint32_t countsDelay) const {
+        auto startTime = counts();
+        if (uint32_t(0xFFFFFFFF) - startTime < countsDelay) {
+            // we expect a integer wraparound.
+            // first, wait for the int to overflow (with some margin)
+            while (counts() > 1) {
+                wait();
+            }
+        }
+        uint32_t end = startTime + countsDelay;
+        while (counts() < end) {
+            wait();
+        }
     }
 
 public:
@@ -91,39 +134,23 @@ public:
         return ((((((uint64_t)_ticks) << timer_t::prescalerPower2) + timer->getValue()) / 16) << timer_t::maximumPower2) / 1000;
     }
 
-    void delayTicks(uint32_t ticksDelay) const {
-        auto startTime = ticks();
-        if (uint32_t(0xFFFFFFFF) - startTime < ticksDelay) {
-            // we expect a integer wraparound.
-            // first, wait for the int to overflow (with some margin)
-            while (ticks() > 1) {
-                wait();
-            }
-        }
-        uint32_t end = startTime + ticksDelay;
-        while (ticks() < end) {
-            wait();
-        }
+    template <typename duration_t>
+    typename std::enable_if<Overflow<This, duration_t>::countsLargerThanUint31>::type delay(const duration_t) {
+        delayTicks(toTicksOn<timer_t,duration_t>());
     }
 
-    //TODO increase accuracy by delaying ticks first, then counts for the rest.
     template <typename duration_t>
-    void delay(const duration_t) {
-        delayTicks(toTicksOn<timer_t,duration_t>());
+    typename std::enable_if<!Overflow<This, duration_t>::countsLargerThanUint31>::type delay(const duration_t) {
+        delayCounts(toCountsOn<timer_t,duration_t>());
     }
 
     INTERRUPT_HANDLER1(typename timer_t::INT, onTimerOverflow);
 };
 
-template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = noop>
+template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = Impl::noop>
 RealTimer<timer_t,initialTicks,wait> realTimer(timer_t &timer) {
     return RealTimer<timer_t,initialTicks,wait>(timer);
 }
-
-template <typename rt_t, typename value>
-struct Overflow {
-    static constexpr bool largerThanUint32 = !toCountsOn<rt_t,value>().is_uint32;
-};
 
 class AbstractPeriodic {
     volatile uint32_t next;
@@ -155,7 +182,7 @@ public:
 };
 
 template <typename rt_t, typename value>
-class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type>: public AbstractPeriodic {
+class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::countsLargerThanUint31>::type>: public AbstractPeriodic {
     static constexpr uint32_t delay = toTicksOn<rt_t, value>();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
@@ -242,7 +269,7 @@ public:
 };
 
 template <typename rt_t, typename value>
-class Deadline<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::largerThanUint32>::type>: public AbstractDeadline {
+class Deadline<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::countsLargerThanUint31>::type>: public AbstractDeadline {
     rt_t *rt;
 protected:
     static constexpr uint32_t delay = toTicksOn<rt_t, value>();

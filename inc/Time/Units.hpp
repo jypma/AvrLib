@@ -2,6 +2,21 @@
 #define TIMEUNITS_H
 
 #include <avr/io.h>
+
+// We don't want the log() function in the global namespace, just because we're using _delay_ms
+#ifndef __MATH_H
+#define __MATH_H
+extern "C" {
+extern double fabs(double __x) __attribute__((__const__));
+extern double ceil(double __x) __attribute__((__const__));
+}
+#define redef_math
+#endif
+#include <util/delay.h>
+#ifdef redef_math
+#undef __MATH_H
+#endif
+
 #include <stdint.h>
 
 namespace Time {
@@ -21,19 +36,21 @@ public:
 
 template <char... cv> class Milliseconds;
 
-template <typename T, T value>
+template <typename T, T _value>
 class Truncatable {
     template <typename I>
     static constexpr bool isValid() {
-        return value <= std::numeric_limits<I>::max();
+        return _value <= std::numeric_limits<I>::max();
     }
 
 public:
+    static constexpr T value = _value;
+
     template <typename I>
     constexpr operator I() {
         static_assert(isValid<I>(),
                 "A value does not fit in return_t, you might want to widen the return type, or in case of a timed value, increase the timer prescaler.");
-        return value;
+        return _value;
     }
 
     static constexpr bool is_uint8 = isValid<uint8_t>();
@@ -206,6 +223,12 @@ public:
 
 template <char ...cv>
 constexpr Microseconds<cv...> operator "" _us() { return Microseconds<cv...>(); }
+
+template <char... cv>
+inline void delay(Microseconds<cv...> us) {
+    static_assert(Microseconds<cv...>::to_uint64 < 768.0 / (F_CPU / 1000000.0), "Busy wait delay has max 768us / F_CPU_MHZ. Consider using RealTimer::delay instead.");
+    _delay_us(Microseconds<cv...>::to_uint64);
+}
 
 
 template <char... cv>
