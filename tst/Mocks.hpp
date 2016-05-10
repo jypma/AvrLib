@@ -56,6 +56,10 @@ struct MockPin {
         isOutput = false;
     }
 
+    void configureAsInputWithoutPullup() {
+        isOutput = false;
+    }
+
     void configureAsOutput() {
         isOutput = true;
     }
@@ -87,8 +91,11 @@ struct MockPin {
     }
 };
 
-struct MockRealTimer {
-    constexpr static uint8_t prescalerPower2 = 10; // prescaler is 2^10 = 1024
+template <uint8_t p = 10>
+struct MockRealTimerPrescaled {
+    constexpr static uint8_t prescalerPower2 = p;
+    typedef uint8_t value_t;
+    constexpr static uint8_t maximum = 255; // 8-bit timer
 
     uint32_t c = 0;
     int slept = 0;
@@ -99,13 +106,15 @@ struct MockRealTimer {
 
     template<typename duration_t>
     void advance(duration_t duration) {
-        c += uint32_t(toCountsOn<MockRealTimer>(duration));
+        c += uint32_t(toCountsOn<MockRealTimerPrescaled<p>>(duration));
     }
 
     uint32_t counts() {
         return c;
     }
 };
+
+typedef MockRealTimerPrescaled<10> MockRealTimer;
 
 }
 

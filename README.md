@@ -1,10 +1,12 @@
 BUGS
 ====
+ - Scan for chunked-fifo like API, drop whole chunk if not matched. 
+      Or, if scan can work within a chunk, make up a different name, e.g. match()
+      
  - Decimal format for time: rt.millis() etc. for debug output
  - Create a TypedFifo, templated on sizeof(T), without the generic write and read methods; 
     * only one T at a time
     * maybe on(T, lambda)
- - refactor out MockComparator and MockRealTimer
  - find out why pulseCounter.minimumLength is somehow applied x2
  - Have F("12") for length <= 2 (or 3) just be plain C strings, since they use as much mem but much faster.   
 -  Add JSON (or protobuf?) types for easier packet output.

@@ -15,6 +15,7 @@ struct MockTimer {
     typedef uint8_t value_t;
     typedef uint8_t prescaler_t;
     uint8_t value = 0;
+    static constexpr uint8_t maximum = 255;
     static constexpr uint8_t maximumPower2 = 8;
     static constexpr uint8_t prescaler = 0;
     static constexpr uint8_t prescalerPower2 = 8;
@@ -58,7 +59,7 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called) {
     });
 
     waited2 = false;
-    rt.delayTicks(1);
+    rt.delay(1_ticks);
     background.join();
 
     EXPECT_TRUE(waited2);
@@ -78,7 +79,7 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparoun
     });
 
     waited3 = false;
-    rt.delayTicks(1);
+    rt.delay(1_ticks);
     background.join();
 
     EXPECT_TRUE(waited3);

@@ -73,7 +73,7 @@ template <char c, char ...cv> struct literal<c, cv...> {
   static constexpr uint64_t to_uint64 = (c - '0') * pow(uint64_t(10), sizeof...(cv)) + literal<cv...>::to_uint64;
 };
 
-template<typename Base, int percentage>
+template<typename Base, uint64_t percentage>
 class MultipliedTimeUnit;
 
 template <char... cv>
@@ -83,12 +83,12 @@ public:
     static constexpr uint64_t to_uint64 = value::to_uint64;
 };
 
-template<typename Base, int percentage>
+template<typename Base, uint64_t percentage>
 class MultipliedTimeUnit {
 public:
     static constexpr MultipliedTimeUnit<Base, percentage> instance = MultipliedTimeUnit();
 
-    MultipliedTimeUnit() {
+    constexpr MultipliedTimeUnit() {
         static_assert(percentage > 0, "percentage must be larger than zero");
     }
     template <typename prescaled_t, uint64_t value = Base::to_uint64>
@@ -145,7 +145,7 @@ public:
         return (v >= max) ? 0xFFFFFFFF : v / countsPerUs;
     }
 
-    template <int percentage>
+    template <uint64_t percentage>
     static constexpr MultipliedTimeUnit<Counts<cv...>,percentage> percent() {
         return MultipliedTimeUnit<Counts<cv...>,percentage>();
     }
@@ -166,9 +166,51 @@ constexpr Counts<cv...> operator "" _counts() { return Counts<cv...>(); }
  * Ticks represent timer overflows, i.e. every 256th or 65kth count, depending on timer size.
  */
 template<char... cv>
-class Ticks: public TimeUnit<cv...> {
-    // TODO
+struct Ticks: public TimeUnit<cv...> {
+    static constexpr Ticks<cv...> instance = Ticks();
+
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toCounts() {
+        static_assert(value < (0xFFFFFFFF / (prescaled_t::maximum + 1)), "Number of ticks is too large, cannot be converted to counts.");
+        return value * (prescaled_t::maximum + 1);
+    }
+
+    template <uint64_t value = TimeUnit<cv...>::to_uint64, typename prescaled_t>
+    static constexpr uint64_t toCounts(const prescaled_t &) {
+        return toCounts<prescaled_t, prescaled_t::value_t, value>();
+    }
+
+    template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
+    static constexpr uint64_t toTicks() {
+        return value;
+    }
+
+    template <typename prescaled_t>
+    static constexpr uint64_t toMillis() {
+        constexpr float ticksPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / (prescaled_t::maximum + 1);
+        constexpr float max = 0xFFFFFFFF * ticksPerMs;
+
+        constexpr float v = TimeUnit<cv...>::to_uint64;
+        return (v >= max) ? 0xFFFFFFFF : v / ticksPerMs;
+    }
+
+    template <typename prescaled_t>
+    static constexpr uint64_t toMicros() {
+        constexpr float ticksPerUs = float(uint64_t(F_CPU) / 1000000) / (1 << prescaled_t::prescalerPower2) / (prescaled_t::maximum + 1);
+        constexpr float max = 0xFFFFFFFF * ticksPerUs;
+
+        constexpr float v = TimeUnit<cv...>::to_uint64;
+        return (v >= max) ? 0xFFFFFFFF : v / ticksPerUs;
+    }
+
+    template <uint64_t percentage>
+    static constexpr MultipliedTimeUnit<Ticks<cv...>,percentage> percent() {
+        return MultipliedTimeUnit<Ticks<cv...>,percentage>();
+    }
 };
+
+template <char ...cv>
+constexpr Ticks<cv...> operator "" _ticks() { return Ticks<cv...>(); }
 
 template<>
 class Ticks<>: public RuntimeTimeUnit<Ticks<>> {
@@ -215,9 +257,14 @@ public:
         return TimeUnit<cv...>::to_uint64;
     }
 
-    template <int percentage>
+    template <uint64_t percentage>
     static constexpr MultipliedTimeUnit<Microseconds<cv...>,percentage> percent() {
         return MultipliedTimeUnit<Microseconds<cv...>,percentage>();
+    }
+
+    template <uint64_t percentage>
+    static constexpr MultipliedTimeUnit<Microseconds<cv...>,percentage * 100> times() {
+        return MultipliedTimeUnit<Microseconds<cv...>,percentage * 100>();
     }
 };
 
@@ -267,9 +314,14 @@ public:
         return TimeUnit<cv...>::to_uint64 * 1000;
     }
 
-    template <int percentage>
+    template <uint64_t percentage>
     static constexpr MultipliedTimeUnit<Milliseconds<cv...>,percentage> percent() {
         return MultipliedTimeUnit<Milliseconds<cv...>,percentage>();
+    }
+
+    template <uint64_t percentage>
+    static constexpr MultipliedTimeUnit<Milliseconds<cv...>,percentage * 100> times() {
+        return MultipliedTimeUnit<Milliseconds<cv...>,percentage * 100>();
     }
 };
 
@@ -327,9 +379,14 @@ public:
         return result;
     }
 
-    template <int percentage>
+    template <uint64_t percentage>
     static constexpr MultipliedTimeUnit<Seconds<cv...>,percentage> percent() {
         return MultipliedTimeUnit<Seconds<cv...>,percentage>();
+    }
+
+    template <uint64_t percentage>
+    static constexpr MultipliedTimeUnit<Seconds<cv...>,percentage * 100> times() {
+        return MultipliedTimeUnit<Seconds<cv...>,percentage * 100>();
     }
 };
 
@@ -363,7 +420,7 @@ public:
         return result;
     }
 
-    template <int percentage>
+    template <uint64_t percentage>
     static constexpr MultipliedTimeUnit<Minutes<cv...>,percentage> percent() {
         return MultipliedTimeUnit<Minutes<cv...>,percentage>();
     }
