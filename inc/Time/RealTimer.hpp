@@ -72,7 +72,7 @@ class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename time
 
 
     void delayCounts(uint32_t countsDelay) const {
-        auto startTime = counts();
+        auto startTime = counts().getValue();
         if (uint32_t(0xFFFFFFFF) - startTime < countsDelay) {
             // we expect a integer wraparound.
             // first, wait for the int to overflow (with some margin)
@@ -94,7 +94,7 @@ public:
     /**
      * Returns a 32-bit value that increments with every timer overflow.
      */
-    uint32_t ticks() const {
+    Ticks<> ticks() const {
         AtomicScope _;
         return _ticks;
     }
@@ -102,12 +102,12 @@ public:
     /**
      * Returns a 32-bit value that increments with every timer increment.
      */
-    uint32_t counts() const {
+    Counts<> counts() const {
         AtomicScope _;
         return (_ticks << timer_t::maximumPower2) | timer->getValue();
     }
 
-    uint64_t micros() const {
+    Microseconds<> micros() const {
         AtomicScope _;
 
 #if F_CPU != 16000000
@@ -120,7 +120,7 @@ public:
         return (((((uint64_t)_ticks) << timer_t::prescalerPower2) + timer->getValue()) / 16) << timer_t::maximumPower2;
     }
 
-    uint64_t millis() const {
+    Milliseconds<> millis() const {
         AtomicScope _;
 
 #if F_CPU != 16000000

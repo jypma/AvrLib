@@ -1,6 +1,5 @@
 BUGS
 ====
- - Make rt->counts return Counts<> instead of uint32_t
  - log::debug should always invoke toString(T), which defaults to dec() for decimals,
    but also defines Microsecond<> as "...ms", etc.
  - Make RFM12 OOK support optional, so you can create the RFM12 driver without 
@@ -12,7 +11,6 @@ BUGS
     * only one T at a time
     * maybe on(T, lambda)
  - find out why pulseCounter.minimumLength is somehow applied x2
- - Have F("12") for length <= 2 (or 3) just be plain C strings, since they use as much mem but much faster.   
 -  Add JSON (or protobuf?) types for easier packet output.
      
  - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at

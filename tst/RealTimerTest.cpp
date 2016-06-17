@@ -34,15 +34,20 @@ MockTimer t1;
 TEST(RealTimerTest, timer_callback_increments_time) {
     auto rt = realTimer(t1);
 
-    EXPECT_EQ(0, rt.counts());
-    EXPECT_EQ(0, rt.millis());
-    EXPECT_EQ(0, rt.micros());
+    EXPECT_EQ(0_ticks, rt.ticks());
+    EXPECT_EQ(rt.ticks(), 0_ticks);
+    EXPECT_EQ(0_counts, rt.counts());
+    EXPECT_EQ(rt.counts(), 0_counts);
+    EXPECT_EQ(0_ms, rt.millis());
+    EXPECT_EQ(rt.millis(), 0_ms);
+    EXPECT_EQ(0_us, rt.micros());
+    EXPECT_EQ(rt.micros(), 0_us);
 
     decltype(rt)::onTimerOverflowHandler::invoke(&rt);
 
-    EXPECT_EQ(256, rt.counts());
-    EXPECT_EQ(4, rt.millis());
-    EXPECT_EQ(4096, rt.micros());
+    EXPECT_EQ(Counts<>(256), rt.counts());
+    EXPECT_EQ(4_ms, rt.millis());
+    EXPECT_EQ(4096_us, rt.micros());
 }
 
 bool waited2;

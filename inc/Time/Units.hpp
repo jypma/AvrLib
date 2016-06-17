@@ -35,6 +35,11 @@ public:
     constexpr bool operator>= (const This that) const { return value >= that.value; }
 };
 
+template<uint64_t value, typename R>
+struct HasRuntimeTimeUnit {
+    constexpr bool operator== (const R that) const { return that.getValue() == value; }
+};
+
 template <char... cv> class Milliseconds;
 template <char... cv> class Microseconds;
 
@@ -107,7 +112,7 @@ public:
  * Counts represent individual timer increments.
  */
 template <char... cv>
-class Counts: public TimeUnit<cv...> {
+class Counts: public TimeUnit<cv...>, public HasRuntimeTimeUnit<TimeUnit<cv...>::to_uint64, Counts<>> {
 public:
     static constexpr Counts<cv...> instance = Counts();
 
@@ -157,6 +162,9 @@ template<>
 class Counts<>: public RuntimeTimeUnit<Counts<>> {
     using RuntimeTimeUnit<Counts<>>::RuntimeTimeUnit;
 public:
+    template <char... cv>
+    constexpr Counts(Counts<cv...> us): RuntimeTimeUnit<Counts<>>(TimeUnit<cv...>::to_uint64) {}
+
     template <typename prescaled_t>
     constexpr Milliseconds<> toMillisOn() const;
 
@@ -171,7 +179,7 @@ constexpr Counts<cv...> operator "" _counts() { return Counts<cv...>(); }
  * Ticks represent timer overflows, i.e. every 256th or 65kth count, depending on timer size.
  */
 template<char... cv>
-struct Ticks: public TimeUnit<cv...> {
+struct Ticks: public TimeUnit<cv...>, public HasRuntimeTimeUnit<TimeUnit<cv...>::to_uint64, Ticks<>> {
     static constexpr Ticks<cv...> instance = Ticks();
 
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
@@ -221,12 +229,15 @@ template<>
 class Ticks<>: public RuntimeTimeUnit<Ticks<>> {
     using RuntimeTimeUnit<Ticks<>>::RuntimeTimeUnit;
 public:
+    template <char... cv>
+    constexpr Ticks(Ticks<cv...> us): RuntimeTimeUnit<Ticks<>>(TimeUnit<cv...>::to_uint64) {}
+
     template <typename prescaled_t>
     constexpr Milliseconds<> toMillisOn() const;
 };
 
 template <char... cv>
-class Microseconds: public TimeUnit<cv...> {
+class Microseconds: public TimeUnit<cv...>, public HasRuntimeTimeUnit<TimeUnit<cv...>::to_uint64, Microseconds<>> {
 public:
     static constexpr Microseconds<cv...> instance = Microseconds();
 
@@ -278,6 +289,9 @@ template<>
 class Microseconds<>: public RuntimeTimeUnit<Microseconds<>> {
     using RuntimeTimeUnit<Microseconds<>>::RuntimeTimeUnit;
 public:
+    template <char... cv>
+    constexpr Microseconds(Microseconds<cv...> us): RuntimeTimeUnit<Microseconds<>>(TimeUnit<cv...>::to_uint64) {}
+
     template <typename prescaled_t>
     constexpr Ticks<> toTicksOn() const {
         constexpr float countsPerUs = (uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2) / 1000.0;
@@ -308,7 +322,7 @@ constexpr Microseconds<> Counts<>::toMicrosOn() const {
 }
 
 template <char... cv>
-class Milliseconds: public TimeUnit<cv...> {
+class Milliseconds: public TimeUnit<cv...>, public HasRuntimeTimeUnit<TimeUnit<cv...>::to_uint64, Milliseconds<>> {
 public:
     static constexpr Milliseconds<cv...> instance = Milliseconds();
 
@@ -356,6 +370,9 @@ template<>
 class Milliseconds<>: public RuntimeTimeUnit<Milliseconds<>> {
     using RuntimeTimeUnit<Milliseconds<>>::RuntimeTimeUnit;
 public:
+    template <char... cv>
+    constexpr Milliseconds(Milliseconds<cv...> us): RuntimeTimeUnit<Milliseconds<>>(TimeUnit<cv...>::to_uint64) {}
+
     using RuntimeTimeUnit::operator<;
     using RuntimeTimeUnit::operator<=;
     using RuntimeTimeUnit::operator>;
