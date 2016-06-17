@@ -4,6 +4,7 @@
 #include "HAL/Atmel/InterruptVectors.hpp"
 #include "Time/Units.hpp"
 #include <gtest/gtest.h>
+#include "Fifo.hpp"
 
 namespace Mocks {
 
@@ -74,6 +75,16 @@ struct MockPin {
         high = true;
     }
 
+    void configureAsOutputLow() {
+        configureAsOutput();
+        setLow();
+    }
+
+    void configureAsOutputHigh() {
+        configureAsOutput();
+        setHigh();
+    }
+
     bool isHigh() {
         return high;
     }
@@ -118,6 +129,20 @@ typedef MockRealTimerPrescaled<10> MockRealTimer;
 
 }
 
+struct MockTWI {
+    Fifo<32> out;
+    Fifo<32> in;
+    uint8_t writeAddress;
+    uint8_t readAddress;
 
+    template <typename... types> void write(uint8_t address, types... args) {
+        writeAddress = address;
+        out.write(args...);
+    }
+    template <typename... types> void read(uint8_t address, types... args) {
+        readAddress = address;
+        in.read(args...);
+    }
+};
 
 #endif /* MOCKS_HPP_ */

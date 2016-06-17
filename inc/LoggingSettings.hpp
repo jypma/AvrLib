@@ -11,6 +11,8 @@ namespace Loggers {
     class Timing;
     class Dallas;
     class Main;
+    class Passive;
+    class TWI;
 }
 
 namespace Logging {
@@ -29,7 +31,8 @@ namespace Logging {
      */
 
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
-    template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};
+    //template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};
+    //template<> class Log<Loggers::Passive>: public MessagesEnabled<STR("Passive")> {};
     //template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
     //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};

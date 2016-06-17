@@ -71,6 +71,21 @@ struct StreamedSizeWriting<StringInProgmem<length>*>: public FixedSize<length> {
 
 }
 
+template <typename... types>
+struct StreamedSize;
+
+template<>
+struct StreamedSize<> {
+    constexpr static uint8_t fixedSizeReading = 0;
+    constexpr static uint8_t fixedSizeWriting = 0;
+};
+
+template <typename head, typename... tail>
+struct StreamedSize<head, tail...> {
+    constexpr static uint8_t fixedSizeReading = Impl::StreamedSizeReading<head>::size + StreamedSize<tail...>::fixedSizeReading;
+    constexpr static uint8_t fixedSizeWriting = Impl::StreamedSizeWriting<head>::size + StreamedSize<tail...>::fixedSizeWriting;
+};
+
 }
 
 

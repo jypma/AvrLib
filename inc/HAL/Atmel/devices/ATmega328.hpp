@@ -714,12 +714,12 @@ typedef PinWithPinChangeOption<Info::PinPC2Info> PinPC2;
 typedef PinWithPinChangeOption<Info::PinPC3Info> PinPC3;
 
 /**
- * Declares pin PC4 / ADC4 / PCINT12 / Arduino Analog 4.
+ * Declares pin PC4 / ADC4 / PCINT12 / SDA / Arduino Analog 4.
  */
 typedef PinWithPinChangeOption<Info::PinPC4Info> PinPC4;
 
 /**
- * Declares pin PC5 / ADC5 / PCINT13 / Arduino Analog 5.
+ * Declares pin PC5 / ADC5 / PCINT13 / SCL / Arduino Analog 5.
  */
 typedef PinWithPinChangeOption<Info::PinPC5Info> PinPC5;
 
@@ -733,6 +733,11 @@ typedef ADCOnlyPin<Info::PinA6Info> PinADC6;
  */
 typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
 
+struct TWIInfo {
+    typedef PinPC4 PinSDA;
+    typedef PinPC5 PinSCL;
+};
+
 } // namespace Atmel
 } // namespace HAL
 
@@ -743,6 +748,7 @@ typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
     FOR_EACH(__mkISR, \
         WDT_, \
         ADC_, \
+        TWI_, \
         INT0_, \
         INT1_, \
         TIMER0_OVF_, \
@@ -762,28 +768,28 @@ typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
 
 // --------------------------------- Arduino stuff -------------------------------------
 
-#define ArduinoPinD0 ::Hal::Atmel::PinPD0
-#define ArduinoPinD1 ::Hal::Atmel::PinPD1
-#define ArduinoPinD2 ::Hal::Atmel::PinPD2
-#define ArduinoPinD3 ::Hal::Atmel::PinPD3
-#define ArduinoPinD4 ::Hal::Atmel::PinPD4
-#define ArduinoPinD5 ::Hal::Atmel::PinPD5
-#define ArduinoPinD6 ::Hal::Atmel::PinPD6
-#define ArduinoPinD7 ::Hal::Atmel::PinPD7
-#define ArduinoPinD8 ::Hal::Atmel::PinPB0
-#define ArduinoPinD9 ::Hal::Atmel::PinPB1
-#define ArduinoPinD10 ::Hal::Atmel::PinPB2
-#define ArduinoPinD11 ::Hal::Atmel::PinPB3
-#define ArduinoPinD12 ::Hal::Atmel::PinPB4
-#define ArduinoPinD13 ::Hal::Atmel::PinPB5
-#define ArduinoPinA0 ::Hal::Atmel::PinPC0
-#define ArduinoPinA1 ::Hal::Atmel::PinPC1
-#define ArduinoPinA2 ::Hal::Atmel::PinPC2
-#define ArduinoPinA3 ::Hal::Atmel::PinPC3
-#define ArduinoPinA4 ::Hal::Atmel::PinPC4
-#define ArduinoPinA5 ::Hal::Atmel::PinPC5
-#define ArduinoPinA6 ::Hal::Atmel::PinPC6
-#define ArduinoPinA7 ::Hal::Atmel::PinPC7
+#define ArduinoPinD0 ::HAL::Atmel::PinPD0
+#define ArduinoPinD1 ::HAL::Atmel::PinPD1
+#define ArduinoPinD2 ::HAL::Atmel::PinPD2
+#define ArduinoPinD3 ::HAL::Atmel::PinPD3
+#define ArduinoPinD4 ::HAL::Atmel::PinPD4
+#define ArduinoPinD5 ::HAL::Atmel::PinPD5
+#define ArduinoPinD6 ::HAL::Atmel::PinPD6
+#define ArduinoPinD7 ::HAL::Atmel::PinPD7
+#define ArduinoPinD8 ::HAL::Atmel::PinPB0
+#define ArduinoPinD9 ::HAL::Atmel::PinPB1
+#define ArduinoPinD10 ::HAL::Atmel::PinPB2
+#define ArduinoPinD11 ::HAL::Atmel::PinPB3
+#define ArduinoPinD12 ::HAL::Atmel::PinPB4
+#define ArduinoPinD13 ::HAL::Atmel::PinPB5
+#define ArduinoPinA0 ::HAL::Atmel::PinPC0
+#define ArduinoPinA1 ::HAL::Atmel::PinPC1
+#define ArduinoPinA2 ::HAL::Atmel::PinPC2
+#define ArduinoPinA3 ::HAL::Atmel::PinPC3
+#define ArduinoPinA4 ::HAL::Atmel::PinPC4
+#define ArduinoPinA5 ::HAL::Atmel::PinPC5
+#define ArduinoPinA6 ::HAL::Atmel::PinADC6
+#define ArduinoPinA7 ::HAL::Atmel::PinADC7
 
 // --------------------------------- JeeNode stuff -------------------------------------
 
