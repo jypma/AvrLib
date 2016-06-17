@@ -101,4 +101,14 @@ TEST(PowerTest, unscheduled_deadline_allows_unrestricted_sleep) {
     EXPECT_EQ(4096, rt.slept);
 }
 
+TEST(PowerTest, should_not_sleep_on_delays_less_than_16ms) {
+    MockRealTimer rt;
+    auto power = Power<MockRealTimer>(rt);
+    bool haveSlept = false;
+    onSleep_cpu = [&haveSlept] { haveSlept = true; };
+    power.sleepFor(Milliseconds<>(1), SleepMode::POWER_DOWN);
+
+    EXPECT_FALSE(haveSlept);
+}
+
 }

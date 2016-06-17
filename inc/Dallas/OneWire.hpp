@@ -62,7 +62,7 @@ public:
         log::debug(F("present: "), dec(uint8_t(present)));
         return present;
     }
-
+#define FALLBACK
     void write_bit(bool b) {
         if (b) {
             {
@@ -70,14 +70,26 @@ public:
                 pin->configureAsOutputLow();
                 delay(10_us);
                 pin->setHigh();
+#ifdef FALLBACK
+                delay(25_us);
+                delay(30_us);
             }
-            rt->delay(55_us);
+#else
+            }
+            rt->delay(45_us);
+#endif
         } else {
             {
                 AtomicScope _;
                 pin->configureAsOutputLow();
+#ifdef FALLBACK
+                delay(32_us);
+                delay(33_us);
             }
-            rt->delay(65_us);
+#else
+            }
+            rt->delay(55_us);
+#endif
             pin->setHigh();
             delay(5_us);
         }
@@ -105,8 +117,14 @@ public:
             pin->configureAsInputWithPullup();
             delay(10_us);
             result = pin->isHigh();
+#ifdef FALLBACK
+            delay(23_us);
+            delay(30_us);
         }
-        rt->delay(53_us);
+#else
+        }
+        rt->delay(43_us);
+#endif
         return result;
     }
 
@@ -115,7 +133,7 @@ public:
         for (uint8_t bitMask = 0x01; bitMask; bitMask <<= 1) {
             if (read_bit()) r |= bitMask;
         }
-        log::debug(Hexadecimal(r));
+        log::debug(F("read: "), Hexadecimal(r));
         return r;
     }
 

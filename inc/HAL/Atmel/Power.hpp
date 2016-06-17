@@ -73,6 +73,10 @@ class Power {
     bool doSleepFor(Milliseconds<> ms, SleepMode mode, SleepGranularity maxGranularity) {
         bool interrupted = false;
         uint32_t millisSleep = ms.getValue();
+        if (millisSleep <= 16) {
+            return false;
+        }
+
         uint32_t msleft = millisSleep;
         // only slow down for periods longer than the watchdog granularity
         while (msleft >= 16) {
@@ -187,7 +191,8 @@ public:
      * @param time Time to sleep, subclass of RuntimeTimeUnit. Must be >16ms, and granularity
      * is only about 16ms.
      * @param mode Sleep mode to enter while sleeping
-     * @param maxGranularity Courses granularity for indivual sleep steps
+     * @param maxGranularity Coursest granularity for individual sleep steps. Courser granularity will give higher
+     * power savings, but less time precision.
      */
     template <typename time_t>
     bool sleepFor(time_t time, SleepMode mode, SleepGranularity maxGranularity) {

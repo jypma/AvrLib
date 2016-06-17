@@ -379,12 +379,12 @@ public:
     INTERRUPT_HANDLER2(typename comparator_t::INT, onComparator);
 };
 
-template <typename spi_t,
+template <int rxFifoSize = 32, int txFifoSize = 32, bool checkCrc = true,
+          typename spi_t,
           typename ss_pin_t,
           typename int_pin_t,
-          typename comparator_t,
-          bool checkCrc = true,
-          int rxFifoSize = 32, int txFifoSize = 32>
+          typename comparator_t
+          >
 RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize> rfm12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band) {
     return RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize>(_spi, _ss_pin, _int_pin, _comparator, band);
 }

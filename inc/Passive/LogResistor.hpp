@@ -27,17 +27,20 @@ using namespace Time;
 template <typename rt_t, typename pin_out_t, typename pin_in_t, uint64_t C, uint64_t R_min, uint64_t R_max>
 class LogResistor {
     static_assert(R_min < R_max, "R_min must be less than R_max");
-public:
     typedef LogResistor<rt_t, pin_out_t, pin_in_t, C, R_min, R_max> This;
+    typedef decltype((1_us).times<C * R_max / 1000000>()) RC_max;
     constexpr static uint32_t counts_min = toCountsOn<rt_t>((1_us).times<C * R_min / 1000000>());
     constexpr static uint32_t counts_max = toCountsOn<rt_t>((1_us).times<C * R_max / 1000000>());
 
-    rt_t *rt;
-    pin_out_t *pin_out;
-    pin_in_t *pin_in;
+    rt_t *const rt;
+    pin_out_t *const pin_out;
+    pin_in_t *const pin_in;
     uint32_t startTime = 0;
+    Deadline<rt_t, RC_max> timeout = { *rt };
     volatile uint32_t time = 0;
     volatile bool measuring = false;
+public:
+    bool pin_timeout = false, pin_start = false;
 
     uint8_t fakelogValue() const {
         union {
@@ -82,15 +85,27 @@ public:
         if (measuring) {
             measuring = false;
             time = rt->counts() - startTime;
-            pin_out->setLow();
+            pin_out->configureAsOutputLow(); // start discharging
+            timeout.cancel();
+        }
+    }
+
+    void checkTimeout() {
+        AtomicScope _;
+        if (measuring && timeout.isNow()) {
+            pin_timeout = pin_in->isHigh();
+            pin_in->interruptOff();
+            measuring = false;
+            time = startTime + counts_max;
+            pin_out->configureAsOutputLow(); // start discharging
         }
     }
 public:
     LogResistor(rt_t &_rt, pin_out_t &_pin_out, pin_in_t &_pin_in): rt(&_rt), pin_out(&_pin_out), pin_in(&_pin_in) {
-        pin_out->configureAsOutput();
-        pin_out->setLow();
+        pin_out->configureAsOutputLow();
         pin_in->configureAsInputWithoutPullup();
         pin_in->interruptOff();
+        timeout.cancel();
     }
 
     void measure() {
@@ -98,16 +113,24 @@ public:
         if (!measuring) {
             measuring = true;
             startTime = rt->counts();
-            pin_out->setHigh();
+            pin_out->configureAsOutputHigh();
+            pin_start = pin_in->isHigh();
             pin_in->interruptOnChange();
+            timeout.schedule();
         }
     }
 
-    bool isMeasuring() const {
+    bool isIdle() {
+        return !isMeasuring();
+    }
+
+    bool isMeasuring() {
+        checkTimeout();
         return measuring;
     }
 
-    uint8_t getValue() const {
+    uint8_t getValue() {
+        checkTimeout();
         if (time < counts_min) {
             return 0;
         } else if (time > counts_max) {
@@ -117,7 +140,8 @@ public:
         }
     }
 
-    uint32_t getTime() const {
+    uint32_t getTime() {
+        checkTimeout();
         return time;
     }
 

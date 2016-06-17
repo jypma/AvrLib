@@ -9,6 +9,7 @@ namespace Dallas {
 namespace Impl {
 
 using namespace Time;
+using namespace Streams;
 
 /**
  * Dallas DS18B20 temperature sensor
@@ -64,37 +65,15 @@ using namespace Time;
 template<typename onewire_t>
 class DS18x20 {
     typedef typename onewire_t::rt_t rt_t;
+    typedef Logging::Log<Loggers::Dallas> log;
 
     onewire_t * const wire;
     const OneWireAddress addr;
-    Deadline<rt_t,decltype(1_s)> measureDone = { *wire->rt };
-public:
-    DS18x20(onewire_t &w, const OneWireAddress &a): wire(&w), addr(a) {
-        measureDone.cancel();
-    }
+    Deadline<rt_t,decltype(1200_ms)> measureDone = { *wire->rt };
+    int16_t temp = -16000;
 
-    /**
-     * Starts a measurement. The result can be read after 1 second.
-     */
-    void measure() {
-        wire->reset();
-        wire->select(addr);
-        wire->write(0x44); // CONVERT T
-        measureDone.schedule();
-    }
-
-    /**
-     * After having started a measurement, returns whether it is done (but only once)
-     */
-    bool isMeasureDone() {
-        return measureDone.isNow();
-    }
-
-    /**
-     * Returns the temperature in tenths of degrees celcius, e.g. 320 for 32 degrees C or -15 for -1.5 degrees C.
-     * Can be negative for temperatures below 0.
-     */
-    int16_t getTemperature() {
+    void readTemperature() {
+        log::debug(F("Retrieving temp"));
         wire->reset();
         wire->select(addr);
         wire->write(0xBE); // READ SCRATCHPAD
@@ -122,7 +101,58 @@ public:
             //// default is 12 bit resolution, 750 ms conversion time
         }
 
-        return (int32_t(raw) * 100) / 160;
+        temp = (int32_t(raw) * 100) / 160;
+    }
+
+    void update() {
+        if (measureDone.isNow()) {
+            readTemperature();
+        }
+    }
+
+public:
+    DS18x20(onewire_t &w, const OneWireAddress &a): wire(&w), addr(a) {
+        measureDone.cancel();
+    }
+
+    /**
+     * Starts a measurement. The result can be read after 1 second.
+     */
+    void measure() {
+        if (measureDone.isScheduled()) {
+            return;
+        }
+        wire->reset();
+        wire->select(addr);
+        wire->write(0x44); // CONVERT T
+        measureDone.schedule();
+    }
+
+    /** Returns how much time there is left for until any ongoing measurement completes. */
+    auto timeLeft() const {
+        return measureDone.timeLeft();
+    }
+
+    /**
+     * Returns whether a measurement is currently in progress.
+     */
+    bool isMeasuring() {
+        update();
+        return measureDone.isScheduled();
+    }
+
+    bool isIdle() {
+        update();
+        return !isMeasuring();
+    }
+
+    /**
+     * Returns the temperature in tenths of degrees celcius, e.g. 320 for 32 degrees C or -15 for -1.5 degrees C.
+     * Can be negative for temperatures below 0.
+     */
+    int16_t getTemperature() {
+        update();
+        return temp;
     }
 };
 

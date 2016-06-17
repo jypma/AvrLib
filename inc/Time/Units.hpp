@@ -23,6 +23,7 @@ namespace Time {
 
 template<typename This>
 class RuntimeTimeUnit {
+protected:
     uint32_t value;
 public:
     constexpr RuntimeTimeUnit(uint32_t v): value(v) {}
@@ -35,6 +36,7 @@ public:
 };
 
 template <char... cv> class Milliseconds;
+template <char... cv> class Microseconds;
 
 template <typename T, T _value>
 class Truncatable {
@@ -157,6 +159,9 @@ class Counts<>: public RuntimeTimeUnit<Counts<>> {
 public:
     template <typename prescaled_t>
     constexpr Milliseconds<> toMillisOn() const;
+
+    template <typename prescaled_t>
+    constexpr Microseconds<> toMicrosOn() const;
 };
 
 template <char ...cv>
@@ -215,6 +220,9 @@ constexpr Ticks<cv...> operator "" _ticks() { return Ticks<cv...>(); }
 template<>
 class Ticks<>: public RuntimeTimeUnit<Ticks<>> {
     using RuntimeTimeUnit<Ticks<>>::RuntimeTimeUnit;
+public:
+    template <typename prescaled_t>
+    constexpr Milliseconds<> toMillisOn() const;
 };
 
 template <char... cv>
@@ -247,12 +255,10 @@ public:
         return result;
     }
 
-    template <typename prescaled_t>
     static constexpr uint64_t toMillis() {
         return TimeUnit<cv...>::to_uint64 / 1000;
     }
 
-    template <typename prescaled_t>
     static constexpr uint64_t toMicros() {
         return TimeUnit<cv...>::to_uint64;
     }
@@ -268,6 +274,21 @@ public:
     }
 };
 
+template<>
+class Microseconds<>: public RuntimeTimeUnit<Microseconds<>> {
+    using RuntimeTimeUnit<Microseconds<>>::RuntimeTimeUnit;
+public:
+    template <typename prescaled_t>
+    constexpr Ticks<> toTicksOn() const {
+        constexpr float countsPerUs = (uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2) / 1000.0;
+        constexpr float ticksPerUs = countsPerUs / float(prescaled_t::maximum + 1);
+        constexpr float max = 0xFFFFFFFF / ticksPerUs;
+
+        const float v = getValue();
+        return (v >= max) ? 0xFFFFFFFF : v * ticksPerUs;
+    }
+};
+
 template <char ...cv>
 constexpr Microseconds<cv...> operator "" _us() { return Microseconds<cv...>(); }
 
@@ -277,6 +298,14 @@ inline void delay(Microseconds<cv...> us) {
     _delay_us(Microseconds<cv...>::to_uint64);
 }
 
+template <typename prescaled_t>
+constexpr Microseconds<> Counts<>::toMicrosOn() const {
+    constexpr float countsPerUs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / 1000;
+    constexpr float max = 0xFFFFFFFF * countsPerUs;
+
+    const float v = getValue();
+    return (v >= max) ? 0xFFFFFFFF : v / countsPerUs;
+}
 
 template <char... cv>
 class Milliseconds: public TimeUnit<cv...> {
@@ -304,12 +333,10 @@ public:
         return result;
     }
 
-    template <typename prescaled_t>
     static constexpr uint64_t toMillis() {
         return TimeUnit<cv...>::to_uint64;
     }
 
-    template <typename prescaled_t>
     static constexpr uint64_t toMicros() {
         return TimeUnit<cv...>::to_uint64 * 1000;
     }
@@ -329,6 +356,12 @@ template<>
 class Milliseconds<>: public RuntimeTimeUnit<Milliseconds<>> {
     using RuntimeTimeUnit<Milliseconds<>>::RuntimeTimeUnit;
 public:
+    using RuntimeTimeUnit::operator<;
+    using RuntimeTimeUnit::operator<=;
+    using RuntimeTimeUnit::operator>;
+    using RuntimeTimeUnit::operator>=;
+    using RuntimeTimeUnit::operator==;
+
     template <typename prescaled_t>
     constexpr Ticks<> toTicksOn() const {
         constexpr float countsPerMs = uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2;
@@ -338,6 +371,20 @@ public:
         const float v = getValue();
         return (v >= max) ? 0xFFFFFFFF : v * ticksPerMs;
     }
+
+
+    template <typename time_t, typename check=decltype(&time_t::toMillis)>
+    constexpr bool operator> (const time_t that) const { return value > that.toMillis(); }
+    template <typename time_t, typename check=decltype(&time_t::toMillis)>
+    constexpr bool operator< (const time_t that) const { return value < that.toMillis(); }
+    template <typename time_t, typename check=decltype(&time_t::toMillis)>
+    constexpr bool operator== (const time_t that) const { return value == that.toMillis(); }
+    template <typename time_t, typename check=decltype(&time_t::toMillis)>
+    constexpr bool operator>= (const time_t that) const { return value >= that.toMillis(); }
+    template <typename time_t, typename check=decltype(&time_t::toMillis)>
+    constexpr bool operator<= (const time_t that) const { return value <= that.toMillis(); }
+    template <typename time_t, typename check=decltype(&time_t::toMillis)>
+    void operator= (const time_t that) { value = that.toMillis(); }
 };
 
 template <char ...cv>
@@ -352,6 +399,14 @@ constexpr Milliseconds<> Counts<>::toMillisOn() const {
     return (v >= max) ? 0xFFFFFFFF : v / countsPerMs;
 }
 
+template <typename prescaled_t>
+constexpr Milliseconds<> Ticks<>::toMillisOn() const {
+    constexpr float ticksPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / (prescaled_t::maximum + 1);
+    constexpr float max = 0xFFFFFFFF * ticksPerMs;
+
+    const float v = getValue();
+    return (v >= max) ? 0xFFFFFFFF : v / ticksPerMs;
+}
 
 template <char... cv>
 class Seconds: public TimeUnit<cv...> {
@@ -499,6 +554,11 @@ Milliseconds<> toMillisOn(const time_t time) {
 template <typename prescaled_t, typename duration_t>
 constexpr ut64_t<duration_t::template toMicros<prescaled_t>()> toMicrosOn() {
     return ut64_t<duration_t::template toMicros<prescaled_t>()>();
+}
+
+template <typename prescaled_t, typename time_t>
+Milliseconds<> toMicrosOn(const time_t time) {
+    return time.template toMicrosOn<prescaled_t>();
 }
 
 
