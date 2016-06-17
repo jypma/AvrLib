@@ -183,6 +183,12 @@ TEST(WritingTest, can_write_flash_string) {
     EXPECT_EQ(8, fifo.getSize());
     EXPECT_TRUE(fifo.read(F("12345678")));
     EXPECT_TRUE(fifo.isEmpty());
+
+    EXPECT_TRUE(fifo.write(F("1")));
+    EXPECT_EQ(1, fifo.getSize());
+    EXPECT_TRUE(fifo.read(F("1")));
+    EXPECT_TRUE(fifo.isEmpty());
+
 }
 
 TEST(WritingTest, can_write_padding) {

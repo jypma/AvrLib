@@ -3,8 +3,6 @@ BUGS
  - Make rt->counts return Counts<> instead of uint32_t
  - log::debug should always invoke toString(T), which defaults to dec() for decimals,
    but also defines Microsecond<> as "...ms", etc.
- - Have F("") not be printed using template methods but use null-termination, to save lots
-   of generated code
  - Make RFM12 OOK support optional, so you can create the RFM12 driver without 
    using a comparator with suitable timer prescaler
  - Scan for chunked-fifo like API, drop whole chunk if not matched. 

@@ -7,12 +7,23 @@
 namespace Streams {
 namespace Impl {
 
-template <typename sem, typename fifo_t, uint8_t length>
-void write1unchecked(fifo_t &fifo, StringInProgmem<length> *v) {
+template <typename sem, typename fifo_t>
+void writeStringInProgmem(fifo_t &fifo, uint8_t *v, uint8_t length) {
     for (uint8_t i = length; i > 0; i--, v++) {
         const uint8_t ch = pgm_read_byte(v);
         sem::write(fifo, ch);
     }
+}
+
+template <typename sem, typename fifo_t, uint8_t length>
+void write1unchecked(fifo_t &fifo, StringInProgmem<length> *v) {
+    writeStringInProgmem<sem>(fifo, (uint8_t*) v, length);
+}
+
+template <typename sem, typename fifo_t>
+void write1unchecked(fifo_t &fifo, StringInProgmem<1> *v) {
+    const uint8_t ch = pgm_read_byte(v);
+    sem::write(fifo, ch);
 }
 
 // on AVR, use F("hello") for strings. C-style strings unnecessarily use up RAM.
