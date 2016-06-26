@@ -1,7 +1,6 @@
 #ifndef HAL_ATMEL_PINCHANGEINTERRUPT_HPP_
 #define HAL_ATMEL_PINCHANGEINTERRUPT_HPP_
 
-#include "HAL/Atmel/InterruptVectors.hpp"
 #include "AtomicScope.hpp"
 
 namespace HAL {

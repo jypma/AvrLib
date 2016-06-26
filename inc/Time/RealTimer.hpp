@@ -8,7 +8,7 @@
 #ifndef REALTIMER_HPP_
 #define REALTIMER_HPP_
 
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "Time/Prescaled.hpp"
 #include "Time/Units.hpp"
 #include "AtomicScope.hpp"
@@ -34,6 +34,8 @@ struct Overflow {
     static constexpr bool countsLargerThanUint31 = toCountsOn<rt_t,value>().value >= 0xFFFFFFF;
     static constexpr bool countsLargerThanUint32 = !toCountsOn<rt_t,value>().is_uint32;
 };
+
+using namespace HAL::Atmel::InterruptHandlers;
 
 template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = Impl::noop>
 class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
@@ -76,17 +78,19 @@ class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename time
         if (uint32_t(0xFFFFFFFF) - startTime < countsDelay) {
             // we expect a integer wraparound.
             // first, wait for the int to overflow (with some margin)
-            while (counts() > 1) {
+            while (counts().getValue() > 1) {
                 wait();
             }
         }
         uint32_t end = startTime + countsDelay;
-        while (counts() < end) {
+        while (counts().getValue() < end) {
             wait();
         }
     }
 
 public:
+    typedef On<This, typename timer_t::INT, &This::onTimerOverflow> Handlers;
+
     RealTimer(timer_t &_timer): timer(&_timer) {
         timer->interruptOnOverflowOn();
     }
@@ -143,8 +147,6 @@ public:
     typename std::enable_if<!Overflow<This, duration_t>::countsLargerThanUint31>::type delay(const duration_t) {
         delayCounts(toCountsOn<timer_t,duration_t>());
     }
-
-    INTERRUPT_HANDLER1(typename timer_t::INT, onTimerOverflow);
 };
 
 template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = Impl::noop>
@@ -217,7 +219,7 @@ protected:
         return next;
     }
     bool isNow(uint32_t currentTime);
-    void calculateNextCounts(uint32_t startTime, uint32_t delay);
+    void calculateNext(uint32_t startTime, uint32_t delay);
     uint32_t getTimeLeft(uint32_t currentTime) const;
 public:
     /**
@@ -250,7 +252,7 @@ public:
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer integer wraparound");
 public:
     Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
-        calculateNextCounts(rt->counts(), delay);
+        calculateNext(rt->counts(), delay);
     }
 
     bool isNow() {
@@ -259,7 +261,7 @@ public:
 
     void schedule() {
         AtomicScope _;
-        calculateNextCounts(rt->counts(), delay);
+        calculateNext(rt->counts(), delay);
         elapsed = false;
     }
 
@@ -276,7 +278,7 @@ protected:
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer integer wraparound");
 public:
     Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
-        calculateNextCounts(rt->ticks(), delay);
+        calculateNext(rt->ticks(), delay);
     }
 
     bool isNow() {
@@ -285,7 +287,7 @@ public:
 
     void schedule() {
         AtomicScope _;
-        calculateNextCounts(rt->ticks(), delay);
+        calculateNext(rt->ticks(), delay);
         elapsed = false;
     }
 
@@ -315,7 +317,7 @@ public:
         static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
         AtomicScope _;
-        calculateNextCounts(rt->counts(), delay);
+        calculateNext(rt->counts(), delay);
         elapsed = false;
     }
 

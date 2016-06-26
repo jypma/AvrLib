@@ -3,10 +3,12 @@
 
 #include <avr/io.h>
 #include "Fifo.hpp"
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 
 namespace HAL {
 namespace Atmel {
+
+using namespace InterruptHandlers;
 
 /**
  * Configures the USART to use the given baud rate, and configures both pins (0 and 1) as transmitter
@@ -48,7 +50,6 @@ class UsartTx {
         }
     }
 
-protected:
     void onSendComplete() {
         // clear the TXC bit -- "can be cleared by writing a one to its bit location"
         *info::ucsra |= _BV(TXC0);
@@ -64,6 +65,8 @@ protected:
     }
 
 public:
+    typedef On<This, Int_USART_UDRE_, &This::onSendComplete> Handlers;
+
     UsartTx() {
         AtomicScope::SEI _;
     }
@@ -109,14 +112,18 @@ template <typename info, uint8_t readFifoCapacity>
 class UsartRx:
     public Streams::ReadingDelegate<UsartRx<info, readFifoCapacity>, AbstractFifo>
 {
+    typedef UsartRx<info, readFifoCapacity> This;
+
     Fifo<readFifoCapacity> readFifo;
-protected:
+
     inline void onReceive() {
         uint8_t ch = *info::udr;
         readFifo.fastwrite(ch);
     }
 
 public:
+    typedef On<This, Int_USART_RX_, &This::onReceive> Handlers;
+
     UsartRx(): Streams::ReadingDelegate<UsartRx<info, readFifoCapacity>, AbstractFifo>(&readFifo) {
         AtomicScope::SEI _;
     }

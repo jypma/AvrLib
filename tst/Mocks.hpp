@@ -1,7 +1,7 @@
 #ifndef MOCKS_HPP_
 #define MOCKS_HPP_
 
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "Time/Units.hpp"
 #include <gtest/gtest.h>
 #include "Fifo.hpp"
@@ -9,12 +9,13 @@
 namespace Mocks {
 
 using namespace Time;
+using namespace HAL::Atmel;
 
 struct MockComparator {
     constexpr static uint8_t prescalerPower2 = 3; // prescaler is 2^3 = 8
 
     typedef uint8_t value_t;
-    typedef INTERRUPT_VECTOR(TIMER0_COMPA) INT;
+    typedef Int_TIMER0_COMPA_ INT;
 
     value_t value = 0;
     value_t target = 0;
@@ -47,7 +48,7 @@ struct MockComparator {
 };
 
 struct MockPin {
-    typedef INTERRUPT_VECTOR(INT0) INT;
+    typedef Int_INT0_ INT;
 
     bool isOutput = true;
     bool high = false;

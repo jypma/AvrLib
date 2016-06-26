@@ -8,7 +8,7 @@
 #ifndef PULSECOUNTER_HPP_
 #define PULSECOUNTER_HPP_
 
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "Fifo.hpp"
 #include "HAL/Atmel/Timer.hpp"
 #include "Serial/Pulse.hpp"
@@ -18,6 +18,7 @@ namespace Serial {
 
 using namespace Streams;
 using namespace Time;
+using namespace HAL::Atmel::InterruptHandlers;
 
 /**
  * Counts up/down pulse lengths on a pin by using a timer.
@@ -73,6 +74,9 @@ private:
         pin->interruptOnChange();
     }
 public:
+    typedef On<This, typename _comparator_t::INT, &This::onComparator,
+            On<This, typename pin_t::INT, &This::onPinChanged>> Handlers;
+
     PulseCounter(comparator_t &_comparator, pin_t &_pin):
         comparator(&_comparator), pin(&_pin) {
         pin->configureAsInputWithPullup();
@@ -123,9 +127,6 @@ public:
             }
         }
     }
-
-    INTERRUPT_HANDLER1(typename comparator_t::INT, onComparator);
-    INTERRUPT_HANDLER2(typename pin_t::INT, onPinChanged);
 };
 
 template <int fifo_length = 128, typename _comparator_t, typename pin_t, typename minimumLength_t>
@@ -221,6 +222,9 @@ private:
     }
 
 public:
+    typedef On<This, typename comparator_t::INT, &This::onComparator,
+            On<This, typename pin_t::INT, &This::onPinChanged>> Handlers;
+
     template <typename minimumLength_t>
     MinPulseCounter(comparator_t &_comparator, pin_t &_pin, const minimumLength_t minimumLength):
         MinPulseCounter(_pin, _comparator, toCountsOn<comparator_t>(minimumLength)) {}
@@ -276,9 +280,6 @@ public:
     void resume() {
         clear();
     }
-
-    INTERRUPT_HANDLER1(typename comparator_t::INT, onComparator);
-    INTERRUPT_HANDLER2(typename pin_t::INT, onPinChanged);
 };
 
 template <int fifo_length = 128, typename _comparator_t, typename pin_t, typename minimumLength_t>

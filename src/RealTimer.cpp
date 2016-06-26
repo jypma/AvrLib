@@ -65,7 +65,7 @@ uint32_t AbstractDeadline::getTimeLeft(uint32_t currentTime) const {
     }
 }
 
-void AbstractDeadline::calculateNextCounts(uint32_t startTime, uint32_t delay) {
+void AbstractDeadline::calculateNext(uint32_t startTime, uint32_t delay) {
     next = startTime + delay;
     waitForOverflow = (next < startTime);
 }

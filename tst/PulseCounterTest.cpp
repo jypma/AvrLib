@@ -1,5 +1,6 @@
 #include "Serial/PulseCounter.hpp"
 #include <gtest/gtest.h>
+#include "invoke.hpp"
 
 namespace PulseCounterTest {
 
@@ -8,7 +9,7 @@ using namespace Time;
 
 struct MockComparator {
     typedef uint8_t value_t;
-    typedef HAL::Atmel::InterruptVectors::VectorTIMER0_COMPA_ INT;
+    typedef HAL::Atmel::Int_TIMER0_COMPA_ INT;
 
     static constexpr uint8_t prescalerPower2 = 10;
 
@@ -38,7 +39,7 @@ struct MockComparator {
 };
 
 struct MockPin {
-    typedef HAL::Atmel::InterruptVectors::VectorINT0_ INT;
+    typedef HAL::Atmel::Int_INT0_ INT;
     bool high = false;
     bool isInterruptOn = false;
 
@@ -84,14 +85,14 @@ TEST(PulseCounterTest, pulsecounter_reacts_to_changes_only_after_minimum_length)
 
     // first transition: longer than minimum length: comparator fires first, with pin unchanged. Pin change fires afterwards.
     comp.value = 20;
-    decltype(pc)::onComparatorHandler::invoke(&pc);
+    invoke<MockComparator::INT>(pc);
     EXPECT_TRUE(pin.isInterruptOn);
     EXPECT_TRUE(comp.isInterruptOn);
     EXPECT_EQ(20, comp.target);
 
     comp.value = 24;
     pin.high = true;
-    decltype(pc)::onPinChangedHandler::invoke(&pc);
+    invoke<MockPin::INT>(pc);
     EXPECT_FALSE(pin.isInterruptOn);
     EXPECT_TRUE(comp.isInterruptOn);
     EXPECT_EQ(44, comp.target);

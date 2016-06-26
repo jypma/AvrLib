@@ -4,11 +4,13 @@
 #include "Time/RealTimer.hpp"
 #include "Time/Units.hpp"
 #include "AtomicScope.hpp"
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 
 namespace Mechanic {
 
 using namespace Time;
+using namespace HAL::Atmel;
+using namespace InterruptHandlers;
 
 enum class ButtonEvent: uint8_t {
     DOWN, UP, PRESSED, RELEASED
@@ -45,6 +47,8 @@ class Button {
         }
     }
 public:
+    typedef On<This, typename pin_t::INT, &This::onInterrupt> Handlers;
+
     Button(pin_t &_pin, rt_t &_rt): pin(&_pin), rt(&_rt), stopDebouncing(deadline(_rt, debounce_time::instance)) {
         pin->configureAsInputWithPullup();
         pin->interruptOnLow();
@@ -73,8 +77,6 @@ public:
             return state ? ButtonEvent::RELEASED : ButtonEvent::PRESSED;
         }
     }
-
-    INTERRUPT_HANDLER1(typename pin_t::INT, onInterrupt);
 };
 
 template <typename pin_t, typename rt_t>

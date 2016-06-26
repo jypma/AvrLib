@@ -1,9 +1,10 @@
 #ifndef PASSIVE_CAPACITORRC_HPP_
 #define PASSIVE_CAPACITORRC_HPP_
 
-#include <HAL/Atmel/InterruptVectors.hpp>
+#include <HAL/Atmel/InterruptHandlers.hpp>
 #include <Time/RealTimer.hpp>
 #include <Time/Units.hpp>
+#include "Logging.hpp"
 
 namespace Passive {
 
@@ -12,6 +13,8 @@ using namespace Time;
 namespace Impl {
 
 using namespace Streams;
+using namespace HAL::Atmel;
+using namespace InterruptHandlers;
 
 enum class CapacitorRCState { IDLE, CHARGING, MEASURING, DISCHARGING };
 
@@ -106,6 +109,8 @@ class CapacitorRC {
         }
     }
 public:
+    typedef On<This, typename pin_t::INT, &This::onPinChange> Handlers;
+
     CapacitorRC(rt_t &_rt, pin_t &_pin): rt(&_rt), pin(&_pin) {
         idle();
     }
@@ -144,8 +149,6 @@ public:
     uint32_t getTime() {
         return time;
     }
-
-    INTERRUPT_HANDLER1(typename pin_t::INT, onPinChange);
 };
 
 } // namespace Impl

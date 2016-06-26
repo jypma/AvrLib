@@ -9,7 +9,7 @@
 #define RFM12_HPP_
 
 #include "Logging.hpp"
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "SPI.hpp"
 #include "BitSet.hpp"
 #include "Fifo.hpp"
@@ -302,11 +302,12 @@ private:
     ookTx_t ookTx = ookTx_t(*comparator, ookTarget, ookSource);
     SerialConfig fs20SerialConfig = FS20::FS20Packet::serialConfig<comparator_t>();
 
-    void onComparator() {
-        ookTx_t::onComparatorHandler::invoke(&ookTx);
-    }
-
 public:
+    typedef
+        On<This, typename int_pin_t::INT, &This::onInterrupt,
+        Delegate<This, ookTx_t, &This::ookTx>>
+    Handlers;
+
     RFM12(spi_t &_spi, ss_pin_t &_ss_pin, int_pin_t &_int_pin, comparator_t &_comparator, RFM12Band band):
         Streams::ReadingDelegate<
                 RFM12<spi_t, ss_pin_t, int_pin_t, comparator_t, checkCrc, rxFifoSize, txFifoSize>,
@@ -374,9 +375,6 @@ public:
         log::debug("queueing FS20");
         return txFifo.write_ook(&fs20SerialConfig, &packet);
     }
-
-    INTERRUPT_HANDLER1(typename int_pin_t::INT, onInterrupt);
-    INTERRUPT_HANDLER2(typename comparator_t::INT, onComparator);
 };
 
 template <int rxFifoSize = 32, int txFifoSize = 32, bool checkCrc = true,

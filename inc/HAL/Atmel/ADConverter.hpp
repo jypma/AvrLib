@@ -8,11 +8,13 @@
 #ifndef ADC_HPP_
 #define ADC_HPP_
 
-#include "HAL/Atmel/InterruptVectors.hpp"
 #include <avr/io.h>
+#include <HAL/Atmel/InterruptHandlers.hpp>
 
 namespace HAL {
 namespace Atmel {
+
+using namespace InterruptHandlers;
 
 enum class ADReference: uint8_t {
     /** AREF, Internal V ref turned off */
@@ -24,13 +26,15 @@ enum class ADReference: uint8_t {
 };
 
 class ADConverter {
-    typedef ADConverter This;
     volatile bool newValue = false;
 
     void onComplete() {
         newValue = true;
     }
+
 public:
+    typedef On<ADConverter, Int_ADC_, &ADConverter::onComplete> Handlers;
+
     void enable();
 
     /**
@@ -73,8 +77,6 @@ public:
     uint16_t awaitValue();
 
     uint16_t getValue();
-
-    INTERRUPT_HANDLER1(INTERRUPT_VECTOR(ADC), onComplete);
 };
 
 } // namespace Atmel

@@ -8,13 +8,14 @@
 #include "Serial/PulseTx.hpp"
 #include "Serial/SimplePulseTx.hpp"
 #include <gtest/gtest.h>
+#include "invoke.hpp"
 
 namespace PulseTxTest {
 
 using namespace Serial;
 
 struct MockComparator {
-    typedef HAL::Atmel::InterruptVectors::VectorTIMER0_COMPA_ INT;
+    typedef HAL::Atmel::Int_TIMER0_COMPA_ INT;
     typedef uint8_t value_t;
 
     bool isInterruptOn = false;
@@ -64,7 +65,7 @@ TEST(PulseTxTest, single_pulse_on_software_target_can_be_sent) {
     EXPECT_TRUE(comparator.isInterruptOn);
     EXPECT_EQ(55, comparator.target);
 
-    decltype(tx)::onComparatorHandler::invoke(&tx);
+    invoke<MockComparator::INT>(tx);
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(comparator.isInterruptOn);
 }
@@ -86,17 +87,17 @@ TEST(PulseTxTest, multiple_pulses_on_software_target_can_be_sent) {
     EXPECT_TRUE(comparator.isInterruptOn);
     EXPECT_EQ(55, comparator.target);
 
-    decltype(tx)::onComparatorHandler::invoke(&tx);
+    invoke<MockComparator::INT>(tx);
     EXPECT_FALSE(pin.high);
     EXPECT_TRUE(comparator.isInterruptOn);
     EXPECT_EQ(97, comparator.target);
 
-    decltype(tx)::onComparatorHandler::invoke(&tx);
+    invoke<MockComparator::INT>(tx);
     EXPECT_TRUE(pin.high);
     EXPECT_TRUE(comparator.isInterruptOn);
     EXPECT_EQ(107, comparator.target);
 
-    decltype(tx)::onComparatorHandler::invoke(&tx);
+    invoke<MockComparator::INT>(tx);
     EXPECT_FALSE(pin.high);
     EXPECT_FALSE(comparator.isInterruptOn);
 }
@@ -161,12 +162,12 @@ TEST(PulseTxTest, multiple_pulses_on_comparators_pwm_pin_can_be_sent) {
     EXPECT_EQ(55, pin.comp.target);
     EXPECT_EQ(NonPWMOutputMode::low_on_match, pin.comp.outputMode);
 
-    decltype(tx)::onComparatorHandler::invoke(&tx);
+    invoke<MockComparator::INT>(tx);
     EXPECT_TRUE(pin.comp.isInterruptOn);
     EXPECT_EQ(97, pin.comp.target);
     EXPECT_EQ(NonPWMOutputMode::high_on_match, pin.comp.outputMode);
 
-    decltype(tx)::onComparatorHandler::invoke(&tx);
+    invoke<MockComparator::INT>(tx);
     EXPECT_FALSE(pin.comp.isInterruptOn);  // no interrupt for the last pulse. It'll simply go low on match.
     EXPECT_EQ(107, pin.comp.target);
     EXPECT_EQ(NonPWMOutputMode::low_on_match, pin.comp.outputMode);

@@ -1,6 +1,7 @@
 #ifndef HAL_ATMEL_POWER_HPP_
 #define HAL_ATMEL_POWER_HPP_
 
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "AtomicScope.hpp"
 #include "HAL/Atmel/Device.hpp"
 #include "Time/Units.hpp"
@@ -11,6 +12,7 @@ namespace HAL {
 namespace Atmel {
 
 using namespace Time;
+using namespace InterruptHandlers;
 
 enum class SleepMode: uint8_t {
     /** Lowest power mode. */
@@ -125,6 +127,8 @@ class Power {
     }
 
 public:
+    typedef On<This, Int_WDT_, &This::onWatchdog> Handlers;
+
     Power(rt_t &_rt): rt(&_rt) {}
 
     /**
@@ -207,8 +211,6 @@ public:
     bool sleepFor(Milliseconds<> ms, SleepMode mode, SleepGranularity maxGranularity) {
         return doSleepFor(ms, mode, maxGranularity);
     }
-
-    INTERRUPT_HANDLER1(INTERRUPT_VECTOR(WDT), onWatchdog);
 };
 }
 

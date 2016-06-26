@@ -2,6 +2,7 @@
 #include "HAL/Atmel/Power.hpp"
 #include "Time/RealTimer.hpp"
 #include "Mocks.hpp"
+#include "invoke.hpp"
 
 namespace PowerTest {
 
@@ -14,7 +15,7 @@ TEST(PowerTest, sleep_adjusts_timer) {
     auto power = Power<MockRealTimer>(rt);
     onSleep_cpu = [&power] {
         // simulate always waking up by watchdog
-        decltype(power)::onWatchdogHandler::invoke(&power);
+        invoke<Int_WDT_>(power);
     };
     power.sleepFor(Milliseconds<>(1000), SleepMode::POWER_DOWN);
     EXPECT_EQ(992, rt.slept); // nearest multiple of 16
@@ -46,7 +47,7 @@ TEST(PowerTest, can_sleep_until_deadline) {
     auto d = deadline(rt, 1_s);
     onSleep_cpu = [&power] {
         // simulate always waking up by watchdog
-        decltype(power)::onWatchdogHandler::invoke(&power);
+        invoke<Int_WDT_>(power);
     };
 
     power.sleepUntil(d, SleepMode::POWER_DOWN);
@@ -62,7 +63,7 @@ TEST(PowerTest, can_sleep_until_periodic) {
     auto d = periodic(rt, 1_s);
     onSleep_cpu = [&power] {
         // simulate always waking up by watchdog
-        decltype(power)::onWatchdogHandler::invoke(&power);
+        invoke<Int_WDT_>(power);
     };
 
     power.sleepUntil(d, SleepMode::POWER_DOWN);
@@ -80,7 +81,7 @@ TEST(PowerTest, can_sleep_until_closest_deadline) {
 
     onSleep_cpu = [&power] {
         // simulate always waking up by watchdog
-        decltype(power)::onWatchdogHandler::invoke(&power);
+        invoke<Int_WDT_>(power);
     };
 
     power.sleepUntilAny(SleepMode::POWER_DOWN, d1, d2);

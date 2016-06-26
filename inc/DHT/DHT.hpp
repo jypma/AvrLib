@@ -1,6 +1,7 @@
 #ifndef DHT_DHT_HPP_
 #define DHT_DHT_HPP_
 
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "Serial/PulseCounter.hpp"
 #include "Logging.hpp"
 #include "Streams/Protocol.hpp"
@@ -11,6 +12,7 @@ namespace DHT {
 using namespace Serial;
 using namespace Time;
 using namespace Streams;
+using namespace HAL::Atmel::InterruptHandlers;
 
 enum class DHTState: uint8_t {
     OFF, BOOTING, IDLE, SIGNALING, SYNC_LOW, SYNC_HIGH, RECEIVING_LOW, RECEIVING_HIGH
@@ -21,6 +23,7 @@ namespace Impl {
 /** Abstract base class for all DHT-based temperature & humidity sensors */
 template <typename datapin_t, typename powerpin_t, typename comparator_t, typename rt_t>
 class DHT {
+    typedef DHT<datapin_t,powerpin_t,comparator_t,rt_t> This;
     typedef Logging::Log<Loggers::DHT11> log;
 
     datapin_t *pin;
@@ -34,6 +37,12 @@ class DHT {
     bool seenHigh = false;
     uint8_t lastFailure = 0;
 public:
+    typedef Delegate<This, decltype(counter), &This::counter> Handlers;
+
+    void onPinChange() {
+        decltype(counter)::Handlers::template Handler<typename datapin_t::INT>::invoke(counter);
+    }
+
     void powerOff() {
         power->setLow();
         state = DHTState::OFF;
@@ -64,12 +73,6 @@ public:
     }
 
 protected:
-    void onComparator() {
-        decltype(counter)::onComparatorHandler::invoke(&counter);
-    }
-    void onPin() {
-        decltype(counter)::onPinChangedHandler::invoke(&counter);
-    }
     uint8_t getData(uint8_t idx) const {
         return data[idx];
     }

@@ -1,16 +1,19 @@
 #include <gtest/gtest.h>
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "DHT/DHT11.hpp"
 #include "DHT/DHT22.hpp"
+#include "invoke.hpp"
 
 namespace DHTTest {
 
 using namespace DHT;
+using namespace HAL::Atmel;
 
 struct MockComparator {
     constexpr static uint8_t prescalerPower2 = 3; // prescaler is 2^3 = 8
 
     typedef uint8_t value_t;
-    typedef INTERRUPT_VECTOR(TIMER0_COMPA) INT;
+    typedef Int_TIMER0_COMPA_ INT;
 
     value_t value = 0;
     value_t target = 0;
@@ -43,7 +46,7 @@ struct MockComparator {
 };
 
 struct MockPin {
-    typedef INTERRUPT_VECTOR(INT0) INT;
+    typedef Int_INT0_ INT;
 
     bool isOutput = true;
     bool high = false;
@@ -143,11 +146,13 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     pin.high = false;
     comparator.advance();
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
+    std::cout << "----" <<std::endl;
+    dht.onPinChange();
     pin.high = true;
     comparator.advance(80_us);
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     dht.loop();
     dht.loop();
     dht.loop();
@@ -157,14 +162,14 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     pin.high = false;
     comparator.advance(80_us);
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     dht.loop();
     EXPECT_EQ(DHTState::RECEIVING_LOW, dht.getState());
 
     auto sendTestBit = [&] (bool isOne) {
         pin.high = true;
         comparator.advance(50_us);
-        decltype(dht)::onPinHandler::invoke(&dht);
+        invoke<MockPin::INT>(dht);
         dht.loop();
 
         pin.high = false;
@@ -173,7 +178,7 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
         } else {
             comparator.advance(30_us);
         }
-        decltype(dht)::onPinHandler::invoke(&dht);
+        invoke<MockPin::INT>(dht);
         dht.loop();
     };
 
@@ -211,11 +216,11 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     pin.high = false;
     comparator.advance();
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     pin.high = true;
     comparator.advance(80_us);
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     dht.loop();
     dht.loop();
     dht.loop();
@@ -225,7 +230,7 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     pin.high = false;
     comparator.advance(80_us);
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     dht.loop();
     EXPECT_EQ(DHTState::RECEIVING_LOW, dht.getState());
 
@@ -267,11 +272,11 @@ TEST(DHTTest, dht22_reads_negative_temperatures) {
     pin.high = false;
     comparator.advance();
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     pin.high = true;
     comparator.advance(80_us);
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     dht.loop();
     dht.loop();
     dht.loop();
@@ -281,14 +286,14 @@ TEST(DHTTest, dht22_reads_negative_temperatures) {
     pin.high = false;
     comparator.advance(80_us);
     EXPECT_TRUE(pin.isInterruptOn);
-    decltype(dht)::onPinHandler::invoke(&dht);
+    invoke<MockPin::INT>(dht);
     dht.loop();
     EXPECT_EQ(DHTState::RECEIVING_LOW, dht.getState());
 
     auto sendTestBit = [&] (bool isOne) {
         pin.high = true;
         comparator.advance(71_us); // my DHT22 sends rather slow "low" pulses
-        decltype(dht)::onPinHandler::invoke(&dht);
+        invoke<MockPin::INT>(dht);
         dht.loop();
 
         pin.high = false;
@@ -297,7 +302,7 @@ TEST(DHTTest, dht22_reads_negative_temperatures) {
         } else {
             comparator.advance(30_us);
         }
-        decltype(dht)::onPinHandler::invoke(&dht);
+        invoke<MockPin::INT>(dht);
         dht.loop();
     };
 

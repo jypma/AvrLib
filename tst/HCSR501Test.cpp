@@ -1,6 +1,7 @@
 #include "PIR/HCSR501.hpp"
 #include <gtest/gtest.h>
 #include "Mocks.hpp"
+#include "invoke.hpp"
 
 namespace HCSR501Test {
 
@@ -30,7 +31,7 @@ TEST(HCSR501Test, should_sleep_after_detecting_motion) {
     EXPECT_FALSE(pir.isMotionDetected());
 
     data.high = true;
-    decltype(pir)::onPinRisingHandler::invoke(&pir);
+    invoke<MockPin::INT>(pir);
     EXPECT_TRUE(pir.isMotionDetected());
     EXPECT_FALSE(power.high);
     EXPECT_FALSE(data.isInterruptOn);

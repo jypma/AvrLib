@@ -1,15 +1,17 @@
 #ifndef TWI_HPP_
 #define TWI_HPP_
 
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include <util/twi.h>
 #include "Fifo.hpp"
 #include "ChunkedFifo.hpp"
-#include "HAL/Atmel/InterruptVectors.hpp"
 #include "Logging.hpp"
 
 namespace Impl {
 
 enum class TWIState { IDLE, WRITING, READING };
+
+using namespace HAL::Atmel::InterruptHandlers;
 
 /**
  * Hardware Atmel TWI support. Based off the arduino libraries.
@@ -221,6 +223,8 @@ class TWI {
         }
     }
 public:
+    typedef On<This, HAL::Atmel::Int_TWI_, &This::onTWI> Handlers;
+
     TWI() {
         transceiving = false;
 
@@ -285,8 +289,6 @@ public:
         flush();
         rxFifo.read(args...);
     }
-
-    INTERRUPT_HANDLER1(INTERRUPT_VECTOR(TWI), onTWI);
 };
 
 }

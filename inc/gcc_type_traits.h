@@ -272,6 +272,23 @@ struct remove_pointer
 : public __remove_pointer_helper<_Tp, typename remove_cv<_Tp>::type>
 { };
 
+template<typename>
+  struct remove_reference;
+
+/// remove_reference
+template<typename _Tp>
+  struct remove_reference
+  { typedef _Tp   type; };
+
+template<typename _Tp>
+  struct remove_reference<_Tp&>
+  { typedef _Tp   type; };
+
+template<typename _Tp>
+  struct remove_reference<_Tp&&>
+  { typedef _Tp   type; };
+
+
 }
 
 

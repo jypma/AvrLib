@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "HopeRF/RFM12.hpp"
+#include "invoke.hpp"
 
 namespace RFM12Test {
 
@@ -43,7 +44,7 @@ public:
 
 class MockIntPin {
 public:
-    typedef HAL::Atmel::InterruptVectors::VectorINT0_ INT;
+    typedef HAL::Atmel::Int_INT0_ INT;
     bool isInput = false;
     void configureAsInputWithPullup() {
         isInput = true;
@@ -60,7 +61,7 @@ public:
 };
 
 struct MockComparator {
-    typedef HAL::Atmel::InterruptVectors::VectorTIMER0_COMPA_ INT;
+    typedef HAL::Atmel::Int_TIMER0_COMPA_ INT;
 
     static constexpr uint8_t prescalerPower2 = 8;
     typedef uint8_t value_t;
@@ -112,7 +113,7 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
 
     for (int pulse = 0; pulse < 141; pulse++) {
         EXPECT_TRUE(comp.interruptFlag);
-        decltype(rfm)::onComparatorHandler::invoke(&rfm);
+        invoke<MockComparator::INT>(rfm);
         EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
         on = !on;
         if (on) {
@@ -124,7 +125,7 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
 
     spi.tx.clear();
     EXPECT_TRUE(comp.interruptFlag);
-    decltype(rfm)::onComparatorHandler::invoke(&rfm);
+    invoke<MockComparator::INT>(rfm);
     EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
     EXPECT_TRUE(spi.tx.read(FB(184,0,130,13,130,221))); // Empty TX reg, Idle, Turn on RX
     EXPECT_FALSE(comp.interruptFlag);
@@ -134,7 +135,7 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(0)); // header = 0
     spi.tx.clear();
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
     EXPECT_EQ(3, spi.tx.getSize());
     EXPECT_TRUE(spi.tx.read(FB(0,0,0)));
     EXPECT_EQ(RFM12Mode::RECEIVING, rfm.getMode());
@@ -142,18 +143,18 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
     spi.rx.write(uint8_t(1 << 7));
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(0)); // length = 0, so 2 extra bytes for CRC
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
 
     spi.rx.write(uint8_t(1 << 7));
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(97)); // 1st CRC byte
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
 
     spi.rx.write(uint8_t(1 << 7));
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(193)); // 2nd CRC byte
     spi.tx.clear();
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
     Logging::Log<Loggers::Main>::debug(dec(&spi.tx));
 
     EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
@@ -177,7 +178,7 @@ TEST(RFM12Test, rfm12_sends_queued_ook_after_receiving_completes) {
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(0)); // header = 0
     spi.tx.clear();
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
 
     EXPECT_EQ(3, spi.tx.getSize());
     EXPECT_TRUE(spi.tx.read(FB(0,0,0)));
@@ -190,18 +191,18 @@ TEST(RFM12Test, rfm12_sends_queued_ook_after_receiving_completes) {
     spi.rx.write(uint8_t(1 << 7));
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(0)); // length = 0, so 2 extra bytes for CRC
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
 
     spi.rx.write(uint8_t(1 << 7));
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(0)); // 1st CRC byte
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
 
     spi.rx.write(uint8_t(1 << 7));
     spi.rx.write(uint8_t(0));
     spi.rx.write(uint8_t(0)); // 2nd CRC byte
     spi.tx.clear();
-    decltype(rfm)::onInterruptHandler::invoke(&rfm);
+    invoke<MockIntPin::INT>(rfm);
 
     EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
 
@@ -210,7 +211,7 @@ TEST(RFM12Test, rfm12_sends_queued_ook_after_receiving_completes) {
     bool on = true;
 
     for (int pulse = 0; pulse < 141; pulse++) {
-        decltype(rfm)::onComparatorHandler::invoke(&rfm);
+        invoke<MockComparator::INT>(rfm);
         EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
         on = !on;
         if (on) {
@@ -221,7 +222,7 @@ TEST(RFM12Test, rfm12_sends_queued_ook_after_receiving_completes) {
     }
 
     spi.tx.clear();
-    decltype(rfm)::onComparatorHandler::invoke(&rfm);
+    invoke<MockComparator::INT>(rfm);
     EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
     EXPECT_TRUE(spi.tx.read(FB(184,0,130,13,130,221))); // Empty TX reg, Idle, Turn on RX
 }
@@ -244,24 +245,24 @@ TEST(RFM12Test, can_send_multiple_queued_ook_packets) {
     EXPECT_TRUE(spi.tx.read(FB(130,13,130,13,130,61)));
 
     for (int pulse = 0; pulse < 141; pulse++) {
-        decltype(rfm)::onComparatorHandler::invoke(&rfm);
+        invoke<MockComparator::INT>(rfm);
         EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
     }
 
     spi.tx.clear();
-    decltype(rfm)::onComparatorHandler::invoke(&rfm);
+    invoke<MockComparator::INT>(rfm);
     EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
     EXPECT_TRUE(comp.interruptFlag);
     // RF_TXREG_WRITE, idle, idle, turn on TX
     EXPECT_TRUE(spi.tx.read(FB(184,0,130,13,130,13,130,61)));
 
     for (int pulse = 0; pulse < 141; pulse++) {
-        decltype(rfm)::onComparatorHandler::invoke(&rfm);
+        invoke<MockComparator::INT>(rfm);
         EXPECT_EQ(RFM12Mode::SENDING_OOK, rfm.getMode());
     }
 
     spi.tx.clear();
-    decltype(rfm)::onComparatorHandler::invoke(&rfm);
+    invoke<MockComparator::INT>(rfm);
     EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
     EXPECT_FALSE(comp.interruptFlag);
     EXPECT_TRUE(spi.tx.read(FB(184,0,130,13,130,221))); // Empty TX reg, Idle, Turn on RX

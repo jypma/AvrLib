@@ -4,13 +4,14 @@
 #include <gtest/gtest.h>
 #include <chrono>
 #include <thread>
+#include "invoke.hpp"
 
 namespace RealTimerTest {
 
 using namespace Time;
 
 struct MockTimer {
-    typedef HAL::Atmel::InterruptVectors::VectorTIMER0_OVF_ INT;
+    typedef HAL::Atmel::Int_TIMER0_OVF_ INT;
 
     typedef uint8_t value_t;
     typedef uint8_t prescaler_t;
@@ -43,7 +44,7 @@ TEST(RealTimerTest, timer_callback_increments_time) {
     EXPECT_EQ(0_us, rt.micros());
     EXPECT_EQ(rt.micros(), 0_us);
 
-    decltype(rt)::onTimerOverflowHandler::invoke(&rt);
+    invoke<MockTimer::INT>(rt);
 
     EXPECT_EQ(Counts<>(256), rt.counts());
     EXPECT_EQ(4_ms, rt.millis());
@@ -60,7 +61,7 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called) {
 
     std::thread background([&rt]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        decltype(rt)::onTimerOverflowHandler::invoke(&rt);
+        invoke<MockTimer::INT>(rt);
     });
 
     waited2 = false;
@@ -80,7 +81,7 @@ TEST(RealTimerTest, delayTicks_returns_when_interrupt_is_called_during_wraparoun
 
     std::thread background([&rt]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        decltype(rt)::onTimerOverflowHandler::invoke(&rt);
+        invoke<MockTimer::INT>(rt);
     });
 
     waited3 = false;

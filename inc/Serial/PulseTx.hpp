@@ -12,12 +12,13 @@
 #include <stdint.h>
 #include "Fifo.hpp"
 #include "Serial/Pulse.hpp"
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 
 namespace Serial {
 
 using namespace Streams;
 using namespace HAL::Atmel;
+using namespace InterruptHandlers;
 
 template <typename target_t>
 class PulseTxCallbackTarget {
@@ -118,8 +119,9 @@ protected:
             target.onFinalTransition(src->isHighOnIdle());
         }
     }
-
 public:
+    typedef On<This, typename comparator_t::INT, &This::onComparator> Handlers;
+
     PulseTx(comparator_t &_comparator, target_wrapper_t _target, source_t &_source): comparator(&_comparator), target(_target), src(&_source) {}
 
     /** Checks the source for new pulses and starts sending them. */
@@ -147,8 +149,6 @@ public:
     inline bool isSending() {
         return pulse.isDefined();
     }
-
-    INTERRUPT_HANDLER1(typename comparator_t::INT, onComparator);
 };
 
 template <typename comparator_t, typename target_t, typename source_t>
@@ -190,6 +190,8 @@ protected:
     }
 
 public:
+    typedef On<This, typename pin_t::comparator_t::INT, &This::onComparator> Handlers;
+
     ComparatorPinPulseTx(pin_t &_pin, source_t &_source): pin(&_pin), src(&_source) {
         pin->configureAsOutput();
         pin->timerComparator().interruptOff();
@@ -233,8 +235,6 @@ public:
     inline bool isSending() {
         return pulse.isDefined();
     }
-
-    INTERRUPT_HANDLER1(typename pin_t::comparator_t::INT, onComparator);
 };
 
 template <typename pin_t, typename source_t>

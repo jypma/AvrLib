@@ -2,16 +2,16 @@
 #define HAL_ATMEL_DEVICES_ATMEGA328_HPP_
 
 #include "Time/Prescaled.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 #include "HAL/Atmel/Usart.hpp"
 #include "HAL/Atmel/Pin.hpp"
-#include "HAL/Atmel/InterruptVectors.hpp"
 
 namespace HAL {
 namespace Atmel {
 namespace Info {
 
 struct Int0Info {
-    typedef INTERRUPT_VECTOR(INT0) INT;
+    typedef Int_INT0_ INT;
     inline static void on(uint8_t mode) {
         EICRA = (EICRA & ~(_BV(ISC00) | _BV(ISC01))) | (mode << ISC00);
         EIMSK |= _BV(INT0);
@@ -22,7 +22,7 @@ struct Int0Info {
 };
 
 struct Int1Info {
-    typedef INTERRUPT_VECTOR(INT1) INT;
+    typedef Int_INT1_ INT;
     inline static void on(uint8_t mode) {
         EICRA = (EICRA & ~(_BV(ISC10) | _BV(ISC11))) | (mode << ISC10);
         EIMSK |= _BV(INT1);
@@ -33,21 +33,21 @@ struct Int1Info {
 };
 
 struct PCInt0Info {
-    typedef INTERRUPT_VECTOR(PCINT0) PCINT;
+    typedef Int_PCINT0_ PCINT;
     static constexpr uint8_t PCIE = PCIE0;
     static constexpr volatile uint8_t *pin = &PINB;
     static constexpr volatile uint8_t *pcmsk = &PCMSK0;
 };
 
 struct PCInt1Info {
-    typedef INTERRUPT_VECTOR(PCINT1) PCINT;
+    typedef Int_PCINT1_ PCINT;
     static constexpr uint8_t PCIE = PCIE1;
     static constexpr volatile uint8_t *pin = &PINC;
     static constexpr volatile uint8_t *pcmsk = &PCMSK1;
 };
 
 struct PCInt2Info {
-    typedef INTERRUPT_VECTOR(PCINT2) PCINT;
+    typedef Int_PCINT2_ PCINT;
     static constexpr uint8_t PCIE = PCIE2;
     static constexpr volatile uint8_t *pin = &PIND;
     static constexpr volatile uint8_t *pcmsk = &PCMSK2;
@@ -173,7 +173,7 @@ template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescale
 } namespace HAL { namespace Atmel { namespace Info {
 
 struct Timer0Info {
-    typedef INTERRUPT_VECTOR(TIMER0_OVF) INT;
+    typedef Int_TIMER0_OVF_ INT;
 
     static constexpr volatile uint8_t *tccra = &TCCR0A;
     static constexpr volatile uint8_t *tccrb = &TCCR0B;
@@ -212,7 +212,7 @@ struct Timer0Info {
     };
 
     struct ComparatorA: public Comparator {
-        typedef INTERRUPT_VECTOR(TIMER0_COMPA) INT;
+        typedef Int_TIMER0_COMPA_ INT;
         static constexpr volatile uint8_t *ocr = &OCR0A;
         static constexpr uint8_t timsk_bit = OCIE0A;
         static constexpr uint8_t tifr_bit = OCF0A;
@@ -221,7 +221,7 @@ struct Timer0Info {
         static constexpr uint8_t foc = FOC0A;
     };
     struct ComparatorB: public Comparator {
-        typedef INTERRUPT_VECTOR(TIMER0_COMPB) INT;
+        typedef Int_TIMER0_COMPB_ INT;
         static constexpr volatile uint8_t *ocr = &OCR0B;
         static constexpr uint8_t timsk_bit = OCIE0B;
         static constexpr uint8_t tifr_bit = OCF0B;
@@ -232,7 +232,7 @@ struct Timer0Info {
 };
 
 struct Timer1Info {
-    typedef INTERRUPT_VECTOR(TIMER1_OVF) INT;
+    typedef Int_TIMER1_OVF_ INT;
 
     static constexpr volatile uint8_t *tccra = &TCCR1A;
     static constexpr volatile uint8_t *tccrb = &TCCR1B;
@@ -272,7 +272,7 @@ struct Timer1Info {
     };
 
     struct ComparatorA: public Comparator {
-        typedef INTERRUPT_VECTOR(TIMER1_COMPA) INT;
+        typedef Int_TIMER1_COMPA_ INT;
         static constexpr volatile uint16_t *ocr = &OCR1A;
         static constexpr uint8_t timsk_bit = OCIE1A;
         static constexpr uint8_t tifr_bit = OCF1A;
@@ -281,7 +281,7 @@ struct Timer1Info {
         static constexpr uint8_t foc = FOC1A;
     };
     struct ComparatorB: public Comparator {
-        typedef INTERRUPT_VECTOR(TIMER1_COMPA) INT;
+        typedef Int_TIMER1_COMPB_ INT;
         static constexpr volatile uint16_t *ocr = &OCR1B;
         static constexpr uint8_t timsk_bit = OCIE1B;
         static constexpr uint8_t tifr_bit = OCF1B;
@@ -292,7 +292,7 @@ struct Timer1Info {
 };
 
 struct Timer2Info {
-    typedef INTERRUPT_VECTOR(TIMER2_OVF) INT;
+    typedef Int_TIMER2_OVF_ INT;
 
     static constexpr volatile uint8_t *tccra = &TCCR2A;
     static constexpr volatile uint8_t *tccrb = &TCCR2B;
@@ -331,7 +331,7 @@ struct Timer2Info {
     };
 
     struct ComparatorA: public Comparator {
-        typedef INTERRUPT_VECTOR(TIMER2_COMPA) INT;
+        typedef Int_TIMER2_COMPA_ INT;
         static constexpr volatile uint8_t *ocr = &OCR2A;
         static constexpr uint8_t timsk_bit = OCIE2A;
         static constexpr uint8_t tifr_bit = OCF2A;
@@ -340,7 +340,7 @@ struct Timer2Info {
         static constexpr uint8_t foc = FOC2A;
     };
     struct ComparatorB: public Comparator {
-        typedef INTERRUPT_VECTOR(TIMER2_COMPA) INT;
+        typedef Int_TIMER2_COMPB_ INT;
         static constexpr volatile uint8_t *ocr = &OCR2B;
         static constexpr uint8_t timsk_bit = OCIE2B;
         static constexpr uint8_t tifr_bit = OCF2B;
@@ -744,8 +744,8 @@ struct TWIInfo {
 /**
  * Defines all ISRS that exist on THIS chip.
  */
-#define __mk_ALL_ISRS \
-    FOR_EACH(__mkISR, \
+#define mkISRS \
+    FOR_EACH(mkISR, \
         WDT_, \
         ADC_, \
         TWI_, \

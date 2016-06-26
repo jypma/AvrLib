@@ -15,11 +15,6 @@ BUGS
      
  - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at
    runtime. That'll create much faster software serial, and removes the need to juggle pointers in the fifo.
- - investigate replacing INTERRUPT_HANDLER1, 2, etc. macros with a macro-block
-     INTERRUPT_HANDLERS {   // starts a nested type with a single, known name
-       INTERRUPT_HANDLER(vect, method);  // declares a single method with a known name, vect is template param for the method.. but what about multi?
-     };
- - use the above for an easy interrupt forwarding macro
   
  - maintain "last sent" pin value in pulse counter, comparing with pin->isHigh() after each change, inserting dummies on mismatch
    . That way we don't need the double memory anymore after all.

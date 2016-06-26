@@ -1,13 +1,15 @@
-#include <gtest/gtest.h>
 #include "avr/common.h"
-
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
+#include "HAL/Atmel/Device.hpp"
+#include <gtest/gtest.h>
 
 #define __mk_ALL_ISRS \
     FOR_EACH(__mkISR, USART_RX_, USART_UDRE_, INT0_)
 
-
 namespace InterruptVectorTest {
+
+using namespace HAL::Atmel;
+using namespace InterruptHandlers;
 
 struct TypeWithHandler {
     typedef TypeWithHandler This;
@@ -17,7 +19,7 @@ struct TypeWithHandler {
         invoked = true;
     }
 
-    INTERRUPT_HANDLER1(INTERRUPT_VECTOR(USART_RX), onUSART_RX);
+    typedef On<This, Int_USART_RX_, &This::onUSART_RX> Handlers;
 };
 
 struct TypeWithTwoHandlers {
@@ -32,12 +34,12 @@ struct TypeWithTwoHandlers {
         invokedUDRE = true;
     }
 
-    INTERRUPT_HANDLER1(INTERRUPT_VECTOR(USART_RX), onUSART_RX);
-    INTERRUPT_HANDLER2(INTERRUPT_VECTOR(USART_UDRE), onUSART_UDRE);
+    typedef On<This, Int_USART_RX_, &This::onUSART_RX,
+            On<This, Int_USART_UDRE_, &This::onUSART_UDRE>> Handlers;
 };
 
 struct WrappingVector {
-    typedef INTERRUPT_VECTOR(INT0) VECT;
+    typedef Int_INT0_ INT;
     static bool invoked;
 
     template <typename body_t>
@@ -57,43 +59,52 @@ struct TypeWithWrappedVector {
         invoked = true;
     }
 
-    INTERRUPT_HANDLER1(WrappingVector, onINT0);
+    typedef On<This, WrappingVector, &This::onINT0> Handlers;
 };
 
-TypeWithHandler testPin1;
-TypeWithHandler testPin2;
-TypeWithTwoHandlers testPin3;
-TypeWithWrappedVector testWrapped;
+struct TheApp {
+    TypeWithHandler testPin1;
+    TypeWithHandler testPin2;
+    TypeWithTwoHandlers testPin3;
+    TypeWithWrappedVector testWrapped;
 
-mkISRS(testPin1, testPin2, testPin3, testWrapped);
+    typedef TheApp This;
+    typedef Delegate<This,TypeWithHandler,&This::testPin1,
+            Delegate<This,TypeWithHandler,&This::testPin2,
+            Delegate<This,TypeWithTwoHandlers,&This::testPin3,
+            Delegate<This,TypeWithWrappedVector,&This::testWrapped>>>> Handlers;
+};
+
+TheApp app;
+mkISRS
 
 TEST(InterruptVectorTest, invoking_interrupt_handler_should_forward_to_method_and_can_chain) {
-    testPin1.invoked = false;
-    testPin2.invoked = false;
+    app.testPin1.invoked = false;
+    app.testPin2.invoked = false;
     USART_RX_vect();
-    EXPECT_TRUE(testPin1.invoked);
-    EXPECT_TRUE(testPin2.invoked);
+    EXPECT_TRUE(app.testPin1.invoked);
+    EXPECT_TRUE(app.testPin2.invoked);
 }
 
 TEST(InterruptVectorTest, two_different_interrupt_handlers_can_be_registered_and_invoked) {
-    testPin3.invokedRX = false;
-    testPin3.invokedUDRE = false;
+    app.testPin3.invokedRX = false;
+    app.testPin3.invokedUDRE = false;
     USART_RX_vect();
-    EXPECT_TRUE(testPin3.invokedRX);
-    EXPECT_FALSE(testPin3.invokedUDRE);
+    EXPECT_TRUE(app.testPin3.invokedRX);
+    EXPECT_FALSE(app.testPin3.invokedUDRE);
 
-    testPin3.invokedRX = false;
+    app.testPin3.invokedRX = false;
     USART_UDRE_vect();
-    EXPECT_FALSE(testPin3.invokedRX);
-    EXPECT_TRUE(testPin3.invokedUDRE);
+    EXPECT_FALSE(app.testPin3.invokedRX);
+    EXPECT_TRUE(app.testPin3.invokedUDRE);
 }
 
 TEST(InterruptVectorTest, wrapping_vector_is_recognized_and_applied) {
     WrappingVector::invoked = false;
-    testWrapped.invoked = false;
+    app.testWrapped.invoked = false;
     INT0_vect();
     EXPECT_TRUE(WrappingVector::invoked);
-    EXPECT_TRUE(testWrapped.invoked);
+    EXPECT_TRUE(app.testWrapped.invoked);
 }
 
 }

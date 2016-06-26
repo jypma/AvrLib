@@ -1,7 +1,7 @@
 #ifndef PASSIVE_LOGRESISTOR_HPP_
 #define PASSIVE_LOGRESISTOR_HPP_
 
-#include <HAL/Atmel/InterruptVectors.hpp>
+#include <HAL/Atmel/InterruptHandlers.hpp>
 #include <Time/RealTimer.hpp>
 #include <Time/Units.hpp>
 
@@ -10,6 +10,7 @@ namespace Passive {
 namespace Impl {
 
 using namespace Time;
+using namespace HAL::Atmel::InterruptHandlers;
 
 /**
  * Measures a variable resistor (e.g. an LDR) onto a logarithmic scale, by making it charge a capacitor
@@ -101,6 +102,8 @@ public:
         }
     }
 public:
+    typedef On<This, typename pin_in_t::INT, &This::onPinChange> Handlers;
+
     LogResistor(rt_t &_rt, pin_out_t &_pin_out, pin_in_t &_pin_in): rt(&_rt), pin_out(&_pin_out), pin_in(&_pin_in) {
         pin_out->configureAsOutputLow();
         pin_in->configureAsInputWithoutPullup();
@@ -144,8 +147,6 @@ public:
         checkTimeout();
         return time;
     }
-
-    INTERRUPT_HANDLER1(typename pin_in_t::INT, onPinChange);
 };
 
 }

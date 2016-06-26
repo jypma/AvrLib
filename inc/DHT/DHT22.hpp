@@ -30,13 +30,6 @@ template <typename datapin_t, typename powerpin_t, typename comparator_t, typena
 class DHT22: public DHT<datapin_t, powerpin_t, comparator_t, rt_t> {
     typedef DHT22<datapin_t, powerpin_t, comparator_t, rt_t> This;
     typedef DHT<datapin_t, powerpin_t, comparator_t, rt_t> Super;
-protected:
-    void onComparator() {
-        Super::onComparator();
-    }
-    void onPin() {
-        Super::onPin();
-    }
 public:
     using DHT<datapin_t, powerpin_t, comparator_t, rt_t>::DHT;
 
@@ -57,9 +50,6 @@ public:
     uint16_t getHumidity() const {
         return (Super::getData(0) << 8) | Super::getData(1);
     }
-
-    INTERRUPT_HANDLER1(typename datapin_t::INT, onPin);
-    INTERRUPT_HANDLER2(typename comparator_t::INT, onComparator);
 };
 
 }

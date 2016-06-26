@@ -3,7 +3,7 @@
 
 #include "AtomicScope.hpp"
 #include "Time/RealTimer.hpp"
-#include "HAL/Atmel/InterruptVectors.hpp"
+#include "HAL/Atmel/InterruptHandlers.hpp"
 
 namespace PIR {
 
@@ -12,6 +12,8 @@ using namespace Time;
 enum class HCSR501State { OFF, INITIALIZING, READY, SLEEPING };
 
 namespace Impl {
+
+using namespace HAL::Atmel::InterruptHandlers;
 
 /**
  * Provides a nice interface to the HC-SR501 Passive Infrared (PIR) sensor module,
@@ -82,6 +84,8 @@ class HCSR501 {
     }
 
 public:
+    typedef On<This, typename datapin_t::INT, &This::onPinRising> Handlers;
+
     HCSR501(datapin_t &_pin, powerpin_t &_power, rt_t &_rt):
         pin(&_pin),
         power(&_power),
@@ -118,8 +122,6 @@ public:
         motion = false;
         return result;
     }
-
-    INTERRUPT_HANDLER1(typename datapin_t::INT, onPinRising);
 };
 
 } // namespace Impl

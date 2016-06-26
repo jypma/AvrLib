@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "invoke.hpp"
 #include "Mechanic/Button.hpp"
 
 using namespace Mechanic;
@@ -20,7 +21,7 @@ struct MockRealTimer {
 };
 
 struct MockPin {
-    typedef HAL::Atmel::InterruptVectors::VectorINT0_ INT;
+    typedef HAL::Atmel::Int_INT0_ INT;
 
     bool high = true;
     bool intOn = false;
@@ -76,7 +77,7 @@ TEST(ButtonTest, button_should_pick_up_button_press_in_interrupt_only) {
 
     pin.high = false;
     rt.count++;
-    decltype(button)::onInterruptHandler::invoke(&button);
+    invoke<MockPin::INT>(button);
     EXPECT_FALSE(pin.intOn);
     pin.high = true; // simulate release before invoking nextEvent()
 
@@ -92,7 +93,7 @@ TEST(ButtonTest, button_should_pick_up_interrupt_driven_change) {
 
     pin.high = false;
     rt.count++;
-    decltype(button)::onInterruptHandler::invoke(&button);
+    invoke<MockPin::INT>(button);
     EXPECT_EQ(ButtonEvent::PRESSED, button.nextEvent());
     EXPECT_FALSE(pin.intOn);
 
