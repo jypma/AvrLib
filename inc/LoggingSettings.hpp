@@ -31,6 +31,7 @@ namespace Logging {
      */
 
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
+    template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};
     //template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};
     //template<> class Log<Loggers::Passive>: public MessagesEnabled<STR("Passive")> {};
     //template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
@@ -42,6 +43,7 @@ namespace Logging {
     //template<> class Log<Loggers::Streams>: public MessagesEnabled<STR("Streams")> {};
     //template<> class Log<Loggers::Scanner>: public MessagesEnabled<STR("Scanner")> {};
     //template<> class Log<Loggers::Serial>: public MessagesEnabled<STR("Serial")> {};
+    template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};
     template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     template<> class Log<Loggers::RFM12>: public MessagesEnabled<STR("RFM12")> {};
     template<> class Log<Loggers::ESP8266>: public MessagesEnabled<STR("ESP8266")> {};

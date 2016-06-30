@@ -168,16 +168,13 @@ template <typename info, typename info::prescaler_t _prescaler>
 struct TimerDeclaration {
     constexpr TimerDeclaration() {}
 
-    template <uint16_t prescaler>
-    constexpr TimerDeclaration<info, info::template prescalerFromInt<prescaler>()> withPrescaler() {
-        return TimerDeclaration<info, info::template prescalerFromInt<prescaler>()>();
-    }
+    template <uint16_t i> using withPrescaler = TimerDeclaration<info, info::template PrescalerFromInt<i>::value>;
 
-    inline NormalTimer<info, _prescaler> inNormalMode() const {
+    constexpr static NormalTimer<info, _prescaler> inNormalMode() {
         return NormalTimer<info, _prescaler>();
     }
 
-    inline FastPWMTimer<info, _prescaler> inFastPWMMode() const {
+    constexpr static FastPWMTimer<info, _prescaler> inFastPWMMode() {
         return FastPWMTimer<info, _prescaler>();
     }
 };

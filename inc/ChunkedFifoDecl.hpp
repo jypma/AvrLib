@@ -20,6 +20,10 @@ public:
 
     bool isFull() const;
 
+    inline bool hasSpace() const {
+        return !isFull();
+    }
+
     inline bool hasContent() const {
         return data->hasContent();
     }

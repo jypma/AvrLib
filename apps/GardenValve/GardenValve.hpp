@@ -7,10 +7,7 @@
 #include "HopeRF/RFM12.hpp"
 #include "Passive/SupplyVoltage.hpp"
 
-struct EEPROM {
-    uint16_t bandgapVoltage;
-};
-
+namespace GardenValve {
 
 using namespace HAL::Atmel;
 using namespace Time;
@@ -20,17 +17,16 @@ using namespace Passive;
 
 #define auto_field(name, expr) decltype(expr) name = expr
 
+template <uint16_t EEPROM::*bandgapVoltage>
 struct GardenValve {
     typedef GardenValve This;
+    typedef Logging::Log<Loggers::Main> log;
 
     Usart0 usart0 = { 57600 };
     auto_field(pinTX, PinPD1<128>(usart0));
-    //decltype(PinPD1<128>(usart0)) pinTX = PinPD1<128>(usart0);
-    //LOGGING_TO(pinTX)
-    typedef Logging::Log<Loggers::Main> log;
 
-    auto_field(timer0, Timer0().withPrescaler<1024>().inNormalMode());
-    auto_field(timer2, Timer2().withPrescaler<8>().inNormalMode());
+    auto_field(timer0, Timer0::withPrescaler<1024>::inNormalMode());
+    auto_field(timer2, Timer2::withPrescaler<8>::inNormalMode());
     auto_field(rt, realTimer(timer0));
     typedef decltype(rt) rt_t;
     auto_field(autoOff, deadline(rt, 10_min));  // Valve will stay open for []
@@ -47,9 +43,8 @@ struct GardenValve {
     auto_field(pinSupply, JeeNodePort1A());
 
     SPIMaster spi;
-    #define COMMA , //TODO make auto_field varargs and glue everything together
-    //decltype(SupplyVoltage<100, 10, &EEPROM::bandgapVoltage>(adc, pinSupply)) supply =
-    //         SupplyVoltage<100, 10, &EEPROM::bandgapVoltage>(adc, pinSupply);
+
+    auto_field(supply, (SupplyVoltage<100, 10, bandgapVoltage>(adc, pinSupply)));
     auto_field(power, Power(rt));
     auto_field(rfm, rfm12(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz));
 
@@ -63,11 +58,11 @@ struct GardenValve {
     uint8_t sendAttempts = 10;
 
     void measureSupply() {
-        //supply.get();
-        //supply.get();
-        //supply.get();
-        //supply.get();
-        currentSupply = 0;//supply.get();
+        supply.get();
+        supply.get();
+        supply.get();
+        supply.get();
+        currentSupply = supply.get();
     }
 
     void sendState() {
@@ -188,6 +183,6 @@ public:
     }
 };
 
-
+}
 
 #endif /* GARDENVALVE_GARDENVALVE_HPP_ */

@@ -118,7 +118,7 @@ mkINTS(
 
 #define mkISR(name) \
     ISR( name##vect ) { \
-        decltype(app)::Handlers::Handler < Int_##name >::invoke(app); \
+        decltype(app)::Handlers::Handler < ::HAL::Atmel::Int_##name >::invoke(app); \
     }
 
 /**

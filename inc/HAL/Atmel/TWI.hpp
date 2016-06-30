@@ -7,11 +7,14 @@
 #include "ChunkedFifo.hpp"
 #include "Logging.hpp"
 
+namespace HAL {
+namespace Atmel {
 namespace Impl {
 
 enum class TWIState { IDLE, WRITING, READING };
 
 using namespace HAL::Atmel::InterruptHandlers;
+using namespace Streams;
 
 /**
  * Hardware Atmel TWI support. Based off the arduino libraries.
@@ -70,9 +73,12 @@ class TWI {
     case TW_START:     // sent start condition
     case TW_REP_START: // sent repeated start condition
       // copy device address and r/w bit to output register and ack
+        log::debug(dec(txFifo.getSize()));
         txFifo.readStart();
+        log::debug(dec(txFifo.getReadAvailable()));
         uint8_t address_and_rw_bit;
         txFifo.read(&address_and_rw_bit);
+        log::debug(F("a:"),dec(address_and_rw_bit));
         TWDR = address_and_rw_bit; // twi_slarw;
         replyAck();
       break;
@@ -229,10 +235,10 @@ public:
         transceiving = false;
 
         // switch to input, without pull up for now
-        info_t::PinSDA::ddr &= ~info_t::PinSDA::bitmask;
-        info_t::PinSDA::port &= ~info_t::PinSDA::bitmask;
-        info_t::PinSCL::ddr &= ~info_t::PinSCL::bitmask;
-        info_t::PinSCL::port &= ~info_t::PinSCL::bitmask;
+        *info_t::PinSDA::ddr &= ~info_t::PinSDA::bitmask;
+        *info_t::PinSDA::port &= ~info_t::PinSDA::bitmask;
+        *info_t::PinSCL::ddr &= ~info_t::PinSCL::bitmask;
+        *info_t::PinSCL::port &= ~info_t::PinSCL::bitmask;
 
         // initialize twi prescaler and bit rate
         TWSR &= ~_BV(TWPS0);
@@ -258,7 +264,7 @@ public:
 
     template <typename... types>
     void writeOrBlock(uint8_t address, types... args) {
-        txFifo.template writeOrBlockWith<&This::startWriting>(TW_WRITE | (address << 1), args...);
+        txFifo.template writeOrBlockWith<&This::startWriting>(uint8_t(TW_WRITE | (address << 1)), args...);
 
         AtomicScope _;
         if (txFifo.hasContent()) {
@@ -268,7 +274,7 @@ public:
 
     template <typename... types>
     bool writeIfSpace(uint8_t address, types... args) {
-        bool result = txFifo.writeIfSpace(TW_WRITE | (address << 1), args...);
+        bool result = txFifo.writeIfSpace(uint8_t(TW_WRITE | (address << 1)), args...);
         AtomicScope _;
         if (txFifo.hasContent()) {
             startWriting();
@@ -291,6 +297,11 @@ public:
     }
 };
 
+template <typename info_t, uint8_t txFifoSize, uint8_t rxFifoSize, uint32_t twiFreq>
+volatile bool TWI<info_t,txFifoSize,rxFifoSize,twiFreq>::transceiving = false;
+
+}
+}
 }
 
 #endif /* TWI_HPP_ */

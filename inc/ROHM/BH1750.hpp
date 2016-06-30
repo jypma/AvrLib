@@ -2,7 +2,6 @@
 #define ROHM_BH1750_HPP_
 
 #include <stdint.h>
-#include "TWI.hpp"
 #include "Enum.hpp"
 
 namespace ROHM {

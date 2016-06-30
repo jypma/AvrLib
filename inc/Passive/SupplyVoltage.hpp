@@ -26,7 +26,7 @@ using namespace Streams;
  * It measures this against the internal bandgap voltage of about 1V. This means that the analog input
  * must not exceed 1V. Pick your R1 and R2 accordingly.
  */
-template <typename adc_t, typename pin_t, uint16_t R1, uint16_t R2, uint16_t EEPROM::*bandgapVoltage>
+template <uint16_t R1, uint16_t R2, uint16_t EEPROM::*bandgapVoltage, typename adc_t, typename pin_t>
 class SupplyVoltage {
     typedef Logging::Log<Loggers::Passive> log;
     adc_t *adc;
@@ -95,8 +95,8 @@ public:
 }
 
 template <uint16_t R1, uint16_t R2, uint16_t EEPROM::*bandgapVoltage, typename adc_t, typename pin_t>
-Impl::SupplyVoltage<adc_t, pin_t, R1, R2, bandgapVoltage> SupplyVoltage(adc_t &adc, pin_t pin) {
-    return Impl::SupplyVoltage<adc_t, pin_t, R1, R2, bandgapVoltage>(adc);
+Impl::SupplyVoltage<R1, R2, bandgapVoltage, adc_t, pin_t> SupplyVoltage(adc_t &adc, pin_t pin) {
+    return Impl::SupplyVoltage<R1, R2, bandgapVoltage, adc_t, pin_t>(adc);
 }
 
 }

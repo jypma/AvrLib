@@ -38,11 +38,15 @@ public:
     }
 
     static inline void start(fifo_t &fifo) {
-
+        fifo.writeStart();
     }
 
     static inline void end(fifo_t &fifo, bool valid) {
-
+        if (valid) {
+            fifo.writeEnd();
+        } else {
+            fifo.writeAbort();
+        }
     }
 };
 

@@ -5,6 +5,7 @@
 #include "HAL/Atmel/InterruptHandlers.hpp"
 #include "HAL/Atmel/Usart.hpp"
 #include "HAL/Atmel/Pin.hpp"
+#include "HAL/Atmel/TWI.hpp"
 
 namespace HAL {
 namespace Atmel {
@@ -71,21 +72,12 @@ enum class ExtPrescaler: uint8_t {
     _1024 = _BV(CS02) | _BV(CS00)
 };
 
-template <uint16_t i>
-constexpr static ExtPrescaler extPrescalerFromInt() {
-    static_assert(i == 1 || i == 8 || i == 64 || i == 256 || i == 1024, "prescaler must be 1, 8, 64, 256 or 1024.");
-    if (i == 1) {
-        return ExtPrescaler::_1;
-    } else if (i == 8) {
-        return ExtPrescaler::_8;
-    } else if (i == 64) {
-        return ExtPrescaler::_64;
-    } else if (i == 256) {
-        return ExtPrescaler::_256;
-    } else if (i == 1024) {
-        return ExtPrescaler::_1024;
-    }
-}
+template <uint16_t i> struct ExtPrescalerFromInt {};
+template<> struct ExtPrescalerFromInt<1> { static constexpr ExtPrescaler value = ExtPrescaler::_1; };
+template<> struct ExtPrescalerFromInt<8> { static constexpr ExtPrescaler value = ExtPrescaler::_8; };
+template<> struct ExtPrescalerFromInt<64> { static constexpr ExtPrescaler value = ExtPrescaler::_64; };
+template<> struct ExtPrescalerFromInt<256> { static constexpr ExtPrescaler value = ExtPrescaler::_256; };
+template<> struct ExtPrescalerFromInt<1024> { static constexpr ExtPrescaler value = ExtPrescaler::_1024; };
 
 enum class IntPrescaler: uint8_t {
     _1 = _BV(CS00),
@@ -97,25 +89,14 @@ enum class IntPrescaler: uint8_t {
     _1024 = _BV(CS02) | _BV(CS01) | _BV(CS00)
 };
 
-template <uint16_t i>
-constexpr static IntPrescaler intPrescalerFromInt() {
-    static_assert(i == 1 || i == 8 || i == 32 || i == 64 || i == 128 || i == 256 || i == 1024, "prescaler must be 1, 8, 32, 64, 128, 256 or 1024.");
-    if (i == 1) {
-        return IntPrescaler::_1;
-    } else if (i == 8) {
-        return IntPrescaler::_8;
-    } else if (i == 32) {
-        return IntPrescaler::_32;
-    } else if (i == 64) {
-        return IntPrescaler::_64;
-    } else if (i == 128) {
-        return IntPrescaler::_128;
-    } else if (i == 256) {
-        return IntPrescaler::_256;
-    } else if (i == 1024) {
-        return IntPrescaler::_1024;
-    }
-}
+template <uint16_t i> struct IntPrescalerFromInt {};
+template<> struct IntPrescalerFromInt<1> { static constexpr IntPrescaler value = IntPrescaler::_1; };
+template<> struct IntPrescalerFromInt<8> { static constexpr IntPrescaler value = IntPrescaler::_8; };
+template<> struct IntPrescalerFromInt<32> { static constexpr IntPrescaler value = IntPrescaler::_32; };
+template<> struct IntPrescalerFromInt<64> { static constexpr IntPrescaler value = IntPrescaler::_64; };
+template<> struct IntPrescalerFromInt<128> { static constexpr IntPrescaler value = IntPrescaler::_128; };
+template<> struct IntPrescalerFromInt<256> { static constexpr IntPrescaler value = IntPrescaler::_256; };
+template<> struct IntPrescalerFromInt<1024> { static constexpr IntPrescaler value = IntPrescaler::_1024; };
 
 } // namespace Atmel
 } // namespace HAL
@@ -183,7 +164,7 @@ struct Timer0Info {
 
     typedef uint8_t value_t;
     typedef ExtPrescaler prescaler_t;
-    template <uint16_t i> constexpr static ExtPrescaler prescalerFromInt() { return extPrescalerFromInt<i>(); }
+    template <uint16_t i> using PrescalerFromInt = ExtPrescalerFromInt<i>;
 
     inline static void configureNormal(prescaler_t p) {
         // Existing settings for COM0A1 etc. should be kept
@@ -242,7 +223,7 @@ struct Timer1Info {
 
     typedef uint16_t value_t;
     typedef ExtPrescaler prescaler_t;
-    template <uint16_t i> constexpr static ExtPrescaler prescalerFromInt() { return extPrescalerFromInt<i>(); }
+    template <uint16_t i> using PrescalerFromInt = ExtPrescalerFromInt<i>;
 
     inline static void configureNormal(prescaler_t p) {
         // Existing settings for COM0A1 etc. should be kept
@@ -302,7 +283,7 @@ struct Timer2Info {
 
     typedef uint8_t value_t;
     typedef IntPrescaler prescaler_t;
-    template <uint16_t i> constexpr static IntPrescaler prescalerFromInt() { return intPrescalerFromInt<i>(); }
+    template <uint16_t i> using PrescalerFromInt = IntPrescalerFromInt<i>;
 
     inline static void configureNormal(prescaler_t p) {
         // Existing settings for COM0A1 etc. should be kept
@@ -734,9 +715,13 @@ typedef ADCOnlyPin<Info::PinA6Info> PinADC6;
 typedef ADCOnlyPin<Info::PinA7Info> PinADC7;
 
 struct TWIInfo {
-    typedef PinPC4 PinSDA;
-    typedef PinPC5 PinSCL;
+    typedef Info::PinPC4Info PinSDA;
+    typedef Info::PinPC5Info PinSCL;
 };
+
+template <uint8_t txFifoSize = 32, uint8_t rxFifoSize = 32, uint32_t twiFreq = 100000>
+using TWI = Impl::TWI<TWIInfo, txFifoSize, rxFifoSize, twiFreq>;
+
 
 } // namespace Atmel
 } // namespace HAL
