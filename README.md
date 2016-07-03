@@ -1,5 +1,7 @@
 BUGS
 ====
+ - Have ChunkedFifo maintain its own Fifo of fixed size internally, to workaround the -Os "bug"
+   (or maybe data is a temp that's copied and gone??)
  - log::debug should always invoke toString(T), which defaults to dec() for decimals,
    but also defines Microsecond<> as "...ms", etc.
  - Make RFM12 OOK support optional, so you can create the RFM12 driver without 

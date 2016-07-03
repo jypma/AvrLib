@@ -719,7 +719,7 @@ struct TWIInfo {
     typedef Info::PinPC5Info PinSCL;
 };
 
-template <uint8_t txFifoSize = 32, uint8_t rxFifoSize = 32, uint32_t twiFreq = 100000>
+template <uint8_t txFifoSize = 32, uint8_t rxFifoSize = 32, uint32_t twiFreq = 100000l>
 using TWI = Impl::TWI<TWIInfo, txFifoSize, rxFifoSize, twiFreq>;
 
 

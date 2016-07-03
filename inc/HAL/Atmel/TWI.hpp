@@ -18,6 +18,9 @@ using namespace Streams;
 
 /**
  * Hardware Atmel TWI support. Based off the arduino libraries.
+ *
+ * TODO experiment with what happens when the bus is pulled low/high, e.g. with a floating
+ * broken logic analyser. Interrupt won't occur in that case. Do we need a timeout?
  */
 template <typename info_t, uint8_t txFifoSize, uint8_t rxFifoSize, uint32_t twiFreq>
 class TWI {
@@ -25,13 +28,16 @@ class TWI {
     typedef Logging::Log<Loggers::TWI> log;
 
     Fifo<txFifoSize> txFifoData;
-    ChunkedFifo txFifo = { txFifoData };
+    ChunkedFifo txFifo;// = { txFifoData };
     Fifo<rxFifoSize> rxFifoData;
-    ChunkedFifo rxFifo = { rxFifoData };
-    uint8_t readExpected = 0;
+    ChunkedFifo rxFifo;// = { rxFifoData };
+    volatile uint8_t readExpected = 0;
+public:
+    volatile uint8_t ints = 0;
 
     static volatile bool transceiving;
     static void startWriting() {
+    	log::debug(F("go!"), '0' + transceiving, ' ', dec(TWCR));
         if (!transceiving) {
             transceiving = true;
             TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
@@ -51,12 +57,14 @@ class TWI {
 
         // wait for stop condition to be executed on bus
         // TWINT is not set after a stop condition!
-        while (TWCR & _BV(TWSTO)) ;
+        uint16_t maxWait = 65000;
+        while (maxWait > 0 && (TWCR & _BV(TWSTO)) != 0) maxWait--;
 
         txFifo.readEnd();
         rxFifo.writeEnd();
         readExpected = 0;
         transceiving = false;
+        log::debug(F("stop"));
     }
 
     void releaseBus() {
@@ -65,27 +73,44 @@ class TWI {
         rxFifo.writeEnd();
         readExpected = 0;
         transceiving = false;
+        log::debug(F("rel"));
     }
 
     void onTWI() {
+    	ints++;
+    	//log::debug('t',':',dec(TW_STATUS));
         switch(TW_STATUS) {
         // All Master
     case TW_START:     // sent start condition
     case TW_REP_START: // sent repeated start condition
       // copy device address and r/w bit to output register and ack
-        log::debug(dec(txFifo.getSize()));
+    	uint8_t c;
+    	c = txFifo.hasContent();
         txFifo.readStart();
-        log::debug(dec(txFifo.getReadAvailable()));
+    	uint8_t avail;
+    	avail = txFifo.getReadAvailable();
         uint8_t address_and_rw_bit;
         txFifo.read(&address_and_rw_bit);
-        log::debug(F("a:"),dec(address_and_rw_bit));
+        log::debug('>',dec(address_and_rw_bit),',',dec(avail),',','0'+c);
+        //log::debug(dec(uint16_t(&txFifo)));
         TWDR = address_and_rw_bit; // twi_slarw;
         replyAck();
       break;
 
     // Master Transmitter
     case TW_MT_SLA_ACK:  // slave receiver acked address
+        log::debug(F("TW_MT_SLA_ACK"));
+        if (txFifo.hasReadAvailable()) {
+            uint8_t b;
+            txFifo.read(&b);
+            TWDR = b;
+            replyAck();
+        } else {
+            stop();
+        }
+      break;
     case TW_MT_DATA_ACK: // slave receiver acked data
+        log::debug(F("TW_MT_DATA_ACK"));
         if (txFifo.hasReadAvailable()) {
             uint8_t b;
             txFifo.read(&b);
@@ -110,6 +135,7 @@ class TWI {
 
     // Master Receiver
     case TW_MR_DATA_ACK: // data received, ack sent
+        log::debug(F("TW_MR_DATA_ACK "), dec(TWDR), dec(readExpected));
       // put byte into buffer
         rxFifo.write(TWDR);
         if (readExpected > 1) {
@@ -121,6 +147,7 @@ class TWI {
         }
         break;
     case TW_MR_SLA_ACK:  // address sent, ack received
+        log::debug(F("TW_MR_SLA_ACK "), dec(readExpected));
       // ack if more bytes are expected, otherwise nack
         if (readExpected > 0) {
             replyAck();
@@ -129,11 +156,13 @@ class TWI {
         }
         break;
     case TW_MR_DATA_NACK: // data received, nack sent
+        log::debug(F("TW_MR_DATA_NACK "), dec(TWDR), dec(readExpected));
       // put final byte into buffer
         rxFifo.write(TWDR);
         stop();
         break;
     case TW_MR_SLA_NACK: // address sent, nack received
+        log::debug(F("TW_MR_SLA_NACK"));
         stop();
       break;
     // TW_MR_ARB_LOST handled by TW_MT_ARB_LOST case
@@ -231,7 +260,8 @@ class TWI {
 public:
     typedef On<This, HAL::Atmel::Int_TWI_, &This::onTWI> Handlers;
 
-    TWI() {
+    TWI(): txFifo(txFifoData), rxFifo(rxFifoData) {
+    	//log::debug('s', dec(txFifo.getSize()), 'p', dec(txFifo.getSpace()));
         transceiving = false;
 
         // switch to input, without pull up for now
@@ -255,13 +285,19 @@ public:
 
           // enable twi module, acks, and twi interrupt
         TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA);
+        //TWCR = 0;
+    }
+
+    bool isTransceiving() const {
+    	return transceiving;
     }
 
     template <typename... types>
     void write(uint8_t address, types... args) {
-        writeOrBlock (address, args...);
+        writeIfSpace(address, args...);
     }
 
+    /* TODO re-enable this by switching away from ChunkedFifo, and having some other means of telling whether done.
     template <typename... types>
     void writeOrBlock(uint8_t address, types... args) {
         txFifo.template writeOrBlockWith<&This::startWriting>(uint8_t(TW_WRITE | (address << 1)), args...);
@@ -271,10 +307,22 @@ public:
             startWriting();
         }
     }
+    */
 
     template <typename... types>
     bool writeIfSpace(uint8_t address, types... args) {
+    	log::debug('s', dec(txFifo.getSize()), 'p', dec(txFifo.getSpace()), 'c', dec(txFifo.getCapacity()));
         bool result = txFifo.writeIfSpace(uint8_t(TW_WRITE | (address << 1)), args...);
+        log::debug('w', dec(address), 'c', '0' + txFifo.hasContent(), 's', dec(txFifo.getSize()));
+        //log::debug(dec(uint16_t(&txFifo)));
+
+        txFifo.readStart();
+    	uint8_t avail;
+    	avail = txFifo.getReadAvailable();
+        txFifo.readAbort();
+
+        log::debug('a', dec(avail));
+
         AtomicScope _;
         if (txFifo.hasContent()) {
             startWriting();
@@ -284,15 +332,23 @@ public:
     }
 
     void flush() {
-        while (transceiving) ;
+    	if (SREG & _BV(SREG_I)) {
+    		while (transceiving) ;
+    	}
     }
 
     template <typename... types>
     void read(uint8_t address, types... args) {
-        readExpected = Streams::StreamedSize<types...>::fixedSizeReading;
-        rxFifo.writeStart();
-        txFifo.write(TW_READ | (address << 1));
         flush();
+        readExpected = Streams::StreamedSize<types...>::fixedSizeReading;
+        log::debug(F("read start: "), dec(readExpected));
+        rxFifo.clear();
+        rxFifo.writeStart();
+        if (txFifo.write(uint8_t(TW_READ | (address << 1)))) {
+        	startWriting();
+        }
+        flush();
+        log::debug(F("read: "), dec(rxFifo.getSize()));
         rxFifo.read(args...);
     }
 };

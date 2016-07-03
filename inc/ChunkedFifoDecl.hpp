@@ -5,7 +5,7 @@
 #include "Streams/StreamingDecl.hpp"
 
 class AbstractChunkedFifo: public Streams::Impl::Reading<AbstractChunkedFifo> {
-    AbstractFifo *data;
+    AbstractFifo * const data;
 
     volatile uint8_t *writeLengthPtr = nullptr;
     bool writeValid = false;
@@ -14,7 +14,9 @@ class AbstractChunkedFifo: public Streams::Impl::Reading<AbstractChunkedFifo> {
     bool readValid = false;
 
 public:
-    AbstractChunkedFifo(AbstractFifo &_data): data(&_data) {}
+    AbstractChunkedFifo(AbstractFifo &_data): data(&_data) {
+    	getSize(); // In some instances, gcc -Os will "forget" to initialize data above, otherwise...
+    }
 
     void clear();
 
@@ -26,6 +28,10 @@ public:
 
     inline bool hasContent() const {
         return data->hasContent();
+    }
+
+    inline uint8_t getCapacity() const {
+    	return data->getCapacity();
     }
 
     inline uint8_t getSpace() const {

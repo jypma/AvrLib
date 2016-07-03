@@ -11,6 +11,7 @@
 #ifndef AVR
 #include <stdarg.h>
 #include <stdio.h>
+#include <mutex>
 #endif
 
 constexpr uint8_t debugTimingCount = 32;
@@ -21,6 +22,12 @@ extern uint8_t debugTimingsCount;
 static uint16_t debugStartTime;
 
 namespace Logging {
+
+#ifndef AVR
+namespace Impl {
+extern std::mutex logging_mutex;
+}
+#endif
 
 struct TimingDisabled {
     inline static void timeStart() {}
@@ -52,7 +59,7 @@ struct MessagesDisabled {
 template <typename... types>
 extern void onMessage(types... args);
 
-#define LOGGING_TO(var) template <typename... types> void ::Logging::onMessage(types... args) { var.writeIfSpace(args...); }
+#define LOGGING_TO(var) template <typename... types> void ::Logging::onMessage(types... args) { AtomicScope _; var.writeIfSpace(args...); }
 
 template <typename loggerName = STR("")>
 struct MessagesEnabled {
@@ -60,6 +67,7 @@ struct MessagesEnabled {
 #ifndef AVR
     template <typename... types>
     inline static void debug(types... args) {
+    	std::lock_guard<std::mutex> lock(Impl::logging_mutex);
         printf("[%9s ] ", loggerName::data());
         Fifo<250> out;
         out.write(args...);
