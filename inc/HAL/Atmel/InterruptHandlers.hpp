@@ -131,54 +131,9 @@ mkINTS(
  */
 #define RUN_APP(type) \
     type app; \
+    int main() { app.main(); } \
     mkISRS \
-    int main() { app.main(); }
 
-namespace H {
-
-
-//struct Int_ADC: public RealInt<Int_ADC> {};
-//struct Int_WDT: public RealInt<Int_WDT> {};
-
-
-/*
-struct Int_CUST {
-    typedef Int_ADC INT;
-
-    template <typename body_t>
-    static inline void wrap(body_t body) {
-        body();
-    }
-};
-
-class MyModule1 {
-public:
-    void onWDT() { std::cout << "1:WDT" << std::endl; }
-    void onCUST() { std::cout << "1:CUST" << std::endl; }
-
-    struct Handlers: public On<Int_WDT, MyModule1, &MyModule1::onWDT,
-                            On<Int_CUST, MyModule1, &MyModule1::onCUST>> {};
-};
-
-class MyModule2 {
-public:
-    void onWDT() { std::cout << "2:WDT" << std::endl; }
-    void onADC() { std::cout << "2:ADC" << std::endl; }
-
-    struct Handlers: public On<Int_WDT, MyModule2, &MyModule2::onWDT,
-                            On<Int_ADC, MyModule2, &MyModule2::onADC>> {};
-};
-
-class App {
-    MyModule1 m1;
-    MyModule2 m2;
-public:
-    struct Handlers: public Delegate<App, MyModule1, &App::m1,
-                            Delegate<App, MyModule2, &App::m2>> {};
-};
-*/
-
-}
 }
 }
 

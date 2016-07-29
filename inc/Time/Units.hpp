@@ -267,10 +267,12 @@ public:
         return result;
     }
 
+    template <typename prescaled_t>
     static constexpr uint64_t toMillis() {
         return TimeUnit<cv...>::to_uint64 / 1000;
     }
 
+    template <typename prescaled_t>
     static constexpr uint64_t toMicros() {
         return TimeUnit<cv...>::to_uint64;
     }
@@ -348,10 +350,12 @@ public:
         return result;
     }
 
+    template <typename prescaled_t>
     static constexpr uint64_t toMillis() {
         return TimeUnit<cv...>::to_uint64;
     }
 
+    template <typename prescaled_t>
     static constexpr uint64_t toMicros() {
         return TimeUnit<cv...>::to_uint64 * 1000;
     }
@@ -565,7 +569,12 @@ constexpr ut64_t<duration_t::template toMillis<prescaled_t>()> toMillisOn() {
 }
 
 template <typename prescaled_t, typename time_t>
-Milliseconds<> toMillisOn(const time_t time) {
+constexpr Milliseconds<> toMillisOn(const time_t time) {
+    return time.template toMillisOn<prescaled_t>();
+}
+
+template <typename prescaled_t, typename time_t>
+constexpr Milliseconds<> toMillisOn(prescaled_t, const time_t time) {
     return time.template toMillisOn<prescaled_t>();
 }
 
@@ -575,7 +584,7 @@ constexpr ut64_t<duration_t::template toMicros<prescaled_t>()> toMicrosOn() {
 }
 
 template <typename prescaled_t, typename time_t>
-Milliseconds<> toMicrosOn(const time_t time) {
+constexpr Microseconds<> toMicrosOn(const time_t time) {
     return time.template toMicrosOn<prescaled_t>();
 }
 

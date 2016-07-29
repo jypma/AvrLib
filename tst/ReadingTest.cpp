@@ -270,6 +270,30 @@ TEST(ReadingTest, failure_inside_conditional_rolls_back_entire_read) {
     EXPECT_FALSE(fifo.isReading());
 }
 
+TEST(ReadingTest, ChunkedFifo_can_read_remaining_bytes_from_nested_read_argument) {
+    Fifo<16> src;
+    Fifo<8> dest;
+
+    auto f = Nested([&] (auto read) -> ReadResult {
+    	return dest.write(read) ? ReadResult::Valid : ReadResult::Invalid;
+    });
+
+    src.write(F("hello"));
+    EXPECT_EQ(ReadResult::Valid, src.read(f));
+    EXPECT_TRUE(dest.read(F("hello")));
+    EXPECT_TRUE(src.isEmpty());
+    EXPECT_FALSE(dest.isWriting());
+    EXPECT_FALSE(src.isReading());
+
+    // If dest doesn't have the space, the read should fail.
+    src.write(F("longstring"));
+    EXPECT_EQ(ReadResult::Invalid, src.read(f));
+    EXPECT_EQ(10, src.getSize());
+    EXPECT_TRUE(dest.isEmpty());
+    EXPECT_FALSE(dest.isWriting());
+    EXPECT_FALSE(src.isReading());
+}
+
 TEST(ReadingTest, can_read_decimal_length_and_bytes_into_chunked_fifo) {
     Fifo<16> src;
     Fifo<32> dest_storage;

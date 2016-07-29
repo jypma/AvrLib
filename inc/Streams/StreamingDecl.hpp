@@ -101,6 +101,7 @@ public:
     uint8_t getReadAvailable() const { return delegate->getReadAvailable(); }
     bool isReading() const { return delegate->isReading(); }
     bool hasContent() const { return delegate->hasContent(); }
+    uint8_t peek() const { return delegate->peek(); }
 };
 
 

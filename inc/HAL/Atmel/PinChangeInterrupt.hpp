@@ -85,7 +85,7 @@ template <typename pcintInfo> uint8_t PinChangeSupport<pcintInfo>::directional =
 
 template <typename pcintInfo, uint8_t bitmask>
 struct PinChangeVector {
-    typedef typename pcintInfo::PCINT VECT;
+    typedef typename pcintInfo::PCINT INT;
     typedef PinChangeSupport<pcintInfo> support;
 
     template <typename body_t>

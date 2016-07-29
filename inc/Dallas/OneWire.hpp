@@ -1,7 +1,6 @@
 #ifndef DALLAS_ONEWIRE_HPP_
 #define DALLAS_ONEWIRE_HPP_
 
-#include <HAL/Atmel/InterruptVectors.hpp>
 #include <Time/Units.hpp>
 #include "Logging.hpp"
 
@@ -56,7 +55,8 @@ public:
         }
         rt->delay(480_us);
         pin->configureAsInputWithPullup();
-        rt->delay(70_us);
+        delay(35_us);
+        delay(35_us);
         bool present = pin->isLow();
         rt->delay(410_us);
         log::debug(F("present: "), dec(uint8_t(present)));

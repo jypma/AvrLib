@@ -1,5 +1,7 @@
 BUGS
 ====
+ - make a timeout on the RFM12 failing to initialize (INT pin not going high)
+ - re-investigate if we can have write(myStruct) instead of write(&myStruct) when decltype(struct)::Protocol exists 
  - Have ChunkedFifo maintain its own Fifo of fixed size internally, to workaround the -Os "bug"
    (or maybe data is a temp that's copied and gone??)
  - log::debug should always invoke toString(T), which defaults to dec() for decimals,

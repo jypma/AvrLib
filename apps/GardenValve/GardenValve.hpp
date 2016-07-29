@@ -1,6 +1,7 @@
 #ifndef GARDENVALVE_GARDENVALVE_HPP_
 #define GARDENVALVE_GARDENVALVE_HPP_
 
+#include "auto_field.hpp"
 #include "HAL/Atmel/Device.hpp"
 #include "HAL/Atmel/Power.hpp"
 #include "Time/RealTimer.hpp"
@@ -15,7 +16,6 @@ using namespace Streams;
 using namespace HopeRF;
 using namespace Passive;
 
-#define auto_field(name, expr) decltype(expr) name = expr
 
 template <uint16_t EEPROM::*bandgapVoltage>
 struct GardenValve {
@@ -23,30 +23,29 @@ struct GardenValve {
     typedef Logging::Log<Loggers::Main> log;
 
     Usart0 usart0 = { 57600 };
-    auto_field(pinTX, PinPD1<128>(usart0));
+    let(pinTX, PinPD1<128>(usart0));
 
-    auto_field(timer0, Timer0::withPrescaler<1024>::inNormalMode());
-    auto_field(timer2, Timer2::withPrescaler<8>::inNormalMode());
-    auto_field(rt, realTimer(timer0));
-    typedef decltype(rt) rt_t;
-    auto_field(autoOff, deadline(rt, 10_min));  // Valve will stay open for []
-    auto_field(autoOn, deadline(rt, 30_s));    // Valve will stay closed for [] before opening again
-    auto_field(resendState, deadline(rt, 30_s));
-    auto_field(resendPing, deadline(rt, 1_s));
-    auto_field(deepsleep, deadline(rt, 120_min));
-    auto_field(adc, ADConverter());
+    let(timer0, Timer0::withPrescaler<1024>::inNormalMode());
+    let(timer2, Timer2::withPrescaler<8>::inNormalMode());
+    let(rt, realTimer(timer0));
+    let(autoOff, deadline(rt, 10_min));  // Valve will stay open for []
+    let(autoOn, deadline(rt, 30_s));    // Valve will stay closed for [] before opening again
+    let(resendState, deadline(rt, 30_s));
+    let(resendPing, deadline(rt, 1_s));
+    let(deepsleep, deadline(rt, 120_min));
+    let(adc, ADConverter());
     bool on1 = false;
 
-    auto_field(pinRFM12_INT, PinPD2());
-    auto_field(pinRFM12_SS, PinPB2());
-    auto_field(pinValve, JeeNodePort1D());
-    auto_field(pinSupply, JeeNodePort1A());
+    let(pinRFM12_INT, PinPD2());
+    let(pinRFM12_SS, PinPB2());
+    let(pinValve, JeeNodePort1D());
+    let(pinSupply, JeeNodePort1A());
 
     SPIMaster spi;
 
-    auto_field(supply, (SupplyVoltage<100, 10, bandgapVoltage>(adc, pinSupply)));
-    auto_field(power, Power(rt));
-    auto_field(rfm, rfm12(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz));
+    let(supply, (SupplyVoltage<100, 10, bandgapVoltage>(adc, pinSupply)));
+    let(power, Power(rt));
+    let(rfm, rfm12(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz));
 
     typedef Delegate<This, decltype(pinTX), &This::pinTX,
             Delegate<This, decltype(rt), &This::rt,

@@ -16,6 +16,12 @@ public:
     }
 };
 
+template <typename fifo_t>
+struct doread;
+
+template <typename sem, typename fifo_t>
+struct dowrite;
+
 }
 
 /**

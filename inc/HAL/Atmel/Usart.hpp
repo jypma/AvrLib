@@ -72,18 +72,20 @@ public:
     }
 
     template <typename... types>
-    void write(types... args) {
-        writeOrBlock (args...);
+    bool write(types... args) {
+        return writeOrBlock (args...);
     }
 
     template <typename... types>
-    void writeOrBlock(types... args) {
+    bool writeOrBlock(types... args) {
         writeFifo.template writeOrBlockWith<&This::startWriting>(args...);
 
         AtomicScope _;
         if (writeFifo.hasContent()) {
             startWriting();
         }
+
+        return true;
     }
 
     template <typename... types>
