@@ -134,6 +134,19 @@ TEST(RealTimerTest, periodic_returns_time_left) {
     EXPECT_EQ(Counts<>(200), p.timeLeft());
 }
 
+TEST(RealTimerTest, periodic_copes_with_timer_wraparound_after_deadline) {
+    auto rt = MockRealTimer();
+
+    rt.count = 0xFFFFFF00;
+    auto p = periodic(rt, 200_counts);
+    EXPECT_FALSE(p.isNow());
+    EXPECT_EQ(200, p.timeLeft());
+    rt.count = 0;
+    EXPECT_EQ(0, p.timeLeft());
+    EXPECT_TRUE(p.isNow());
+    EXPECT_EQ(200, p.timeLeft());
+}
+
 TEST(RealTimerTest, unelapsed_periodic_deadline_has_no_time_left) {
     auto rt = MockRealTimer();
     auto p = deadline(rt, 200_counts);
@@ -256,6 +269,19 @@ TEST(RealTimerTest, deadline_copes_with_timer_wraparound_during_deadline) {
     EXPECT_FALSE(d.isNow());
     EXPECT_EQ(400, d.timeLeft());
     rt.count = 400;
+    EXPECT_EQ(0, d.timeLeft());
+    EXPECT_TRUE(d.isNow());
+    EXPECT_EQ(0xFFFFFFFF, d.timeLeft());
+}
+
+TEST(RealTimerTest, deadline_copes_with_timer_wraparound_after_deadline) {
+    auto rt = MockRealTimer();
+
+    rt.count = 0xFFFFFF00;
+    auto d = deadline(rt, 200_counts);
+    EXPECT_FALSE(d.isNow());
+    EXPECT_EQ(200, d.timeLeft());
+    rt.count = 0;
     EXPECT_EQ(0, d.timeLeft());
     EXPECT_TRUE(d.isNow());
     EXPECT_EQ(0xFFFFFFFF, d.timeLeft());

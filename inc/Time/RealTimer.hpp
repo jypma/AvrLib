@@ -161,6 +161,7 @@ protected:
     uint32_t getNext() const { return next; }
     void calculateNextCounts(uint32_t startTime, uint32_t delay);
     bool isNow(uint32_t currentTime, uint32_t delay);
+    uint32_t getTimeLeft(uint32_t currentTime) const;
 };
 
 template <typename rt_t, typename value, typename check = void>
@@ -179,7 +180,7 @@ public:
     }
 
     Counts<> timeLeft() const {
-        return Counts<>(getNext() - rt->counts());
+        return Counts<>(getTimeLeft(rt->counts()));
     }
 };
 
@@ -199,7 +200,7 @@ public:
     }
 
     Ticks<> timeLeft() const {
-        return Ticks<>(getNext() - rt->ticks());
+        return Ticks<>(getTimeLeft(rt->ticks()));
     }
 };
 
