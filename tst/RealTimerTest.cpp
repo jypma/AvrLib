@@ -248,14 +248,17 @@ TEST(RealTimerTest, deadline_picks_ticks_instead_of_counts_when_interval_doesnt_
     EXPECT_FALSE(d.isNow());
 }
 
-TEST(RealTimerTest, deadline_copes_with_timer_wraparound) {
+TEST(RealTimerTest, deadline_copes_with_timer_wraparound_during_deadline) {
     auto rt = MockRealTimer();
 
     rt.count = 0xFFFFFF00;
     auto d = deadline(rt, 400_counts);
     EXPECT_FALSE(d.isNow());
+    EXPECT_EQ(400, d.timeLeft());
     rt.count = 400;
+    EXPECT_EQ(0, d.timeLeft());
     EXPECT_TRUE(d.isNow());
+    EXPECT_EQ(0xFFFFFFFF, d.timeLeft());
 }
 
 TEST(RealTimerTest, variable_deadline_can_be_set_to_varying_timeouts) {

@@ -52,7 +52,12 @@ uint32_t AbstractDeadline::getTimeLeft(uint32_t currentTime) const {
 
     if (!elapsed) {
         if (waitForOverflow) {
-            return next - currentTime;
+        	if (currentTime < 0xFFFFFFF) {
+        		// has overflowed, but isNow hasn't been called yet
+        		return currentTime >= next ? 0 : next - currentTime;
+        	} else {
+        		return next - currentTime;
+        	}
         }
         if (currentTime >= next) {
             // has elapsed, but isNow hasn't been called yet.
