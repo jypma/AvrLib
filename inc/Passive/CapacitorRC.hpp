@@ -137,6 +137,18 @@ public:
         return !isMeasuring();
     }
 
+    CapacitorRCState getState() const {
+    	return state;
+    }
+
+    const decltype(chargeDone) getChargeDone() const {
+    	return chargeDone;
+    }
+
+    const decltype(timeout) getTimeout() const {
+    	return timeout;
+    }
+
     void measure() {
         AtomicScope _;
         if (isIdle()) {
