@@ -14,6 +14,133 @@
 //     problem is realtimer with prescaler 1?  -> use rt with timer2 instead.
 // stuck with battery drop: 07-25 6:30:40 till 7:43:00 (1hr 12min 20sec) ... not the same.
 
+// big rain 07-29 14:23
+
+// stuck with 2x rt:
+// .*Main: s=1 d=779541238 t=4294967295
+// .*Main: s=1 d=779430897 t=4294967295
+
+// stuck: with 1x rt:
+// *Main: s=3 d=2745380360 t=4294967295
+// *Main: s=3 d=2745268155 t=4294967295
+
+
+/*
+Tue 23 Aug 2016 07:08:36 CEST:  Main: Reading Supply 2
+Tue 23 Aug 2016 07:08:36 CEST:  Main: Reading Soil
+Tue 23 Aug 2016 07:08:36 CEST:  Main: Time : 3581
+Tue 23 Aug 2016 07:08:36 CEST:  Main: Suppl: 5112
+Tue 23 Aug 2016 07:08:36 CEST:  Main: Temp : 245
+Tue 23 Aug 2016 07:08:36 CEST:  *Main: s=0 d=4294967295 t=4294967295
+Tue 23 Aug 2016 07:08:36 CEST:  *Main: s=0 d=4294967295 t=4294967295
+Tue 23 Aug 2016 07:08:36 CEST:  *Main: s=0 d=4294967295 t=4294967295
+Tue 23 Aug 2016 07:08:36 CEST:  *Main: s=0 d=4294967295 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  s*Main: s=0 d=4294967295 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  s*Main: Measuring DS
+Tue 23 Aug 2016 07:09:06 CEST:  Main: Measuring soil
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996653
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4319 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996653
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4322 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996745
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4335 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996732
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4311 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996985
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4313 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996749
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4332 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996753
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4311 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996997
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4329 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996744
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4328 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996750
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4326 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996737
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4311 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996744
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4326 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996997
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4326 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996759
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4329 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996735
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4311 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996738
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4317 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996735
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4308 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996997
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4308 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996744
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4320 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996729
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4317 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996738
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4308 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996741
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4323 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996994
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=1 d=4323 t=4294967295
+Tue 23 Aug 2016 07:09:06 CEST:  *Main: s=2 d=4294967295 t=15996741
+[...]
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4296 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996741
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4302 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996991
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4302 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996741
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4302 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996738
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4302 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996723
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4305 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996726
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4317 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996744
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4299 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996644
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4305 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996738
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4311 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996757
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4339 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996748
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4336 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996748
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4336 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996760
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4339 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996769
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4357 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996748
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4336 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996775
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4342 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996760
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4342 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996754
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=1 d=4336 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=2 d=4294967295 t=15996769
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294869620 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294757945 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294646356 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294534755 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294423131 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294311510 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294199892 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4294088291 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4293976684 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4293865051 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4293753433 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4293641803 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4293530199 t=4294967295
+Tue 23 Aug 2016 07:09:07 CEST:  *Main: s=3 d=4293418835 t=4294967295
+T
+ */
+
 #define let(name, expr) decltype(expr) name = expr
 
 namespace GardenSensor {
@@ -38,8 +165,8 @@ struct GardenSensor {
 
     let(timer0, Timer0::withPrescaler<1>::inNormalMode());
     let(timer2, Timer2::withPrescaler<1024>::inNormalMode());
-    let(rt_hires, realTimer(timer0));
-    let(rt, realTimer(timer2));
+    //let(rt_hires, realTimer(timer0));
+    let(rt, realTimer(timer0));
     let(nextMeasurement, deadline(rt, 30_s));
 
     let(pinRFM12_INT, PinPD2());
@@ -51,7 +178,7 @@ struct GardenSensor {
 
     let(wire, OneWireParasitePower(pinOneWire, rt));
     let(ds, SingleDS18x20(wire));
-    let(soil, (CapacitorRC<4700000>(rt_hires, pinCap)));
+    let(soil, (CapacitorRC<4700000>(rt, pinCap)));
     let(rfm, (rfm12<4,128>(spi, pinRFM12_SS, pinRFM12_INT, timer2.comparatorA(), RFM12Band::_868Mhz)));
     let(supplyVoltage, (SupplyVoltage<4700, 1000, bandgapVoltage>(adc, pinSupply)));
     let(power, Power(rt));
@@ -62,10 +189,10 @@ struct GardenSensor {
 
     typedef Delegate<This, decltype(pinTX), &This::pinTX,
             Delegate<This, decltype(rt), &This::rt,
-            Delegate<This, decltype(rt_hires), &This::rt_hires,
+            //Delegate<This, decltype(rt_hires), &This::rt_hires,
 			Delegate<This, decltype(soil), &This::soil,
             Delegate<This, decltype(rfm), &This::rfm,
-            Delegate<This, decltype(power), &This::power>>>>>> Handlers;
+            Delegate<This, decltype(power), &This::power>>>>> Handlers;
 
     bool measuring = false;
 
@@ -127,7 +254,11 @@ struct GardenSensor {
                 if (mode == SleepMode::IDLE && min > 8000_ms) {
                     min = 8000_ms;
                 }
-                log::debug(F("s="), dec(uint8_t(soil.state)), F(" d="), dec(soil.chargeDone.timeLeft().getValue()), F(" t="), dec(soil.timeout.timeLeft().getValue()));
+                log::debug(F("s="), dec(uint8_t(soil.getState())), F(" d="), dec(soil.getChargeDone().timeLeft().getValue()),
+                		F(" t="), dec(soil.getTimeout().timeLeft().getValue()),
+						F(" C="), dec(rt.counts().getValue()),
+						F(" T="), dec(rt.ticks().getValue())
+						);
                 pinTX.flush();
                 bool i = power.sleepFor(min, mode);
                 if (mode == SleepMode::IDLE) {
