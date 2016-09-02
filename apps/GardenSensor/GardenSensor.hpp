@@ -163,10 +163,9 @@ struct GardenSensor {
     SPIMaster spi;
     ADConverter adc;
 
-    let(timer0, Timer0::withPrescaler<1>::inNormalMode());
+    let(timer1, Timer1::withPrescaler<1>::inNormalMode());
     let(timer2, Timer2::withPrescaler<1024>::inNormalMode());
-    //let(rt_hires, realTimer(timer0));
-    let(rt, realTimer(timer0));
+    let(rt, realTimer(timer1));
     let(nextMeasurement, deadline(rt, 30_s));
 
     let(pinRFM12_INT, PinPD2());
@@ -213,8 +212,8 @@ struct GardenSensor {
         measure();
         uint8_t seq = 0;
         while(true) {
-            pinTX.write('*');
-            pinTX.flush();
+            //pinTX.write('*');
+            //pinTX.flush();
             //supplyVoltage.stopOnLowBattery(3000);
 
             if (measuring && !soil.isMeasuring() && !ds.isMeasuring()) {
@@ -248,25 +247,28 @@ struct GardenSensor {
                 auto mode = (rfm.isIdle() && soil.isIdle() && ds.isIdle()) ? SleepMode::POWER_DOWN
                           : SleepMode::IDLE;                    // moisture sensor is running, needs timers
 
+
                 auto nLeft = toMillisOn(rt, nextMeasurement.timeLeft());
                 auto dLeft = toMillisOn(rt, ds.timeLeft());
                 auto min = (nLeft < dLeft) ? nLeft : dLeft;
                 if (mode == SleepMode::IDLE && min > 8000_ms) {
                     min = 8000_ms;
                 }
+                /*
                 log::debug(F("s="), dec(uint8_t(soil.getState())), F(" d="), dec(soil.getChargeDone().timeLeft().getValue()),
                 		F(" t="), dec(soil.getTimeout().timeLeft().getValue()),
 						F(" C="), dec(rt.counts().getValue()),
 						F(" T="), dec(rt.ticks().getValue())
 						);
+						*/
                 pinTX.flush();
                 bool i = power.sleepFor(min, mode);
                 if (mode == SleepMode::IDLE) {
-                    if (!i) pinTX.write('.');
+                //    if (!i) pinTX.write('.');
                 } else {
-                    pinTX.write(i ? 'S' : 's');
+                //    pinTX.write(i ? 'S' : 's');
                 }
-                pinTX.flush();
+                //pinTX.flush();
             }
         }
     }
