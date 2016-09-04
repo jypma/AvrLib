@@ -24,13 +24,13 @@ namespace std {
   template<>
   struct numeric_limits<uint16_t>
   {
-      static constexpr uint16_t max() { return 65535; }
+      static constexpr uint16_t max() { return 65535ll; }
   };
 
   template<>
   struct numeric_limits<uint32_t>
   {
-      static constexpr uint32_t max() { return 4294967295l; }
+      static constexpr uint32_t max() { return 4294967295ll; }
   };
 
   template<>

@@ -8,8 +8,6 @@
 #ifndef PGMSPACE_H_
 #define PGMSPACE_H_
 
-#include "avr/common.h"
-
 #define PROGMEM
 
 #define pgm_read_ptr(ptr) ((void *)ptr)

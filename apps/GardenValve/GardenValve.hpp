@@ -23,29 +23,29 @@ struct GardenValve {
     typedef Logging::Log<Loggers::Main> log;
 
     Usart0 usart0 = { 57600 };
-    let(pinTX, PinPD1<128>(usart0));
+    auto_var(pinTX, PinPD1<128>(usart0));
 
-    let(timer0, Timer0::withPrescaler<1024>::inNormalMode());
-    let(timer2, Timer2::withPrescaler<8>::inNormalMode());
-    let(rt, realTimer(timer0));
-    let(autoOff, deadline(rt, 10_min));  // Valve will stay open for []
-    let(autoOn, deadline(rt, 30_s));    // Valve will stay closed for [] before opening again
-    let(resendState, deadline(rt, 30_s));
-    let(resendPing, deadline(rt, 1_s));
-    let(deepsleep, deadline(rt, 120_min));
-    let(adc, ADConverter());
+    auto_var(timer0, Timer0::withPrescaler<1024>::inNormalMode());
+    auto_var(timer2, Timer2::withPrescaler<8>::inNormalMode());
+    auto_var(rt, realTimer(timer0));
+    auto_var(autoOff, deadline(rt, 10_min));  // Valve will stay open for []
+    auto_var(autoOn, deadline(rt, 30_s));    // Valve will stay closed for [] before opening again
+    auto_var(resendState, deadline(rt, 30_s));
+    auto_var(resendPing, deadline(rt, 1_s));
+    auto_var(deepsleep, deadline(rt, 120_min));
+    auto_var(adc, ADConverter());
     bool on1 = false;
 
-    let(pinRFM12_INT, PinPD2());
-    let(pinRFM12_SS, PinPB2());
-    let(pinValve, JeeNodePort1D());
-    let(pinSupply, JeeNodePort1A());
+    auto_var(pinRFM12_INT, PinPD2());
+    auto_var(pinRFM12_SS, PinPB2());
+    auto_var(pinValve, JeeNodePort1D());
+    auto_var(pinSupply, JeeNodePort1A());
 
     SPIMaster spi;
 
-    let(supply, (SupplyVoltage<100, 10, bandgapVoltage>(adc, pinSupply)));
-    let(power, Power(rt));
-    let(rfm, rfm12(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz));
+    auto_var(supply, (SupplyVoltage<100, 10, bandgapVoltage>(adc, pinSupply)));
+    auto_var(power, Power(rt));
+    auto_var(rfm, rfm12(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz));
 
     typedef Delegate<This, decltype(pinTX), &This::pinTX,
             Delegate<This, decltype(rt), &This::rt,

@@ -17,6 +17,7 @@
 #ifndef IRQUS_TYPESTRING_HH_
 #define IRQUS_TYPESTRING_HH_
 
+#include <stdint.h>
 #include <avr/pgmspace.h>
 
 template <uint8_t length>

@@ -2,7 +2,6 @@
 #define STREAMS_WRITING_HPP_
 
 #include <avr/common.h>
-#include "AtomicScope.hpp"
 #include "WritingN.hpp"
 
 namespace Streams {

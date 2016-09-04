@@ -7,6 +7,14 @@
 #include "HAL/Atmel/Pin.hpp"
 #include "HAL/Atmel/TWI.hpp"
 
+#ifdef AVR
+typedef volatile uint8_t sfr8_t;
+typedef volatile uint16_t sfr16_t;
+#else
+typedef SpecialFunctionRegister sfr8_t;
+typedef SpecialFunctionRegister16 sfr16_t;
+#endif
+
 namespace HAL {
 namespace Atmel {
 namespace Info {
@@ -36,30 +44,30 @@ struct Int1Info {
 struct PCInt0Info {
     typedef Int_PCINT0_ PCINT;
     static constexpr uint8_t PCIE = PCIE0;
-    static constexpr volatile uint8_t *pin = &PINB;
-    static constexpr volatile uint8_t *pcmsk = &PCMSK0;
+    static constexpr sfr8_t *pin = &PINB;
+    static constexpr sfr8_t *pcmsk = &PCMSK0;
 };
 
 struct PCInt1Info {
     typedef Int_PCINT1_ PCINT;
     static constexpr uint8_t PCIE = PCIE1;
-    static constexpr volatile uint8_t *pin = &PINC;
-    static constexpr volatile uint8_t *pcmsk = &PCMSK1;
+    static constexpr sfr8_t *pin = &PINC;
+    static constexpr sfr8_t *pcmsk = &PCMSK1;
 };
 
 struct PCInt2Info {
     typedef Int_PCINT2_ PCINT;
     static constexpr uint8_t PCIE = PCIE2;
-    static constexpr volatile uint8_t *pin = &PIND;
-    static constexpr volatile uint8_t *pcmsk = &PCMSK2;
+    static constexpr sfr8_t *pin = &PIND;
+    static constexpr sfr8_t *pcmsk = &PCMSK2;
 };
 
 struct Usart0Info {
-    static constexpr volatile uint8_t *ucsra = &UCSR0A;
-    static constexpr volatile uint8_t *ucsrb = &UCSR0B;
-    static constexpr volatile uint8_t *ucsrc = &UCSR0C;
-    static constexpr volatile uint16_t *ubrr = &UBRR0;
-    static constexpr volatile uint8_t *udr = &UDR0;
+    static constexpr sfr8_t *ucsra = &UCSR0A;
+    static constexpr sfr8_t *ucsrb = &UCSR0B;
+    static constexpr sfr8_t *ucsrc = &UCSR0C;
+    static constexpr sfr16_t *ubrr = &UBRR0;
+    static constexpr sfr8_t *udr = &UDR0;
 };
 
 } // namespace Info
@@ -156,11 +164,11 @@ template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescale
 struct Timer0Info {
     typedef Int_TIMER0_OVF_ INT;
 
-    static constexpr volatile uint8_t *tccra = &TCCR0A;
-    static constexpr volatile uint8_t *tccrb = &TCCR0B;
-    static constexpr volatile uint8_t *tcnt = &TCNT0;
-    static constexpr volatile uint8_t *timsk = &TIMSK0;
-    static constexpr volatile uint8_t *tifr = &TIFR0;
+    static constexpr sfr8_t *tccra = &TCCR0A;
+    static constexpr sfr8_t *tccrb = &TCCR0B;
+    static constexpr sfr8_t *tcnt = &TCNT0;
+    static constexpr sfr8_t *timsk = &TIMSK0;
+    static constexpr sfr8_t *tifr = &TIFR0;
 
     typedef uint8_t value_t;
     typedef ExtPrescaler prescaler_t;
@@ -185,16 +193,16 @@ struct Timer0Info {
     struct Comparator {
         typedef uint8_t value_t;
         typedef Timer0Info timer_info_t;
-        static constexpr volatile uint8_t *tcnt = &TCNT0;
-        static constexpr volatile uint8_t *timsk = &TIMSK0;
-        static constexpr volatile uint8_t *tifr = &TIFR0;
-        static constexpr volatile uint8_t *tccra = &TCCR0A;
-        static constexpr volatile uint8_t *tccrb = &TCCR0B;
+        static constexpr sfr8_t *tcnt = &TCNT0;
+        static constexpr sfr8_t *timsk = &TIMSK0;
+        static constexpr sfr8_t *tifr = &TIFR0;
+        static constexpr sfr8_t *tccra = &TCCR0A;
+        static constexpr sfr8_t *tccrb = &TCCR0B;
     };
 
     struct ComparatorA: public Comparator {
         typedef Int_TIMER0_COMPA_ INT;
-        static constexpr volatile uint8_t *ocr = &OCR0A;
+        static constexpr sfr8_t *ocr = &OCR0A;
         static constexpr uint8_t timsk_bit = OCIE0A;
         static constexpr uint8_t tifr_bit = OCF0A;
         static constexpr uint8_t output_mode_bitmask = (1 << COM0A0) | (1 << COM0A1);
@@ -203,7 +211,7 @@ struct Timer0Info {
     };
     struct ComparatorB: public Comparator {
         typedef Int_TIMER0_COMPB_ INT;
-        static constexpr volatile uint8_t *ocr = &OCR0B;
+        static constexpr sfr8_t *ocr = &OCR0B;
         static constexpr uint8_t timsk_bit = OCIE0B;
         static constexpr uint8_t tifr_bit = OCF0B;
         static constexpr uint8_t output_mode_bitmask = (1 << COM0B0) | (1 << COM0B1);
@@ -215,11 +223,11 @@ struct Timer0Info {
 struct Timer1Info {
     typedef Int_TIMER1_OVF_ INT;
 
-    static constexpr volatile uint8_t *tccra = &TCCR1A;
-    static constexpr volatile uint8_t *tccrb = &TCCR1B;
-    static constexpr volatile uint16_t *tcnt = &TCNT1;
-    static constexpr volatile uint8_t *timsk = &TIMSK1;
-    static constexpr volatile uint8_t *tifr = &TIFR1;
+    static constexpr sfr8_t *tccra = &TCCR1A;
+    static constexpr sfr8_t *tccrb = &TCCR1B;
+    static constexpr sfr16_t *tcnt = &TCNT1;
+    static constexpr sfr8_t *timsk = &TIMSK1;
+    static constexpr sfr8_t *tifr = &TIFR1;
 
     typedef uint16_t value_t;
     typedef ExtPrescaler prescaler_t;
@@ -245,16 +253,16 @@ struct Timer1Info {
     struct Comparator {
         typedef uint16_t value_t;
         typedef Timer1Info timer_info_t;
-        static constexpr volatile uint16_t *tcnt = &TCNT1;
-        static constexpr volatile uint8_t *timsk = &TIMSK1;
-        static constexpr volatile uint8_t *tifr = &TIFR1;
-        static constexpr volatile uint8_t *tccra = &TCCR1A;
-        static constexpr volatile uint8_t *tccrb = &TCCR1B;
+        static constexpr sfr16_t *tcnt = &TCNT1;
+        static constexpr sfr8_t *timsk = &TIMSK1;
+        static constexpr sfr8_t *tifr = &TIFR1;
+        static constexpr sfr8_t *tccra = &TCCR1A;
+        static constexpr sfr8_t *tccrb = &TCCR1B;
     };
 
     struct ComparatorA: public Comparator {
         typedef Int_TIMER1_COMPA_ INT;
-        static constexpr volatile uint16_t *ocr = &OCR1A;
+        static constexpr sfr16_t *ocr = &OCR1A;
         static constexpr uint8_t timsk_bit = OCIE1A;
         static constexpr uint8_t tifr_bit = OCF1A;
         static constexpr uint8_t output_mode_bitmask = (1 << COM1A0) | (1 << COM1A1);
@@ -263,7 +271,7 @@ struct Timer1Info {
     };
     struct ComparatorB: public Comparator {
         typedef Int_TIMER1_COMPB_ INT;
-        static constexpr volatile uint16_t *ocr = &OCR1B;
+        static constexpr sfr16_t *ocr = &OCR1B;
         static constexpr uint8_t timsk_bit = OCIE1B;
         static constexpr uint8_t tifr_bit = OCF1B;
         static constexpr uint8_t output_mode_bitmask = (1 << COM1B0) | (1 << COM1B1);
@@ -275,11 +283,11 @@ struct Timer1Info {
 struct Timer2Info {
     typedef Int_TIMER2_OVF_ INT;
 
-    static constexpr volatile uint8_t *tccra = &TCCR2A;
-    static constexpr volatile uint8_t *tccrb = &TCCR2B;
-    static constexpr volatile uint8_t *tcnt = &TCNT2;
-    static constexpr volatile uint8_t *timsk = &TIMSK2;
-    static constexpr volatile uint8_t *tifr = &TIFR2;
+    static constexpr sfr8_t *tccra = &TCCR2A;
+    static constexpr sfr8_t *tccrb = &TCCR2B;
+    static constexpr sfr8_t *tcnt = &TCNT2;
+    static constexpr sfr8_t *timsk = &TIMSK2;
+    static constexpr sfr8_t *tifr = &TIFR2;
 
     typedef uint8_t value_t;
     typedef IntPrescaler prescaler_t;
@@ -304,16 +312,16 @@ struct Timer2Info {
     struct Comparator {
         typedef uint8_t value_t;
         typedef Timer2Info timer_info_t;
-        static constexpr volatile uint8_t *tcnt = &TCNT2;
-        static constexpr volatile uint8_t *timsk = &TIMSK2;
-        static constexpr volatile uint8_t *tifr = &TIFR2;
-        static constexpr volatile uint8_t *tccra = &TCCR2A;
-        static constexpr volatile uint8_t *tccrb = &TCCR2B;
+        static constexpr sfr8_t *tcnt = &TCNT2;
+        static constexpr sfr8_t *timsk = &TIMSK2;
+        static constexpr sfr8_t *tifr = &TIFR2;
+        static constexpr sfr8_t *tccra = &TCCR2A;
+        static constexpr sfr8_t *tccrb = &TCCR2B;
     };
 
     struct ComparatorA: public Comparator {
         typedef Int_TIMER2_COMPA_ INT;
-        static constexpr volatile uint8_t *ocr = &OCR2A;
+        static constexpr sfr8_t *ocr = &OCR2A;
         static constexpr uint8_t timsk_bit = OCIE2A;
         static constexpr uint8_t tifr_bit = OCF2A;
         static constexpr uint8_t output_mode_bitmask = (1 << COM2A0) | (1 << COM2A1);
@@ -322,7 +330,7 @@ struct Timer2Info {
     };
     struct ComparatorB: public Comparator {
         typedef Int_TIMER2_COMPB_ INT;
-        static constexpr volatile uint8_t *ocr = &OCR2B;
+        static constexpr sfr8_t *ocr = &OCR2B;
         static constexpr uint8_t timsk_bit = OCIE2B;
         static constexpr uint8_t tifr_bit = OCF2B;
         static constexpr uint8_t output_mode_bitmask = (1 << COM2B0) | (1 << COM2B1);
@@ -333,9 +341,9 @@ struct Timer2Info {
 
 template <uint8_t bit>
 struct PinOnPortD {
-    static constexpr volatile uint8_t *ddr = &DDRD;
-    static constexpr volatile uint8_t *port = &PORTD;
-    static constexpr volatile uint8_t *pin = &PIND;
+    static constexpr sfr8_t *ddr = &DDRD;
+    static constexpr sfr8_t *port = &PORTD;
+    static constexpr sfr8_t *pin = &PIND;
     static constexpr uint8_t bitmask = _BV(bit);
     typedef Info::PCInt2Info pcintInfo;
     static constexpr uint8_t pcintBit = bit;
@@ -343,9 +351,9 @@ struct PinOnPortD {
 
 template <uint8_t bit>
 struct PinOnPortB {
-    static constexpr volatile uint8_t *ddr = &DDRB;
-    static constexpr volatile uint8_t *port = &PORTB;
-    static constexpr volatile uint8_t *pin = &PINB;
+    static constexpr sfr8_t *ddr = &DDRB;
+    static constexpr sfr8_t *port = &PORTB;
+    static constexpr sfr8_t *pin = &PINB;
     static constexpr uint8_t bitmask = _BV(bit);
     typedef Info::PCInt0Info pcintInfo;
     static constexpr uint8_t pcintBit = bit;
@@ -353,10 +361,10 @@ struct PinOnPortB {
 
 template <uint8_t bit>
 struct PinOnPortC {
-    static constexpr volatile uint8_t *ddr = &DDRC;
-    static constexpr volatile uint8_t *port = &PORTC;
-    static constexpr volatile uint8_t *pin = &PINC;
-    static constexpr volatile uint8_t *pcmsk = &PCMSK1;
+    static constexpr sfr8_t *ddr = &DDRC;
+    static constexpr sfr8_t *port = &PORTC;
+    static constexpr sfr8_t *pin = &PINC;
+    static constexpr sfr8_t *pcmsk = &PCMSK1;
     static constexpr uint8_t bitmask = _BV(bit);
     typedef Info::PCInt1Info pcintInfo;
     static constexpr uint8_t pcintBit = bit;

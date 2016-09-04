@@ -1,3 +1,4 @@
+#include "HAL/Atmel/Device.hpp"
 #include "HAL/Atmel/TWI.hpp"
 #include <gtest/gtest.h>
 #include <thread>
@@ -6,17 +7,16 @@
 namespace TWITest {
 
 using namespace HAL::Atmel;
-using namespace HAL::Atmel::Impl;
 
 struct MockTWIInfo {
     struct PinSDA {
-        static constexpr uint8_t * const ddr = &DDRB;
-        static constexpr uint8_t * const port = &PORTB;
+        static constexpr sfr8_t * const ddr = &DDRB;
+        static constexpr sfr8_t * const port = &PORTB;
         static constexpr uint8_t bitmask = 1;
     };
     struct PinSCL {
-        static constexpr uint8_t * const ddr = &DDRB;
-        static constexpr uint8_t * const port = &PORTB;
+        static constexpr sfr8_t * const ddr = &DDRB;
+        static constexpr sfr8_t * const port = &PORTB;
         static constexpr uint8_t bitmask = 2;
     };
 };
@@ -24,7 +24,7 @@ struct MockTWIInfo {
 TEST(TWITest, can_write_a_one_byte_message) {
     TWCR = 0;
 
-    TWI<MockTWIInfo,32,32,100000> twi;
+    Impl::TWI<MockTWIInfo,32,32,100000> twi;
     EXPECT_FALSE(twi.isTransceiving());
     twi.write(uint8_t(84), uint8_t(42));
     EXPECT_TRUE(twi.isTransceiving());
@@ -63,7 +63,7 @@ TEST(TWITest, can_read_a_one_byte_message_ended_with_NACK) {
     TWCR = 0;
     sei();
 
-    TWI<MockTWIInfo,32,32,100000> twi;
+    Impl::TWI<MockTWIInfo,32,32,100000> twi;
 
     volatile bool running = true;
     std::thread t([&](){

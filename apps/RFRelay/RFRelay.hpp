@@ -35,27 +35,27 @@ struct RFRelay {
     static auto constexpr band = RFM12Band::_868Mhz;
 
     Usart0 usart0 = { 115200 };
-    let(pinTX, PinPD1<128>(usart0));
-    let(pinRX, PinPD0<128>(usart0));
+    auto_var(pinTX, PinPD1<128>(usart0));
+    auto_var(pinRX, PinPD0<128>(usart0));
 
-    let(timer0, Timer0::withPrescaler<64>::inNormalMode());
-    let(rt, realTimer(timer0));
-    let(pinRFM12_INT, PinPD2());
-    let(pinOOK, PinPD3());
-    let(pinOOK_EN, PinPD4());
-    let(pinLED0, PinPD5());
-    let(pinLED1, PinPD6());
-    let(pinESP_PD, PinPD7());
-    let(pinLED2, PinPB0());
-    let(pinLED3, PinPB1());
-    let(pinRFM12_SS, PinPB2());
-    let(rfm, rfm12(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), band));
-    let(counter, pulseCounter(timer0.comparatorB(), pinOOK, 150_us));
-    let(esp, (esp8266<apn,password,remoteIP,remotePort>(pinTX, pinRX, pinESP_PD, rt)));
-    let(fs20, fs20Decoder(counter));
-    let(visonic, visonicDecoder(counter));
-    let(pingInterval, periodic(rt, 30_s));
-    let(rfmWatchdog, deadline(rt, 60000_ms));
+    auto_var(timer0, Timer0::withPrescaler<64>::inNormalMode());
+    auto_var(rt, realTimer(timer0));
+    auto_var(pinRFM12_INT, PinPD2());
+    auto_var(pinOOK, PinPD3());
+    auto_var(pinOOK_EN, PinPD4());
+    auto_var(pinLED0, PinPD5());
+    auto_var(pinLED1, PinPD6());
+    auto_var(pinESP_PD, PinPD7());
+    auto_var(pinLED2, PinPB0());
+    auto_var(pinLED3, PinPB1());
+    auto_var(pinRFM12_SS, PinPB2());
+    auto_var(rfm, rfm12(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), band));
+    auto_var(counter, pulseCounter(timer0.comparatorB(), pinOOK, 150_us));
+    auto_var(esp, (esp8266<apn,password,remoteIP,remotePort>(pinTX, pinRX, pinESP_PD, rt)));
+    auto_var(fs20, fs20Decoder(counter));
+    auto_var(visonic, visonicDecoder(counter));
+    auto_var(pingInterval, periodic(rt, 30_s));
+    auto_var(rfmWatchdog, deadline(rt, 60000_ms));
 
     typedef Delegate<This, decltype(pinTX), &This::pinTX,
     		Delegate<This, decltype(pinRX), &This::pinRX,
@@ -65,7 +65,7 @@ struct RFRelay {
 
     uint8_t rfmWatchdogCount = 0;
     uint8_t packets = 0;
-    let(blink, deadline(rt));
+    auto_var(blink, deadline(rt));
     bool blinkOn = false;
     uint8_t blinkIdx = 0;
 

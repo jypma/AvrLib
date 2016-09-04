@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "gcc_type_traits.h"
 #include "TypeTraits.hpp"
+#include "EEPROM.hpp"
+#include "Strings.hpp"
 
 namespace Streams {
 namespace Impl {

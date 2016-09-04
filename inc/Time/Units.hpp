@@ -201,7 +201,7 @@ struct Ticks: public TimeUnit<cv...>, public HasRuntimeTimeUnit<TimeUnit<cv...>:
 
     template <typename prescaled_t>
     static constexpr uint64_t toMillis() {
-        constexpr float ticksPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / (prescaled_t::maximum + 1);
+        constexpr float ticksPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / (uint64_t(prescaled_t::maximum) + 1);
         constexpr float max = 0xFFFFFFFF * ticksPerMs;
 
         constexpr float v = TimeUnit<cv...>::to_uint64;
@@ -210,7 +210,7 @@ struct Ticks: public TimeUnit<cv...>, public HasRuntimeTimeUnit<TimeUnit<cv...>:
 
     template <typename prescaled_t>
     static constexpr uint64_t toMicros() {
-        constexpr float ticksPerUs = float(uint64_t(F_CPU) / 1000000) / (1 << prescaled_t::prescalerPower2) / (prescaled_t::maximum + 1);
+        constexpr float ticksPerUs = float(uint64_t(F_CPU) / 1000000) / (1 << prescaled_t::prescalerPower2) / (uint64_t(prescaled_t::maximum) + 1);
         constexpr float max = 0xFFFFFFFF * ticksPerUs;
 
         constexpr float v = TimeUnit<cv...>::to_uint64;
@@ -261,7 +261,7 @@ public:
 
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toTicks() {
-        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 / (prescaled_t::maximum + 1) * value / 1000;
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 / (uint64_t(prescaled_t::maximum) + 1) * value / 1000;
         static_assert(result > 1,
                 "Number of ticks for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
@@ -344,7 +344,7 @@ public:
 
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toTicks() {
-        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / 1000 / (prescaled_t::maximum + 1);
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / 1000 / (uint64_t(prescaled_t::maximum) + 1);
         static_assert(result > 1,
                 "Number of ticks for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
@@ -387,7 +387,7 @@ public:
     template <typename prescaled_t>
     constexpr Ticks<> toTicksOn() const {
         constexpr float countsPerMs = uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2;
-        constexpr float ticksPerMs = countsPerMs / float(prescaled_t::maximum + 1);
+        constexpr float ticksPerMs = float(countsPerMs) / (uint64_t(prescaled_t::maximum) + 1);
         constexpr float max = 0xFFFFFFFF / ticksPerMs;
 
         const float v = getValue();
@@ -423,7 +423,7 @@ constexpr Milliseconds<> Counts<>::toMillisOn() const {
 
 template <typename prescaled_t>
 constexpr Milliseconds<> Ticks<>::toMillisOn() const {
-    constexpr float ticksPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / (prescaled_t::maximum + 1);
+    constexpr float ticksPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / (uint64_t(prescaled_t::maximum) + 1);
     constexpr float max = 0xFFFFFFFF * ticksPerMs;
 
     const float v = getValue();
@@ -450,7 +450,7 @@ public:
 
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toTicks() {
-        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / (prescaled_t::maximum  + 1) ;
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / (uint64_t(prescaled_t::maximum)  + 1) ;
         static_assert(result > 1,
                 "Number of ticks for seconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
@@ -491,7 +491,7 @@ public:
 
     template <typename prescaled_t, uint64_t value = TimeUnit<cv...>::to_uint64>
     static constexpr uint64_t toTicks() {
-        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value * 60 / (prescaled_t::maximum  + 1) ;
+        constexpr auto result = (uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value * 60 / (uint64_t(prescaled_t::maximum) + 1) ;
         static_assert(result > 1,
                 "Number of ticks for minutes is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
