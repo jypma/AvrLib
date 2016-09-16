@@ -115,12 +115,22 @@ struct GardenSensor {
             }
             nextMeasurement.schedule();
         } else if (nextMeasurement.isNow()) {
+        	pinTX.write('b', '0' + soil.isIdle());
             measure();
+            pinTX.write('a', '0' + soil.isIdle());
         } else {
             auto mode = (rfm.isIdle() && soil.isIdle() && ds.isIdle()) ? SleepMode::POWER_DOWN
                       : SleepMode::IDLE;                    // moisture sensor is running, needs timers
-            pinTX.flush();
-            power.sleepUntilAny(mode, nextMeasurement, ds);
+            if (mode == SleepMode::POWER_DOWN) {
+            	pinTX.write('0' + rfm.isIdle(), '0' + soil.isIdle(), '0' + ds.isIdle(), '0' + measuring);
+            }
+            if (mode == SleepMode::POWER_DOWN && measuring) {
+            	// TODO rewrite this to be less nonsensical
+            	pinTX.write('!');
+            } else {
+            	pinTX.flush();
+            	power.sleepUntilAny(mode, nextMeasurement, ds);
+            }
         }
     }
 

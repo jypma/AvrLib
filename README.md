@@ -1,5 +1,8 @@
 BUGS
 ====
+ - Do what [yalla](https://github.com/chrism333/yalla/blob/master/include/yalla/device/atmega8/avr/io.hpp) does,
+   in order to remain compilable on avr-gcc 6+, which no longer accepts avr-libc's "reinterpret_cast_ inside
+   constexpr (see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63715).
  - make a timeout on the RFM12 failing to initialize (INT pin not going high)
  - re-investigate if we can have write(myStruct) instead of write(&myStruct) when decltype(struct)::Protocol exists 
  - Have ChunkedFifo maintain its own Fifo of fixed size internally, to workaround the -Os "bug"
