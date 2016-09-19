@@ -20,6 +20,7 @@ bool writeN(fifo_t &fifo, types... args);
 #include "WritingFString.hpp"
 #include "WritingPadding.hpp"
 #include "WritingEEPROMString.hpp"
+#include "WritingProtobuf.hpp"
 #include "WritingChunkedFifo.hpp"
 #include "WritingProtocol.hpp"
 #include "FixedSizes.hpp"

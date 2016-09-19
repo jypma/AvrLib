@@ -509,4 +509,95 @@ TEST(WritingTest, can_write_subclass_of_struct_with_specific_proto_in_parent) {
     EXPECT_EQ(2, fifo.getSize());
 }
 
+TEST(WritingTest, can_write_protobuf) {
+	using namespace Protobuf;
+	Fifo<16> fifo;
+	uint32_t i32 = 1;
+	fifo.write(Varint<1>(i32));
+	EXPECT_EQ(2, fifo.getSize());
+	EXPECT_TRUE(fifo.read(FB(8,1)));
+
+	fifo.clear();
+	i32 = 0xFFFFFFFF;
+	fifo.write(Varint<1>(i32));
+	EXPECT_EQ(6, fifo.getSize());
+	EXPECT_TRUE(fifo.read(FB(8,255,255,255,255,15)));
+
+	fifo.clear();
+	int8_t i8 = -1;
+	fifo.write(Varint<1>(i8));
+	EXPECT_EQ(2, fifo.getSize());
+	EXPECT_TRUE(fifo.read(FB(8,1)));
+
+	fifo.clear();
+	i8 = 1;
+	fifo.write(Varint<1>(i8));
+	EXPECT_EQ(2, fifo.getSize());
+	EXPECT_TRUE(fifo.read(FB(8,2)));
+}
+
+struct MyPBStruct {
+    uint8_t uint8;
+    uint16_t uint16;
+    uint32_t uint32;
+
+    uint8_t optA;
+    bool hasA;
+
+    typedef Protobuf::Protocol<MyPBStruct> P;
+
+    typedef P::Message<
+		P::Varint<1, uint8_t, &MyPBStruct::uint8>,
+		P::Varint<2, uint16_t, &MyPBStruct::uint16>,
+		P::Varint<3, uint32_t, &MyPBStruct::uint32>,
+	    P::Optional<&MyPBStruct::hasA, P::Varint<4, uint8_t, &MyPBStruct::optA>>
+	> DefaultProtocol;
+};
+
+TEST(WritingTest, can_write_protobuf_struct) {
+	Fifo<16> fifo;
+	MyPBStruct s;
+	s.uint8 = 42;
+	s.uint16 = 0xFEDB;
+	s.uint32 = 0xFEDBFEDB;
+	fifo.write(&s);
+	const auto expected = FB(8,42,16,219,253,3,24,219,253,239,246,15);
+	EXPECT_TRUE(fifo.read(expected));
+
+	fifo.write(expected);
+	s.uint8 = 0;
+	s.uint16 = 0;
+	s.uint32 = 0;
+	EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
+	EXPECT_EQ(42, s.uint8);
+	EXPECT_EQ(0xFEDB, s.uint16);
+	EXPECT_EQ(0xFEDBFEDB, s.uint32);
+}
+
+TEST(WritingTest, can_write_protobuf_struct_with_optional) {
+	Fifo<16> fifo;
+	MyPBStruct s;
+	s.uint8 = 42;
+	s.uint16 = 0xFEDB;
+	s.uint32 = 0xFEDBFEDB;
+	s.optA = 40;
+	s.hasA = true;
+	fifo.write(&s);
+	const auto expected = FB(8,42,16,219,253,3,24,219,253,239,246,15,4 << 3,40);
+	EXPECT_TRUE(fifo.read(expected));
+
+	fifo.write(expected);
+	s.uint8 = 0;
+	s.uint16 = 0;
+	s.uint32 = 0;
+	s.optA = 0;
+	s.hasA = false;
+	EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
+	EXPECT_EQ(42, s.uint8);
+	EXPECT_EQ(0xFEDB, s.uint16);
+	EXPECT_EQ(0xFEDBFEDB, s.uint32);
+	EXPECT_EQ(true, s.hasA);
+	EXPECT_EQ(40, s.optA);
+}
+
 }

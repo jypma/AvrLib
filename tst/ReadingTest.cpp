@@ -138,10 +138,18 @@ struct MyStruct {
     typedef Protocol<MyStruct> P;
 
     uint8_t uint8;
+    bool hasUint8;
 
     typedef P::Seq<
       P::Binary<uint8_t, &MyStruct::uint8>
     > DefaultProtocol;
+
+    typedef Protobuf::Protocol<MyStruct> R;
+
+    typedef R::Message<
+		R::Varint<1, uint8_t, &MyStruct::uint8>   // always written, no feedback on existance on reading
+//		R::Varint<1, uint8_t, &MyStruct::uint8, &MyStruct::hasUint8> // optional
+	> DefaultMessage;
 };
 
 struct MyStruct2 {
@@ -497,5 +505,55 @@ TEST(ReadingTest, reading_char_verifies_expected_character) {
     EXPECT_EQ(2, fifo.getSize());
     EXPECT_TRUE(fifo.read('1','2'));
     EXPECT_TRUE(fifo.isEmpty());
+}
+
+
+struct MyPBStruct {
+    uint8_t uint8;
+    uint16_t uint16;
+    uint32_t uint32;
+
+    uint8_t optA;
+    bool hasA;
+
+    typedef Protobuf::Protocol<MyPBStruct> P;
+
+    typedef P::Message<
+		P::Varint<1, uint8_t, &MyPBStruct::uint8>,
+		P::Varint<2, uint16_t, &MyPBStruct::uint16>,
+		P::Varint<3, uint32_t, &MyPBStruct::uint32>,
+		P::Optional<&MyPBStruct::hasA, P::Varint<4, uint8_t, &MyPBStruct::optA>>
+	> DefaultProtocol;
+};
+
+TEST(ReadingTest, can_read_struct_with_protobuf_DefaultMessage_out_of_order) {
+	Fifo<16> fifo;
+	MyPBStruct s;
+	s.hasA = true; // to verify it gets set to false on reading
+
+	//For non-delimited message, missing fields means "Incomplete",
+	//since more data coming in may complete the message.
+	EXPECT_EQ(ReadResult::Incomplete, fifo.read(&s));
+
+	fifo.write(FB(1 << 3));
+	EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
+
+	fifo.write(FB(255, 1, 3 << 3, 255,255,255,255,15, 2 << 3, 255,255,1));
+	EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
+
+	EXPECT_EQ(255, s.uint8);
+	EXPECT_EQ(0b111111111111111, s.uint16);
+	EXPECT_EQ(0xFFFFFFFF, s.uint32);
+	EXPECT_EQ(0, fifo.getSize());
+	EXPECT_FALSE(s.hasA);
+}
+
+TEST(ReadingTest, can_read_struct_with_optional_field) {
+	Fifo<16> fifo;
+	MyPBStruct s;
+	fifo.write(FB(1 << 3, 255, 1, 3 << 3, 255,255,255,255,15, 2 << 3, 255,255,1, 4 << 3, 42));
+	EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
+	EXPECT_TRUE(s.hasA);
+	EXPECT_EQ(42, s.optA);
 }
 }
