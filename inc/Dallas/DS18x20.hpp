@@ -2,6 +2,7 @@
 #define DALLAS_DS18X20_HPP_
 
 #include "OneWire.hpp"
+#include "Option.hpp"
 #include <stdint.h>
 
 namespace Dallas {
@@ -70,7 +71,7 @@ class DS18x20 {
     onewire_t * const wire;
     const OneWireAddress addr;
     Deadline<rt_t,decltype(1200_ms)> measureDone = { *wire->rt };
-    int16_t temp = -16000;
+    Option<int16_t> temp = none();
 
     void readTemperature() {
         log::debug(F("Retrieving temp"));
@@ -142,7 +143,6 @@ public:
     }
 
     bool isIdle() {
-        update();
         return !isMeasuring();
     }
 
@@ -150,7 +150,7 @@ public:
      * Returns the temperature in tenths of degrees celcius, e.g. 320 for 32 degrees C or -15 for -1.5 degrees C.
      * Can be negative for temperatures below 0.
      */
-    int16_t getTemperature() {
+    Option<int16_t> getTemperature() {
         update();
         return temp;
     }

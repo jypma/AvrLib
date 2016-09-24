@@ -126,7 +126,7 @@ public:
             }
         } else if (timeout.isNow()) {
             log::debug(F("timed out"));
-            time = rt->counts() - startTime;
+            time = 0;
             measurements = 0;
             idle();
         }

@@ -6,6 +6,7 @@
 #include "Logging.hpp"
 #include "Streams/Protocol.hpp"
 #include "Time/RealTimer.hpp"
+#include "AtomicScope.hpp"
 
 namespace DHT {
 
@@ -36,19 +37,16 @@ class DHT {
     uint8_t data[4] = { 0, 0, 0, 0 };
     bool seenHigh = false;
     uint8_t lastFailure = 0;
+
 public:
-    typedef Delegate<This, decltype(counter), &This::counter> Handlers;
-
-    void onPinChange() {
-        decltype(counter)::Handlers::template Handler<typename datapin_t::INT>::invoke(counter);
-    }
-
     void powerOff() {
+    	AtomicScope _;
         power->setLow();
         state = DHTState::OFF;
     }
 
     void powerOn() {
+    	AtomicScope _;
         if (state == DHTState::OFF) {
             log::debug(F("Booting"));
             pin->configureAsInputWithPullup();
@@ -59,6 +57,7 @@ public:
     }
 
     void measure() {
+    	AtomicScope _;
         if (state == DHTState::OFF) {
             powerOn();
         } else if (state == DHTState::IDLE || state == DHTState::BOOTING || state == DHTState::SIGNALING) {
@@ -180,6 +179,8 @@ private:
     }
 
 public:
+    typedef Delegate<This, decltype(counter), &This::counter> Handlers;
+
     DHT(datapin_t &_pin, powerpin_t &_power, comparator_t &_comparator, rt_t &_rt):
         pin(&_pin),
         power(&_power),
@@ -209,6 +210,10 @@ public:
 
     bool isIdle() const {
         return state == DHTState::IDLE;
+    }
+
+    bool isMeasuring() const {
+    	return !isIdle();
     }
 
     /** Returns any failure code that occurred during the most recent measurement, or 0 for no failure. */
