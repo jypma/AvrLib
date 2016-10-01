@@ -5,6 +5,16 @@
 #ifndef _GLIBCXX_TYPE_TRAITS
 #define _GLIBCXX_TYPE_TRAITS 1
 
+namespace std
+{
+  typedef __SIZE_TYPE__ 	size_t;
+  typedef __PTRDIFF_TYPE__	ptrdiff_t;
+
+#if __cplusplus >= 201103L
+  typedef decltype(nullptr)	nullptr_t;
+#endif
+}
+
 // For some reason, avr-gcc does not bundle type_traits.h. We copy some of its definitions here.
 
 namespace std {
@@ -288,6 +298,700 @@ template<typename _Tp>
   struct remove_reference<_Tp&&>
   { typedef _Tp   type; };
 
+// For several sfinae-friendly trait implementations we transport both the
+// result information (as the member type) and the failure information (no
+// member type). This is very similar to std::enable_if, but we cannot use
+// them, because we need to derive from them as an implementation detail.
+
+template<typename _Tp>
+  struct __success_type
+  { typedef _Tp type; };
+
+struct __failure_type
+{ };
+
+/// is_array
+template<typename>
+  struct is_array
+  : public false_type { };
+
+template<typename _Tp, std::size_t _Size>
+  struct is_array<_Tp[_Size]>
+  : public true_type { };
+
+template<typename _Tp>
+  struct is_array<_Tp[]>
+  : public true_type { };
+
+template<typename>
+  struct is_function;
+
+template<typename>
+  struct __is_member_object_pointer_helper
+  : public false_type { };
+
+template<typename _Tp, typename _Cp>
+  struct __is_member_object_pointer_helper<_Tp _Cp::*>
+  : public integral_constant<bool, !is_function<_Tp>::value> { };
+
+/// is_member_object_pointer
+template<typename _Tp>
+  struct is_member_object_pointer
+  : public __is_member_object_pointer_helper<
+				typename remove_cv<_Tp>::type>::type
+  { };
+
+template<typename>
+  struct __is_member_function_pointer_helper
+  : public false_type { };
+
+template<typename _Tp, typename _Cp>
+  struct __is_member_function_pointer_helper<_Tp _Cp::*>
+  : public integral_constant<bool, is_function<_Tp>::value> { };
+
+/// is_member_function_pointer
+template<typename _Tp>
+  struct is_member_function_pointer
+  : public __is_member_function_pointer_helper<
+				typename remove_cv<_Tp>::type>::type
+  { };
+
+/// is_union
+template<typename _Tp>
+  struct is_union
+  : public integral_constant<bool, __is_union(_Tp)>
+  { };
+
+/// is_function
+template<typename>
+  struct is_function
+  : public false_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...)>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) &&>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......)>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) &&>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) const>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) const &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) const &&>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) const>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) const &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) const &&>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) volatile>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) volatile &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) volatile &&>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) volatile>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) volatile &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) volatile &&>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) const volatile>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) const volatile &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes...) const volatile &&>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) const volatile>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) const volatile &>
+  : public true_type { };
+
+template<typename _Res, typename... _ArgTypes>
+  struct is_function<_Res(_ArgTypes......) const volatile &&>
+  : public true_type { };
+
+/// remove_extent
+template<typename _Tp>
+  struct remove_extent
+  { typedef _Tp     type; };
+
+template<typename _Tp, std::size_t _Size>
+  struct remove_extent<_Tp[_Size]>
+  { typedef _Tp     type; };
+
+template<typename _Tp>
+  struct remove_extent<_Tp[]>
+  { typedef _Tp     type; };
+
+/// is_object
+template<typename _Tp>
+  struct is_object
+  : public __not_<__or_<is_function<_Tp>, is_reference<_Tp>,
+                        is_void<_Tp>>>::type
+  { };
+
+
+// Utility to detect referenceable types ([defns.referenceable]).
+
+template<typename _Tp>
+  struct __is_referenceable
+  : public __or_<is_object<_Tp>, is_reference<_Tp>>::type
+  { };
+
+template<typename _Res, typename... _Args>
+  struct __is_referenceable<_Res(_Args...)>
+  : public true_type
+  { };
+
+template<typename _Res, typename... _Args>
+  struct __is_referenceable<_Res(_Args......)>
+  : public true_type
+  { };
+
+
+// Pointer modifications.
+
+/// add_pointer
+template<typename _Tp, bool = __or_<__is_referenceable<_Tp>,
+				      is_void<_Tp>>::value>
+  struct __add_pointer_helper
+  { typedef _Tp     type; };
+
+template<typename _Tp>
+  struct __add_pointer_helper<_Tp, true>
+  { typedef typename remove_reference<_Tp>::type*     type; };
+
+template<typename _Tp>
+  struct add_pointer
+  : public __add_pointer_helper<_Tp>
+  { };
+
+#if __cplusplus > 201103L
+/// Alias template for remove_pointer
+template<typename _Tp>
+  using remove_pointer_t = typename remove_pointer<_Tp>::type;
+
+/// Alias template for add_pointer
+template<typename _Tp>
+  using add_pointer_t = typename add_pointer<_Tp>::type;
+#endif
+
+
+// Decay trait for arrays and functions, used for perfect forwarding
+// in make_pair, make_tuple, etc.
+template<typename _Up,
+	   bool _IsArray = is_array<_Up>::value,
+	   bool _IsFunction = is_function<_Up>::value>
+  struct __decay_selector;
+
+// NB: DR 705.
+template<typename _Up>
+  struct __decay_selector<_Up, false, false>
+  { typedef typename remove_cv<_Up>::type __type; };
+
+template<typename _Up>
+  struct __decay_selector<_Up, true, false>
+  { typedef typename remove_extent<_Up>::type* __type; };
+
+template<typename _Up>
+  struct __decay_selector<_Up, false, true>
+  { typedef typename add_pointer<_Up>::type __type; };
+
+/// decay
+template<typename _Tp>
+  class decay
+  {
+    typedef typename remove_reference<_Tp>::type __remove_type;
+
+  public:
+    typedef typename __decay_selector<__remove_type>::__type type;
+  };
+
+template<typename _Tp>
+  class reference_wrapper;
+
+// Helper which adds a reference to a type when given a reference_wrapper
+template<typename _Tp>
+  struct __strip_reference_wrapper
+  {
+    typedef _Tp __type;
+  };
+
+template<typename _Tp>
+  struct __strip_reference_wrapper<reference_wrapper<_Tp> >
+  {
+    typedef _Tp& __type;
+  };
+
+template<typename _Tp>
+  struct __decay_and_strip
+  {
+    typedef typename __strip_reference_wrapper<
+	typename decay<_Tp>::type>::__type __type;
+  };
+
+/// result_of
+template<typename _Signature>
+  class result_of;
+
+// Sfinae-friendly result_of implementation:
+
+#define __cpp_lib_result_of_sfinae 201210
+
+struct __invoke_memfun_ref { };
+struct __invoke_memfun_deref { };
+struct __invoke_memobj_ref { };
+struct __invoke_memobj_deref { };
+struct __invoke_other { };
+
+// Associate a tag type with a specialization of __success_type.
+template<typename _Tp, typename _Tag>
+  struct __result_of_success : __success_type<_Tp>
+  { using __invoke_type = _Tag; };
+
+// [func.require] paragraph 1 bullet 1:
+struct __result_of_memfun_ref_impl
+{
+  template<typename _Fp, typename _Tp1, typename... _Args>
+    static __result_of_success<decltype(
+    (std::declval<_Tp1>().*std::declval<_Fp>())(std::declval<_Args>()...)
+    ), __invoke_memfun_ref> _S_test(int);
+
+  template<typename...>
+    static __failure_type _S_test(...);
+};
+
+template<typename _MemPtr, typename _Arg, typename... _Args>
+  struct __result_of_memfun_ref
+  : private __result_of_memfun_ref_impl
+  {
+    typedef decltype(_S_test<_MemPtr, _Arg, _Args...>(0)) type;
+  };
+
+// [func.require] paragraph 1 bullet 2:
+struct __result_of_memfun_deref_impl
+{
+  template<typename _Fp, typename _Tp1, typename... _Args>
+    static __result_of_success<decltype(
+    ((*std::declval<_Tp1>()).*std::declval<_Fp>())(std::declval<_Args>()...)
+    ), __invoke_memfun_deref> _S_test(int);
+
+  template<typename...>
+    static __failure_type _S_test(...);
+};
+
+template<typename _MemPtr, typename _Arg, typename... _Args>
+  struct __result_of_memfun_deref
+  : private __result_of_memfun_deref_impl
+  {
+    typedef decltype(_S_test<_MemPtr, _Arg, _Args...>(0)) type;
+  };
+
+// [func.require] paragraph 1 bullet 3:
+struct __result_of_memobj_ref_impl
+{
+  template<typename _Fp, typename _Tp1>
+    static __result_of_success<decltype(
+    std::declval<_Tp1>().*std::declval<_Fp>()
+    ), __invoke_memobj_ref> _S_test(int);
+
+  template<typename, typename>
+    static __failure_type _S_test(...);
+};
+
+template<typename _MemPtr, typename _Arg>
+  struct __result_of_memobj_ref
+  : private __result_of_memobj_ref_impl
+  {
+    typedef decltype(_S_test<_MemPtr, _Arg>(0)) type;
+  };
+
+// [func.require] paragraph 1 bullet 4:
+struct __result_of_memobj_deref_impl
+{
+  template<typename _Fp, typename _Tp1>
+    static __result_of_success<decltype(
+    (*std::declval<_Tp1>()).*std::declval<_Fp>()
+    ), __invoke_memobj_deref> _S_test(int);
+
+  template<typename, typename>
+    static __failure_type _S_test(...);
+};
+
+template<typename _MemPtr, typename _Arg>
+  struct __result_of_memobj_deref
+  : private __result_of_memobj_deref_impl
+  {
+    typedef decltype(_S_test<_MemPtr, _Arg>(0)) type;
+  };
+
+template<typename _MemPtr, typename _Arg>
+  struct __result_of_memobj;
+
+template<typename _Res, typename _Class, typename _Arg>
+  struct __result_of_memobj<_Res _Class::*, _Arg>
+  {
+    typedef typename remove_cv<typename remove_reference<
+      _Arg>::type>::type _Argval;
+    typedef _Res _Class::* _MemPtr;
+    typedef typename conditional<__or_<is_same<_Argval, _Class>,
+      is_base_of<_Class, _Argval>>::value,
+      __result_of_memobj_ref<_MemPtr, _Arg>,
+      __result_of_memobj_deref<_MemPtr, _Arg>
+    >::type::type type;
+  };
+
+template<typename _MemPtr, typename _Arg, typename... _Args>
+  struct __result_of_memfun;
+
+template<typename _Res, typename _Class, typename _Arg, typename... _Args>
+  struct __result_of_memfun<_Res _Class::*, _Arg, _Args...>
+  {
+    typedef typename remove_cv<typename remove_reference<
+      _Arg>::type>::type _Argval;
+    typedef _Res _Class::* _MemPtr;
+    typedef typename conditional<__or_<is_same<_Argval, _Class>,
+      is_base_of<_Class, _Argval>>::value,
+      __result_of_memfun_ref<_MemPtr, _Arg, _Args...>,
+      __result_of_memfun_deref<_MemPtr, _Arg, _Args...>
+    >::type::type type;
+  };
+
+// _GLIBCXX_RESOLVE_LIB_DEFECTS
+// 2219.  INVOKE-ing a pointer to member with a reference_wrapper
+//        as the object expression
+
+template<typename _Res, typename _Class, typename _Arg>
+  struct __result_of_memobj<_Res _Class::*, reference_wrapper<_Arg>>
+  : __result_of_memobj_ref<_Res _Class::*, _Arg&>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg>
+  struct __result_of_memobj<_Res _Class::*, reference_wrapper<_Arg>&>
+  : __result_of_memobj_ref<_Res _Class::*, _Arg&>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg>
+  struct __result_of_memobj<_Res _Class::*, const reference_wrapper<_Arg>&>
+  : __result_of_memobj_ref<_Res _Class::*, _Arg&>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg>
+  struct __result_of_memobj<_Res _Class::*, reference_wrapper<_Arg>&&>
+  : __result_of_memobj_ref<_Res _Class::*, _Arg&>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg>
+  struct __result_of_memobj<_Res _Class::*, const reference_wrapper<_Arg>&&>
+  : __result_of_memobj_ref<_Res _Class::*, _Arg&>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg, typename... _Args>
+  struct __result_of_memfun<_Res _Class::*, reference_wrapper<_Arg>, _Args...>
+  : __result_of_memfun_ref<_Res _Class::*, _Arg&, _Args...>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg, typename... _Args>
+  struct __result_of_memfun<_Res _Class::*, reference_wrapper<_Arg>&,
+			      _Args...>
+  : __result_of_memfun_ref<_Res _Class::*, _Arg&, _Args...>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg, typename... _Args>
+  struct __result_of_memfun<_Res _Class::*, const reference_wrapper<_Arg>&,
+			      _Args...>
+  : __result_of_memfun_ref<_Res _Class::*, _Arg&, _Args...>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg, typename... _Args>
+  struct __result_of_memfun<_Res _Class::*, reference_wrapper<_Arg>&&,
+			      _Args...>
+  : __result_of_memfun_ref<_Res _Class::*, _Arg&, _Args...>
+  { };
+
+template<typename _Res, typename _Class, typename _Arg, typename... _Args>
+  struct __result_of_memfun<_Res _Class::*, const reference_wrapper<_Arg>&&,
+			      _Args...>
+  : __result_of_memfun_ref<_Res _Class::*, _Arg&, _Args...>
+  { };
+
+template<bool, bool, typename _Functor, typename... _ArgTypes>
+  struct __result_of_impl
+  {
+    typedef __failure_type type;
+  };
+
+template<typename _MemPtr, typename _Arg>
+  struct __result_of_impl<true, false, _MemPtr, _Arg>
+  : public __result_of_memobj<typename decay<_MemPtr>::type, _Arg>
+  { };
+
+template<typename _MemPtr, typename _Arg, typename... _Args>
+  struct __result_of_impl<false, true, _MemPtr, _Arg, _Args...>
+  : public __result_of_memfun<typename decay<_MemPtr>::type, _Arg, _Args...>
+  { };
+
+// [func.require] paragraph 1 bullet 5:
+struct __result_of_other_impl
+{
+  template<typename _Fn, typename... _Args>
+    static __result_of_success<decltype(
+    std::declval<_Fn>()(std::declval<_Args>()...)
+    ), __invoke_other> _S_test(int);
+
+  template<typename...>
+    static __failure_type _S_test(...);
+};
+
+template<typename _Functor, typename... _ArgTypes>
+  struct __result_of_impl<false, false, _Functor, _ArgTypes...>
+  : private __result_of_other_impl
+  {
+    typedef decltype(_S_test<_Functor, _ArgTypes...>(0)) type;
+  };
+
+template<typename _Functor, typename... _ArgTypes>
+  struct result_of<_Functor(_ArgTypes...)>
+  : public __result_of_impl<
+      is_member_object_pointer<
+        typename remove_reference<_Functor>::type
+      >::value,
+      is_member_function_pointer<
+        typename remove_reference<_Functor>::type
+      >::value,
+	    _Functor, _ArgTypes...
+    >::type
+  { };
+
+template<std::size_t _Len>
+  struct __aligned_storage_msa
+  {
+    union __type
+    {
+	unsigned char __data[_Len];
+	struct __attribute__((__aligned__)) { } __align;
+    };
+  };
+
+/**
+ *  @brief Alignment type.
+ *
+ *  The value of _Align is a default-alignment which shall be the
+ *  most stringent alignment requirement for any C++ object type
+ *  whose size is no greater than _Len (3.9). The member typedef
+ *  type shall be a POD type suitable for use as uninitialized
+ *  storage for any object whose size is at most _Len and whose
+ *  alignment is a divisor of _Align.
+*/
+template<std::size_t _Len, std::size_t _Align =
+	   __alignof__(typename __aligned_storage_msa<_Len>::__type)>
+  struct aligned_storage
+  {
+    union type
+    {
+	unsigned char __data[_Len];
+	struct __attribute__((__aligned__((_Align)))) { } __align;
+    };
+  };
+
+template <typename... _Types>
+  struct __strictest_alignment
+  {
+    static const size_t _S_alignment = 0;
+    static const size_t _S_size = 0;
+  };
+
+template <typename _Tp, typename... _Types>
+  struct __strictest_alignment<_Tp, _Types...>
+  {
+    static const size_t _S_alignment =
+      alignof(_Tp) > __strictest_alignment<_Types...>::_S_alignment
+	? alignof(_Tp) : __strictest_alignment<_Types...>::_S_alignment;
+    static const size_t _S_size =
+      sizeof(_Tp) > __strictest_alignment<_Types...>::_S_size
+	? sizeof(_Tp) : __strictest_alignment<_Types...>::_S_size;
+  };
+
+/**
+ *  @brief Provide aligned storage for types.
+ *
+ *  [meta.trans.other]
+ *
+ *  Provides aligned storage for any of the provided types of at
+ *  least size _Len.
+ *
+ *  @see aligned_storage
+ */
+template <size_t _Len, typename... _Types>
+  struct aligned_union
+  {
+  private:
+    static_assert(sizeof...(_Types) != 0, "At least one type is required");
+
+    using __strictest = __strictest_alignment<_Types...>;
+    static const size_t _S_len = _Len > __strictest::_S_size
+	? _Len : __strictest::_S_size;
+  public:
+    /// The value of the strictest alignment of _Types.
+    static const size_t alignment_value = __strictest::_S_alignment;
+    /// The storage.
+    typedef typename aligned_storage<_S_len, alignment_value>::type type;
+  };
+
+template <size_t _Len, typename... _Types>
+  const size_t aligned_union<_Len, _Types...>::alignment_value;
+
+/// common_type
+template<typename... _Tp>
+  struct common_type;
+
+// Sfinae-friendly common_type implementation:
+
+struct __do_common_type_impl
+{
+  template<typename _Tp, typename _Up>
+    static __success_type<typename decay<decltype
+			    (true ? std::declval<_Tp>()
+			     : std::declval<_Up>())>::type> _S_test(int);
+
+  template<typename, typename>
+    static __failure_type _S_test(...);
+};
+
+template<typename _Tp, typename _Up>
+  struct __common_type_impl
+  : private __do_common_type_impl
+  {
+    typedef decltype(_S_test<_Tp, _Up>(0)) type;
+  };
+
+struct __do_member_type_wrapper
+{
+  template<typename _Tp>
+    static __success_type<typename _Tp::type> _S_test(int);
+
+  template<typename>
+    static __failure_type _S_test(...);
+};
+
+template<typename _Tp>
+  struct __member_type_wrapper
+  : private __do_member_type_wrapper
+  {
+    typedef decltype(_S_test<_Tp>(0)) type;
+  };
+
+template<typename _CTp, typename... _Args>
+  struct __expanded_common_type_wrapper
+  {
+    typedef common_type<typename _CTp::type, _Args...> type;
+  };
+
+template<typename... _Args>
+  struct __expanded_common_type_wrapper<__failure_type, _Args...>
+  { typedef __failure_type type; };
+
+template<typename _Tp>
+  struct common_type<_Tp>
+  { typedef typename decay<_Tp>::type type; };
+
+template<typename _Tp, typename _Up>
+  struct common_type<_Tp, _Up>
+  : public __common_type_impl<_Tp, _Up>::type
+  { };
+
+template<typename _Tp, typename _Up, typename... _Vp>
+  struct common_type<_Tp, _Up, _Vp...>
+  : public __expanded_common_type_wrapper<typename __member_type_wrapper<
+             common_type<_Tp, _Up>>::type, _Vp...>::type
+  { };
+
+#if __cplusplus > 201103L
+  /// Alias template for aligned_storage
+  template<size_t _Len, size_t _Align =
+	    __alignof__(typename __aligned_storage_msa<_Len>::__type)>
+    using aligned_storage_t = typename aligned_storage<_Len, _Align>::type;
+
+  template <size_t _Len, typename... _Types>
+    using aligned_union_t = typename aligned_union<_Len, _Types...>::type;
+
+  /// Alias template for decay
+  template<typename _Tp>
+    using decay_t = typename decay<_Tp>::type;
+
+  /// Alias template for enable_if
+  template<bool _Cond, typename _Tp = void>
+    using enable_if_t = typename enable_if<_Cond, _Tp>::type;
+
+  /// Alias template for conditional
+  template<bool _Cond, typename _Iftrue, typename _Iffalse>
+    using conditional_t = typename conditional<_Cond, _Iftrue, _Iffalse>::type;
+
+  /// Alias template for common_type
+  template<typename... _Tp>
+    using common_type_t = typename common_type<_Tp...>::type;
+
+  /// Alias template for underlying_type
+  template<typename _Tp>
+    using underlying_type_t = typename underlying_type<_Tp>::type;
+
+  /// Alias template for result_of
+  template<typename _Tp>
+    using result_of_t = typename result_of<_Tp>::type;
+#endif
 
 }
 

@@ -544,13 +544,16 @@ struct MyPBStruct {
     uint8_t optA;
     bool hasA;
 
+    Option<uint16_t> optB;
+
     typedef Protobuf::Protocol<MyPBStruct> P;
 
     typedef P::Message<
 		P::Varint<1, uint8_t, &MyPBStruct::uint8>,
 		P::Varint<2, uint16_t, &MyPBStruct::uint16>,
 		P::Varint<3, uint32_t, &MyPBStruct::uint32>,
-	    P::Optional<&MyPBStruct::hasA, P::Varint<4, uint8_t, &MyPBStruct::optA>>
+	    P::Optional<&MyPBStruct::hasA, P::Varint<4, uint8_t, &MyPBStruct::optA>>,
+		P::Varint<5, Option<uint16_t>, &MyPBStruct::optB>
 	> DefaultProtocol;
 };
 
@@ -575,15 +578,16 @@ TEST(WritingTest, can_write_protobuf_struct) {
 }
 
 TEST(WritingTest, can_write_protobuf_struct_with_optional) {
-	Fifo<16> fifo;
+	Fifo<24> fifo;
 	MyPBStruct s;
 	s.uint8 = 42;
 	s.uint16 = 0xFEDB;
 	s.uint32 = 0xFEDBFEDB;
 	s.optA = 40;
 	s.hasA = true;
+	s.optB = 42;
 	fifo.write(&s);
-	const auto expected = FB(8,42,16,219,253,3,24,219,253,239,246,15,4 << 3,40);
+	const auto expected = FB(8,42,16,219,253,3,24,219,253,239,246,15,4 << 3,40,5 << 3,42);
 	EXPECT_TRUE(fifo.read(expected));
 
 	fifo.write(expected);
@@ -598,6 +602,7 @@ TEST(WritingTest, can_write_protobuf_struct_with_optional) {
 	EXPECT_EQ(0xFEDBFEDB, s.uint32);
 	EXPECT_EQ(true, s.hasA);
 	EXPECT_EQ(40, s.optA);
+	EXPECT_EQ(some(42), s.optB);
 }
 
 }

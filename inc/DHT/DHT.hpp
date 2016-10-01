@@ -22,6 +22,10 @@ enum class DHTState: uint8_t {
 namespace Impl {
 
 /** Abstract base class for all DHT-based temperature & humidity sensors */
+//FIXME needs timeout for error
+//TODO test that measure() immediately after power on waits for 1 sec
+//TODO merge powerOn() and measure() methods since they do the same
+//TODO what's the actual timeout on the pulse counter? maybe make that explicit
 template <typename datapin_t, typename powerpin_t, typename comparator_t, typename rt_t>
 class DHT {
     typedef DHT<datapin_t,powerpin_t,comparator_t,rt_t> This;
@@ -60,7 +64,7 @@ public:
     	AtomicScope _;
         if (state == DHTState::OFF) {
             powerOn();
-        } else if (state == DHTState::IDLE || state == DHTState::BOOTING || state == DHTState::SIGNALING) {
+        } else if (state == DHTState::IDLE || state == DHTState::SIGNALING) {
             log::debug(F("Starting measurement"));
             pin->configureAsOutput();
             pin->setLow();
@@ -88,6 +92,7 @@ private:
     }
 
     void receive(bool value) {
+    	log::debug('0' + value);
         if (value) {
             data[pos] |= (1 << bit);
         } else {
@@ -109,6 +114,7 @@ private:
 
     void booting() {
         if (timeout.isNow()) {
+        	state = DHTState::IDLE;
             measure();
         }
     }
@@ -138,6 +144,8 @@ private:
         expectPulse([this] (auto pulse) {
             if (pulse.isLow() && pulse > 60_us && pulse < 120_us) {
                 state = DHTState::SYNC_HIGH;
+            } else {
+            	log::debug(F("Ignoring "));
             }
         });
     }
@@ -189,6 +197,7 @@ public:
         timeout(deadline(_rt)) {
         power->configureAsOutput();
         powerOn();
+        log::debug(F("60us = "), dec((uint16_t) toCountsOn<comparator_t>(60_us)));
     }
 
     void loop() {

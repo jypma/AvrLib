@@ -4,6 +4,7 @@
 #include "WritingBase.hpp"
 #include "Format.hpp"
 #include "EEPROM.hpp"
+#include "Option.hpp"
 
 namespace Streams {
 namespace Impl {
@@ -116,6 +117,17 @@ template <typename sem, typename fifo_t>
 bool write1(fifo_t &fifo, const Decimal<uint32_t EEPROM::*> field) {
     Format::format(&(writeFunc<sem,fifo_t>), &fifo, dec(read(field.value)));
     return true;
+}
+
+template <typename sem, typename fifo_t, typename T>
+bool write1(fifo_t &fifo, const Decimal<Option<T>> optValue) {
+	// can't map here, since capturing fifo results in unpacked non-POD field, even though the whole thing is force inlined.
+	//return optValue.value.map([&] (auto v) { return write1decimalInt<sem>(fifo, Decimal<T>(v)); }).getOrElse(false);
+	if (optValue.value.isDefined()) {
+		return write1decimalInt<sem>(fifo, Decimal<T>(optValue.value.get()));
+	} else {
+		return false;
+	}
 }
 
 }

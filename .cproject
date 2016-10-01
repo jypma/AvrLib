@@ -18,7 +18,7 @@
 							<option id="de.innot.avreclipse.toolchain.options.toolchain.objdump.lib.release.904494989" name="Generate Extended Listing (Source + generated Assembler)" superClass="de.innot.avreclipse.toolchain.options.toolchain.objdump.lib.release"/>
 							<option id="de.innot.avreclipse.toolchain.options.toolchain.size.lib.release.1146405025" name="Print Size" superClass="de.innot.avreclipse.toolchain.options.toolchain.size.lib.release"/>
 							<targetPlatform id="de.innot.avreclipse.targetplatform.winavr.lib.release.862057644" name="AVR Cross-Target" superClass="de.innot.avreclipse.targetplatform.winavr.lib.release"/>
-							<builder buildPath="${workspace_loc:/AvrLib}/Release" id="de.innot.avreclipse.target.builder.winavr.lib.release.90467600" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="AVR GNU Make Builder" superClass="de.innot.avreclipse.target.builder.winavr.lib.release"/>
+							<builder buildPath="${workspace_loc:/AvrLib}/Release" id="de.innot.avreclipse.target.builder.winavr.lib.release.90467600" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="AVR GNU Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="de.innot.avreclipse.target.builder.winavr.lib.release"/>
 							<tool id="de.innot.avreclipse.tool.assembler.winavr.lib.release.1146185170" name="AVR Assembler" superClass="de.innot.avreclipse.tool.assembler.winavr.lib.release">
 								<option id="de.innot.avreclipse.assembler.option.debug.level.1764128295" name="Generate Debugging Info" superClass="de.innot.avreclipse.assembler.option.debug.level" value="de.innot.avreclipse.assembler.option.debug.level.none" valueType="enumerated"/>
 								<inputType id="de.innot.avreclipse.tool.assembler.input.50873827" superClass="de.innot.avreclipse.tool.assembler.input"/>
@@ -115,22 +115,6 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.assembler.exe.debug.1829666779" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.exe.debug">
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.669723412" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
-							</tool>
-						</toolChain>
-					</folderInfo>
-					<folderInfo id="cdt.managedbuild.config.gnu.exe.debug.342392807.1393370257" name="/" resourcePath="apps">
-						<toolChain id="cdt.managedbuild.toolchain.gnu.exe.debug.2047022789" name="Linux GCC" superClass="cdt.managedbuild.toolchain.gnu.exe.debug" unusedChildren="">
-							<tool id="cdt.managedbuild.tool.gnu.archiver.base.2084951469" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base.498866045"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.1240181502" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.debug.589840868">
-								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.793890050" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.602102587" name="GCC C Compiler" superClass="cdt.managedbuild.tool.gnu.c.compiler.exe.debug.1048533894">
-								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.936474848" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.383228318" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug.358869850"/>
-							<tool id="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.150580821" name="GCC C++ Linker" superClass="cdt.managedbuild.tool.gnu.cpp.linker.exe.debug.2060788743"/>
-							<tool id="cdt.managedbuild.tool.gnu.assembler.exe.debug.2082810319" name="GCC Assembler" superClass="cdt.managedbuild.tool.gnu.assembler.exe.debug.1829666779">
-								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.457637507" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>
 					</folderInfo>

@@ -30,6 +30,7 @@ namespace Logging {
      * or invoke the macro LOGGING_TO(var) with "var" being a USART TX pin, or fifo that is regularly emptied.
      */
 
+    template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
     template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};
     //template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};

@@ -2,6 +2,7 @@
 
 #include "gcc_limits.h"
 #include "WritingProtobuf.hpp"
+#include "Option.hpp"
 
 /**
  * Protobuf implementation that doesn't rely on protoc. Limitiations:
@@ -154,7 +155,9 @@ struct Protocol {
 	 * as a zigzag-encoded varint.
 	 */
 	template <uint8_t _fieldIdx, typename T, T This::*field>
-	struct Varint;
+	struct Varint {
+		typedef typename T::unsupported_type_for_varint_encoding foobar;
+	};
 
 	template <uint8_t _fieldIdx, typename T, T This::*field>
 	struct UnsignedVarint
@@ -178,6 +181,37 @@ struct Protocol {
 		}
 	};
 
+	template <uint8_t _fieldIdx, typename T, Option<T> This::*field>
+	struct OptionUnsignedVarint
+	{
+		static constexpr uint8_t fieldIdx = _fieldIdx;
+		static constexpr uint8_t initialPresence = 0;
+
+		static void initialize(This *t) {
+			(t->*field) = none();
+		}
+
+		static ReadResult assign(This *t, uint32_t value) {
+			if (value > std::numeric_limits<T>::max()) {
+				return ReadResult::Invalid;
+			} else {
+				(t->*field) = value;
+				return ReadResult::Valid;
+			}
+		}
+
+		static auto forWriting(const This *t) {
+            return ::Streams::Nested([t] (auto write) {
+//                return (t->*field).map([write] (auto i) { return write(i); }).getOrElse(true);
+            	if ((t->*field).isDefined()) {
+            		return write(Impl::Protobuf::Varint<T,_fieldIdx>((t->*field).get()));
+            	} else {
+            		return true;
+            	}
+            });
+		}
+	};
+
 	template <uint8_t _fieldIdx, uint8_t This::*field>
 	struct Varint<_fieldIdx, uint8_t, field>: public UnsignedVarint<_fieldIdx, uint8_t, field> {};
 
@@ -186,6 +220,15 @@ struct Protocol {
 
 	template <uint8_t _fieldIdx, uint32_t This::*field>
 	struct Varint<_fieldIdx, uint32_t, field>: public UnsignedVarint<_fieldIdx, uint32_t, field> {};
+
+	template <uint8_t _fieldIdx, Option<uint8_t> This::*field>
+	struct Varint<_fieldIdx, Option<uint8_t>, field>: public OptionUnsignedVarint<_fieldIdx, uint8_t, field> {};
+
+	template <uint8_t _fieldIdx, Option<uint16_t> This::*field>
+	struct Varint<_fieldIdx, Option<uint16_t>, field>: public OptionUnsignedVarint<_fieldIdx, uint16_t, field> {};
+
+	template <uint8_t _fieldIdx, Option<uint32_t> This::*field>
+	struct Varint<_fieldIdx, Option<uint32_t>, field>: public OptionUnsignedVarint<_fieldIdx, uint32_t, field> {};
 
 	template <uint8_t _fieldIdx, typename T, T This::*field>
 	struct SignedVarint
@@ -210,6 +253,38 @@ struct Protocol {
 		}
 	};
 
+	template <uint8_t _fieldIdx, typename T, Option<T> This::*field>
+	struct OptionSignedVarint
+	{
+		static constexpr uint8_t fieldIdx = _fieldIdx;
+		static constexpr uint8_t initialPresence = 0;
+
+		static void initialize(This *t) {
+			(t->*field) = none();
+		}
+
+		static ReadResult assign(This *t, uint32_t value) {
+			int32_t v = Impl::Protobuf::unzigzag32(value);
+			if (value > std::numeric_limits<T>::max() || value < std::numeric_limits<T>::min()) {
+				return ReadResult::Invalid;
+			} else {
+				(t->*field) = value;
+				return ReadResult::Valid;
+			}
+		}
+
+		static auto forWriting(const This *t) {
+            return ::Streams::Nested([t] (auto write) {
+                //return (t->*field).map([write] (auto i) { return write(i); }).getOrElse(true);
+            	if ((t->*field).isDefined()) {
+            		return write(Impl::Protobuf::Varint<T,_fieldIdx>((t->*field).get()));
+            	} else {
+            		return true;
+            	}
+            });
+		}
+	};
+
 	template <uint8_t _fieldIdx, int8_t This::*field>
 	struct Varint<_fieldIdx, int8_t, field>: public SignedVarint<_fieldIdx, int8_t, field> {};
 
@@ -218,6 +293,15 @@ struct Protocol {
 
 	template <uint8_t _fieldIdx, int32_t This::*field>
 	struct Varint<_fieldIdx, int32_t, field>: public SignedVarint<_fieldIdx, int32_t, field> {};
+
+	template <uint8_t _fieldIdx, Option<int8_t> This::*field>
+	struct Varint<_fieldIdx, Option<int8_t>, field>: public OptionSignedVarint<_fieldIdx, int8_t, field> {};
+
+	template <uint8_t _fieldIdx, Option<int16_t> This::*field>
+	struct Varint<_fieldIdx, Option<int16_t>, field>: public OptionSignedVarint<_fieldIdx, int16_t, field> {};
+
+	template <uint8_t _fieldIdx, Option<int32_t> This::*field>
+	struct Varint<_fieldIdx, Option<int32_t>, field>: public OptionSignedVarint<_fieldIdx, int32_t, field> {};
 
 	/**
 	 * A protocol that represents an undelimited protobuf message. When reading,

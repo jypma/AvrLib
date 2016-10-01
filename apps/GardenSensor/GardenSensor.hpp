@@ -22,9 +22,8 @@ using namespace HopeRF;
 using namespace Dallas;
 
 struct Measurement {
-	bool hasSoil;
-	uint32_t soil;
-	int16_t temp;
+	Option<uint32_t> soil;
+	Option<int16_t> temp;
 	uint16_t supply;
 	uint8_t seq;
 	uint16_t sender;
@@ -35,8 +34,8 @@ struct Measurement {
 		P::Varint<1, uint16_t, &Measurement::sender>,
         P::Varint<8, uint8_t, &Measurement::seq>,
 		P::Varint<9, uint16_t, &Measurement::supply>,
-		P::Varint<10, int16_t, &Measurement::temp>,
-		P::Optional<&Measurement::hasSoil, P::Varint<11, uint32_t, &Measurement::soil>>
+		P::Varint<10, Option<int16_t>, &Measurement::temp>,
+		P::Varint<11, Option<uint32_t>, &Measurement::soil>
 	> DefaultProtocol;
 };
 
@@ -112,8 +111,7 @@ struct GardenSensor {
             m.supply = supplyVoltage.get();
             log::debug(F("Reading Soil"));
             m.soil = soil.getTime();
-            m.hasSoil = (m.soil > 0);
-            log::debug(F("Time : "), dec(m.soil));
+            log::debug(F("Soil : "), dec(m.soil));
             pinTX.flush();
             log::debug(F("Suppl: "), dec(m.supply));
             log::debug(F("Temp : "), dec(m.temp));

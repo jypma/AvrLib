@@ -99,11 +99,11 @@ namespace Logging {
 
 inline void printTimings() {
     typedef Logging::Log<Loggers::Timing> log;
-    //static uint8_t lastCount = 0;
-    //if (debugTimingCount != lastCount) {
+    static uint8_t lastCount = 0;
+    if (debugTimingCount != lastCount) {
         log::debug(Streams::Decimal(debugTimings, 0, debugTimingsCount));
-    //    lastCount = debugTimingCount;
-    //}
+        lastCount = debugTimingCount;
+    }
 }
 
 }

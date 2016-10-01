@@ -5,6 +5,7 @@
 #include <Time/RealTimer.hpp>
 #include <Time/Units.hpp>
 #include "Logging.hpp"
+#include "Option.hpp"
 
 namespace Passive {
 
@@ -44,7 +45,7 @@ class CapacitorRC {
 
     CapacitorRCState state = CapacitorRCState::IDLE;
     uint32_t startTime = 0;
-    uint32_t time = 0;
+    Option<uint32_t> time;
     Deadline<rt_t, rise_time> chargeDone = { *rt };
     Deadline<rt_t, timeout_time> timeout = { *rt };
     uint16_t measurements = 0;
@@ -82,7 +83,7 @@ class CapacitorRC {
             pin->interruptOnChange();
             timeout.schedule();
         } else {
-            time = 0;
+            time = none();
             measurements = 0;
             idle();
         }
@@ -103,7 +104,7 @@ class CapacitorRC {
             measurements--;
             discharge();
         } else {
-            time = 0;
+            time = none();
             measurements = 0;
             idle();
         }
@@ -126,7 +127,7 @@ public:
             }
         } else if (timeout.isNow()) {
             log::debug(F("timed out"));
-            time = 0;
+            time = none();
             measurements = 0;
             idle();
         }
@@ -158,7 +159,7 @@ public:
         }
     }
 
-    uint32_t getTime() {
+    Option<uint32_t> getTime() const {
         return time;
     }
 };

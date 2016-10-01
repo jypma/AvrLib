@@ -148,7 +148,8 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     EXPECT_TRUE(pin.isInterruptOn);
     invoke<MockPin::INT>(dht);
     std::cout << "----" <<std::endl;
-    dht.onPinChange();
+    //dht.onPinChange();
+    invoke<MockPin::INT>(dht);
     pin.high = true;
     comparator.advance(80_us);
     EXPECT_TRUE(pin.isInterruptOn);
@@ -194,8 +195,8 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     sendTestByte(0);
     sendTestByte(59);
 
-    EXPECT_EQ(320, dht.getHumidity());
-    EXPECT_EQ(270, dht.getTemperature());
+    EXPECT_EQ(some(320), dht.getHumidity());
+    EXPECT_EQ(some(270), dht.getTemperature());
     EXPECT_EQ(DHTState::IDLE, dht.getState());
     EXPECT_FALSE(pin.isInterruptOn);
     EXPECT_FALSE(comparator.isInterruptOn);
@@ -240,8 +241,8 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     sendTestByte(0);
     sendTestByte(59);
 
-    EXPECT_EQ(20, dht.getHumidity());
-    EXPECT_EQ(420, dht.getTemperature());
+    EXPECT_EQ(some(20), dht.getHumidity());
+    EXPECT_EQ(some(420), dht.getTemperature());
     EXPECT_EQ(DHTState::IDLE, dht.getState());
     EXPECT_FALSE(pin.isInterruptOn);
     EXPECT_FALSE(comparator.isInterruptOn);
@@ -318,8 +319,8 @@ TEST(DHTTest, dht22_reads_negative_temperatures) {
     sendTestByte(0b01100101);
     sendTestByte(59);
 
-    EXPECT_EQ(652, dht.getHumidity());
-    EXPECT_EQ(-101, dht.getTemperature());
+    EXPECT_EQ(some(652), dht.getHumidity());
+    EXPECT_EQ(some(-101), dht.getTemperature());
 }
 
 }

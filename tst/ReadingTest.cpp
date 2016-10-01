@@ -516,13 +516,16 @@ struct MyPBStruct {
     uint8_t optA;
     bool hasA;
 
+    Option<uint16_t> optB;
+
     typedef Protobuf::Protocol<MyPBStruct> P;
 
     typedef P::Message<
 		P::Varint<1, uint8_t, &MyPBStruct::uint8>,
 		P::Varint<2, uint16_t, &MyPBStruct::uint16>,
 		P::Varint<3, uint32_t, &MyPBStruct::uint32>,
-		P::Optional<&MyPBStruct::hasA, P::Varint<4, uint8_t, &MyPBStruct::optA>>
+		P::Optional<&MyPBStruct::hasA, P::Varint<4, uint8_t, &MyPBStruct::optA>>,
+		P::Varint<5, Option<uint16_t>, &MyPBStruct::optB>
 	> DefaultProtocol;
 };
 
@@ -549,11 +552,12 @@ TEST(ReadingTest, can_read_struct_with_protobuf_DefaultMessage_out_of_order) {
 }
 
 TEST(ReadingTest, can_read_struct_with_optional_field) {
-	Fifo<16> fifo;
+	Fifo<24> fifo;
 	MyPBStruct s;
-	fifo.write(FB(1 << 3, 255, 1, 3 << 3, 255,255,255,255,15, 2 << 3, 255,255,1, 4 << 3, 42));
+	fifo.write(FB(1 << 3, 255, 1, 3 << 3, 255,255,255,255,15, 2 << 3, 255,255,1, 4 << 3, 42, 5 << 3, 42));
 	EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
 	EXPECT_TRUE(s.hasA);
 	EXPECT_EQ(42, s.optA);
+	EXPECT_EQ(some(42), s.optB);
 }
 }

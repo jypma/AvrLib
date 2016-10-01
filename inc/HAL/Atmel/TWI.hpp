@@ -298,6 +298,8 @@ public:
     }
 
     /* TODO re-enable this by switching away from ChunkedFifo, and having some other means of telling whether done.
+     * This is because we can't read from a ChunkedFifo while also writing to it. So the TxFifo would need to become
+     * an ordinary fifo. Perhaps combined with a "stillWriting" flag?
     template <typename... types>
     void writeOrBlock(uint8_t address, types... args) {
         txFifo.template writeOrBlockWith<&This::startWriting>(uint8_t(TW_WRITE | (address << 1)), args...);

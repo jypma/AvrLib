@@ -8,6 +8,7 @@
 #include "Dallas/DS18x20.hpp"
 #include "Time/Units.hpp"
 #include "DHT/DHT22.hpp"
+#include "Option.hpp"
 
 #define auto_var(name, expr) decltype(expr) name = expr
 
@@ -22,10 +23,8 @@ using namespace Dallas;
 using namespace DHT;
 
 struct Measurement {
-	bool hasTemp = false;
-	int16_t temp;
-	uint16_t humidity;
-	bool hasHumidity = false;
+	Option<int16_t> temp;
+	Option<uint16_t> humidity;
 	uint16_t supply;
 	uint8_t seq;
 	uint16_t sender;
@@ -36,8 +35,8 @@ struct Measurement {
 		P::Varint<1, uint16_t, &Measurement::sender>,
         P::Varint<8, uint8_t, &Measurement::seq>,
 		P::Varint<9, uint16_t, &Measurement::supply>,
-		P::Optional<&Measurement::hasTemp, P::Varint<10, int16_t, &Measurement::temp>>,
-		P::Optional<&Measurement::hasHumidity, P::Varint<11, uint16_t, &Measurement::humidity>>
+		P::Varint<10, Option<int16_t>, &Measurement::temp>,
+		P::Varint<11, Option<uint16_t>, &Measurement::humidity>
 	> DefaultProtocol;
 };
 
@@ -52,8 +51,10 @@ struct RoomSensor {
     SPIMaster spi;
     ADConverter adc;
 
-    auto_var(timer1, Timer1::withPrescaler<8>::inNormalMode());
-    auto_var(rt, realTimer(timer1));
+    auto_var(timer0, Timer0::withPrescaler<64>::inNormalMode());
+    auto_var(timer1, Timer1::withPrescaler<1>::inNormalMode());
+    auto_var(timer2, Timer2::withPrescaler<64>::inNormalMode());
+    auto_var(rt, realTimer(timer0));
     auto_var(nextMeasurement, deadline(rt, 30_s));
 
     auto_var(pinRFM12_INT, PinPD2());
@@ -65,10 +66,17 @@ struct RoomSensor {
 
     auto_var(wire, OneWireParasitePower(pinOneWire, rt));
     auto_var(ds, SingleDS18x20(wire));
-    auto_var(rfm, (rfm12<4,128>(spi, pinRFM12_SS, pinRFM12_INT, timer1.comparatorA(), RFM12Band::_868Mhz)));
+    auto_var(rfm, (rfm12<4,128>(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz)));
     auto_var(supplyVoltage, (SupplyVoltage<4700, 1000, bandgapVoltage>(adc, pinSupply)));
     auto_var(power, Power(rt));
-    auto_var(dht, DHT22(pinDHT, pinDHTPower, timer1.comparatorB(), rt));
+    // OK: timer2.comparatorA / 8 (60us = 120)
+    // OK: timer2.comparatorB / 8 (60us = 120)
+    // OK: timer2.comparatorA / 64 (60us = 15)
+    // OK: timer0.comparatorB / 64 (60us = 15), +DHT, +SerialTiming
+    // OK: timer0.comparatorB / 64 (60us = 15), +SerialTiming
+    // OK: timer0.comparatorB / 64 (60us = 15)
+
+    auto_var(dht, DHT22(pinDHT, pinDHTPower, timer0.comparatorB(), rt));
 
 	uint8_t seq = 0;
 
@@ -98,24 +106,21 @@ struct RoomSensor {
     void loop() {
         supplyVoltage.stopOnLowBattery(3000);
         dht.loop();
+        pinTX.flush();
+        Logging::printTimings();
+        pinTX.flush();
 
         if (measuring && !dht.isMeasuring() && !ds.isMeasuring()) {
             pinTX.flush();
             measuring = false;
             log::debug(F("Reading DS"));
-            auto t = ds.getTemperature();
-            m.hasTemp = t.isDefined();
-			t.forEach([this] (auto i) { m.temp = i; });
+            m.temp = ds.getTemperature();
             log::debug(F("Reading Supply 1"));
             for (int i = 0; i < 10; i++) supplyVoltage.get();
             log::debug(F("Reading Supply 2"));
             m.supply = supplyVoltage.get();
             log::debug(F("Reading DHT"));
-
-            if (dht.getLastFailure() == 0) {
-            	m.humidity = dht.getHumidity();
-            	m.hasHumidity = true;
-            }
+			m.humidity = dht.getHumidity();
             log::debug(F("Humidity : "), dec(m.humidity));
             pinTX.flush();
             log::debug(F("Suppl: "), dec(m.supply));
@@ -135,7 +140,7 @@ struct RoomSensor {
             if (mode == SleepMode::POWER_DOWN && measuring) {
             	// don't power down if everything is idle here but we haven't found out yet we're done measuring
             } else {
-            	power.sleepUntilAny(mode, nextMeasurement, ds);
+            	//power.sleepUntilAny(mode, nextMeasurement, ds);
             }
         }
     }

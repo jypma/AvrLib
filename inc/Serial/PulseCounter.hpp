@@ -46,6 +46,7 @@ private:
     pin_t *const pin;
 
     void onPinChanged() { // this method takes 117 cycles
+    	log::timeStart();
         lastWriteWasHigh = pin->isHigh();
         const count_t end = comparator->getValue();
         const count_t length = (end > start) ? end - start :
@@ -57,6 +58,7 @@ private:
         comparator->setTarget(end - 1);
         comparator->interruptOn();
         start = end;
+        log::timeEnd();
     }
 
     void onComparator() {
