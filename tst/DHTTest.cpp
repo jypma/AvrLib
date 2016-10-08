@@ -111,12 +111,11 @@ TEST(DHTTest, powers_on_before_measuring) {
 
     dht.measure();
     EXPECT_TRUE(power.high);
+    EXPECT_EQ(DHTState::BOOTING, dht.getState());
 
-    // after 1 second, pin should be pulled low for 18ms
     rt.advance(1_s);
     dht.loop();
-    EXPECT_TRUE(pin.isOutput);
-    EXPECT_FALSE(pin.high);
+    EXPECT_EQ(DHTState::IDLE, dht.getState());
 }
 
 TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
@@ -132,6 +131,7 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     // after 1 second, pin should be pulled low for 18ms
     rt.advance(1_s);
     dht.loop();
+    dht.measure();
     EXPECT_EQ(DHTState::SIGNALING, dht.getState());
     EXPECT_TRUE(pin.isOutput);
     EXPECT_FALSE(pin.high);
@@ -259,6 +259,7 @@ TEST(DHTTest, dht22_reads_negative_temperatures) {
     // after 1 second, pin should be pulled low for 18ms
     rt.advance(1_s);
     dht.loop();
+    dht.measure();
     EXPECT_EQ(DHTState::SIGNALING, dht.getState());
     EXPECT_TRUE(pin.isOutput);
     EXPECT_FALSE(pin.high);

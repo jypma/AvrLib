@@ -28,6 +28,8 @@ namespace Impl {
 //TODO what's the actual timeout on the pulse counter? maybe make that explicit
 template <typename datapin_t, typename powerpin_t, typename comparator_t, typename rt_t>
 class DHT {
+	static_assert(!(Logging::Log<Loggers::Serial>::isTimingEnabled()), "Current PulseCounter implementation is too slow to count 80us pulses AND output profiling data. Disable timing data please.");
+
     typedef DHT<datapin_t,powerpin_t,comparator_t,rt_t> This;
     typedef Logging::Log<Loggers::DHT11> log;
 
@@ -72,6 +74,7 @@ public:
             state = DHTState::SIGNALING;
         } else {
             log::debug(F("Still booting, or measurement already in progress."));
+            lastFailure = 253;
         }
     }
 
@@ -114,8 +117,8 @@ private:
 
     void booting() {
         if (timeout.isNow()) {
+        	log::debug(F("Done booting"));
         	state = DHTState::IDLE;
-            measure();
         }
     }
 
@@ -196,6 +199,7 @@ public:
         counter(_comparator, _pin),
         timeout(deadline(_rt)) {
         power->configureAsOutput();
+        counter.pause();
         powerOn();
         log::debug(F("60us = "), dec((uint16_t) toCountsOn<comparator_t>(60_us)));
     }
