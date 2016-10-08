@@ -15,7 +15,7 @@ struct HardwareInt {
     typedef I INT;
 
     template <typename body_t>
-    static inline void wrap(body_t body) {
+    static __attribute__((always_inline)) inline void wrap(body_t body) {
         body();
     }
 };
@@ -26,20 +26,20 @@ struct EmptyHandlers {
     struct Handler {
         static_assert(sizeof(typename V::INT) == sizeof(typename V::INT), "T in Handler<T> must have be an interrupt vector type.");
 
-        static inline void invoke(T &t) {}
+        static __attribute__((always_inline)) inline void invoke(T &t) {}
     };
 };
 
 template <typename I, typename T, void (T::*f)(), typename P, typename V, typename check=void>
 struct On_Handler {
-    static inline void invoke(T &t) {
+    static __attribute__((always_inline)) inline void invoke(T &t) {
         P::template Handler<V>::invoke(t);
     }
 };
 
 template <typename I, typename T, void (T::*f)(), typename P, typename V>
 struct On_Handler<I,T,f,P,V,typename std::enable_if<std::is_same<V, typename I::INT>::value>::type> {
-    static inline void invoke(T &t) {
+    static __attribute__((always_inline)) inline void invoke(T &t) {
         T * const t_ptr = &t;
         I::wrap([t_ptr] {
             (t_ptr->*f)();
@@ -81,7 +81,7 @@ namespace InterruptHandlers {
     struct Delegate: public P {
         template <typename I>
         struct Handler {
-            static inline void invoke(T &t) {
+            static __attribute__((always_inline)) inline void invoke(T &t) {
                 U::Handlers::template Handler<I>::invoke(t.*u);
                 P::template Handler<I>::invoke(t);
             }

@@ -44,7 +44,7 @@ public:
     static volatile uint8_t ints;
 
     template <typename body_t>
-    static void wrap(body_t body) {
+    static inline __attribute__((always_inline)) void wrap(body_t body) {
     	log::timeStart();
     	ints++;
         uint8_t now = *pcintInfo::pin;
@@ -176,7 +176,7 @@ public:
     }
 
     template <typename body_t>
-    static void wrap(body_t body) {
+    static __attribute__((always_inline)) inline void wrap(body_t body) {
     	log::timeStart();
     	ints++;
         uint8_t now = *pcintInfo::pin;
