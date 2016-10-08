@@ -153,10 +153,20 @@ public:
     }
 
     /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */
+    __attribute__((always_inline)) inline uint8_t fastGetSpace() {
+    	return _getSpace();
+    }
+
+    /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */
     __attribute__((always_inline)) inline void fastwrite(uint8_t b) {
         if (_hasSpace()) {
             _uncheckedWrite(b);
         }
+    }
+
+    /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */
+    __attribute__((always_inline)) inline void fastUncheckedWrite(uint8_t b) {
+    	_uncheckedWrite(b);
     }
 
     /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */

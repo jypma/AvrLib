@@ -14,11 +14,13 @@
 #include "Serial/Pulse.hpp"
 #include "Logging.hpp"
 
+extern volatile uint16_t pls;
 namespace Serial {
 
 using namespace Streams;
 using namespace Time;
 using namespace HAL::Atmel::InterruptHandlers;
+
 
 /**
  * Counts up/down pulse lengths on a pin by using a timer.
@@ -40,20 +42,29 @@ private:
 
     Fifo<fifo_length> fifo;
     volatile count_t start;
-    volatile bool lastWriteWasHigh;
+    uint8_t space;
 
     _comparator_t *const comparator;
     pin_t *const pin;
 
-    void onPinChanged() { // this method takes 117 cycles
+    void onPinChanged() { // this method takes 90 cycles for 8-bit timers
     	log::timeStart();
-        lastWriteWasHigh = pin->isHigh();
+
+    	pls++;
         const count_t end = comparator->getValue();
         const count_t length = (end > start) ? end - start :
                                Counting<count_t>::maximum - (start - end);
 
+    	if (space <= 1) {
+    		space = fifo.fastGetSpace();
+    	}
+    	if (space > 1) {
+    		//fifo.fastwrite(length, uint8_t(pin->isHigh() ? 0 : 1));
+    		fifo.fastUncheckedWrite(length);
+    		fifo.fastUncheckedWrite(uint8_t(pin->isHigh() ? 0 : 1));
+    	}
+
         //log::debug(F("P s="), dec(start), F(" e="), dec(end), F(" l="), dec(lastWriteWasHigh));
-        fifo.fastwrite(length, uint8_t(pin->isHigh() ? 0 : 1));
 
         comparator->setTarget(end - 1);
         comparator->interruptOn();
@@ -69,7 +80,7 @@ private:
     }
 
     void go() {
-        lastWriteWasHigh = pin->isHigh();
+    	space = fifo.getSpace();
         start = comparator->getValue();
         comparator->setTarget(start - 1);
         comparator->interruptOn();
