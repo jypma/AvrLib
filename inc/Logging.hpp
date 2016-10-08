@@ -14,10 +14,10 @@
 #include <mutex>
 #endif
 
-constexpr uint8_t debugTimingCount = 32;
+constexpr uint8_t debugTimingMax = 32;
 
-extern uint16_t debugTimings[debugTimingCount];
-extern uint8_t debugTimingsCount;
+extern volatile uint16_t debugTimings[debugTimingMax];
+extern volatile uint8_t debugTimingsCount;
 
 static uint16_t debugStartTime;
 
@@ -30,19 +30,23 @@ extern std::mutex logging_mutex;
 #endif
 
 struct TimingDisabled {
+    static constexpr bool isTimingEnabled() { return false; }
     inline static void timeStart() {}
     inline static void timeEnd() {}
 };
 
+// The overhead of enabling timing is 34 cycles per sample.
 struct TimingEnabled {
-    inline static void timeStart() {
+    static constexpr bool isTimingEnabled() { return true; }
+
+    __attribute__((always_inline)) inline static void timeStart() {
         debugStartTime = TCNT1;
     }
 
-    inline static void timeEnd() {
+    __attribute__((always_inline)) inline static void timeEnd() {
         uint16_t duration = TCNT1 - debugStartTime;
 
-        if (debugTimingsCount < debugTimingCount) {
+        if (debugTimingsCount < debugTimingMax) {
             debugTimings[debugTimingsCount] = duration;
             debugTimingsCount++;
         }
@@ -59,7 +63,11 @@ struct MessagesDisabled {
 template <typename... types>
 extern void onMessage(types... args);
 
-#define LOGGING_TO(var) template <typename... types> void ::Logging::onMessage(types... args) { AtomicScope _; var.writeIfSpace(args...); }
+extern void onFlush();
+
+#define LOGGING_TO(var) \
+	template <typename... types> void ::Logging::onMessage(types... args) { AtomicScope _; var.writeIfSpace(args...); } \
+	void ::Logging::onFlush() { var.flush(); }
 
 template <typename loggerName = STR("")>
 struct MessagesEnabled {
@@ -78,10 +86,15 @@ struct MessagesEnabled {
         }
         printf("\n");
     }
+    static void flush() {}
 #else
     template <typename... types>
     inline static void debug(types... args) {
         onMessage(loggerName::instance(), F(": "), args..., ::Streams::endl);
+    }
+
+    static void flush() {
+    	onFlush();
     }
 #endif
 };
@@ -99,10 +112,17 @@ namespace Logging {
 
 inline void printTimings() {
     typedef Logging::Log<Loggers::Timing> log;
-    static uint8_t lastCount = 0;
-    if (debugTimingCount != lastCount) {
-        log::debug(Streams::Decimal(debugTimings, 0, debugTimingsCount));
-        lastCount = debugTimingCount;
+    constexpr uint8_t MAX = 15;
+    if (debugTimingsCount > 0) {
+    	uint8_t count = (debugTimingsCount >= MAX) ? MAX : debugTimingsCount;
+		log::debug(Streams::Decimal(debugTimings, 0, count));
+		{
+			AtomicScope _;
+			for (uint8_t i = 0; i < count; i++) {
+				debugTimings[i] = debugTimings[i + count];
+			}
+			debugTimingsCount -= count;
+		}
     }
 }
 

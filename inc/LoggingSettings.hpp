@@ -36,9 +36,8 @@ namespace Logging {
     template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};
     //template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};
     //template<> class Log<Loggers::Passive>: public MessagesEnabled<STR("Passive")> {};
-    //template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
-    //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
+    //template<> class Log<Loggers::PinChangeInterrupt>: public MessagesDisabled, public TimingEnabled {};
     //template<> class Log<Loggers::DHT11>: public MessagesEnabled<STR("DHT11")> {};
 #else
     //template<> class Log<Loggers::VisonicDecoder>: public TimingEnabled, public MessagesEnabled<STR("Vison")> {};

@@ -1,7 +1,9 @@
 #include "Logging.hpp"
 
-uint16_t debugTimings[debugTimingCount];
-uint8_t debugTimingsCount = 0;
+volatile uint16_t debugTimings[debugTimingMax];
+volatile uint8_t debugTimingsCount = 0;
+
+volatile uint16_t pls = 0;
 
 #ifndef AVR
 namespace Logging {
