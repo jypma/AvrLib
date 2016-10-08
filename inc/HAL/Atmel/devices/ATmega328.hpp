@@ -280,6 +280,32 @@ struct Timer1Info {
     };
 };
 
+struct Timer1LoInfo: public Timer1Info {
+    static constexpr sfr8_t *tcnt = &TCNT1L;
+    typedef uint8_t value_t;
+
+    struct Comparator {
+        typedef uint16_t value_t;
+        typedef Timer1Info timer_info_t;
+        static constexpr sfr16_t *tcnt = &TCNT1;
+        static constexpr sfr8_t *timsk = &TIMSK1;
+        static constexpr sfr8_t *tifr = &TIFR1;
+        static constexpr sfr8_t *tccra = &TCCR1A;
+        static constexpr sfr8_t *tccrb = &TCCR1B;
+    };
+
+    struct ComparatorA: public Timer1Info::ComparatorA {
+        typedef uint8_t value_t;
+        typedef Timer1LoInfo timer_info_t;
+        static constexpr sfr8_t *ocr = &OCR1AL;
+    };
+    struct ComparatorB: public Timer1Info::ComparatorB {
+        typedef uint8_t value_t;
+        typedef Timer1LoInfo timer_info_t;
+        static constexpr sfr8_t *ocr = &OCR1BL;
+    };
+};
+
 struct Timer2Info {
     typedef Int_TIMER2_OVF_ INT;
 
@@ -446,7 +472,9 @@ struct PinA7Info {
 ////////////////////////////// TIMERS ///////////////////////////////////////////////////////
 
 typedef Timer::TimerDeclaration<Info::Timer0Info,ExtPrescaler::_1> Timer0;
-typedef Timer::TimerDeclaration<Info::Timer1Info,ExtPrescaler::_1> Timer1;
+struct Timer1: public Timer::TimerDeclaration<Info::Timer1Info,ExtPrescaler::_1> {
+	typedef Timer::TimerDeclaration<Info::Timer1LoInfo,ExtPrescaler::_1> lowByte;
+};
 typedef Timer::TimerDeclaration<Info::Timer2Info,IntPrescaler::_1> Timer2;
 
 ////////////////////////////// PINS /////////////////////////////////////////////////////////
