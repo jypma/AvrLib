@@ -198,10 +198,16 @@ template <typename base, typename info>
 class WithPinChange: public base, public PinChangeInterrupt<typename info::pcintInfo, _BV(info::pcintBit)> {};
 
 template <typename base, typename info>
+class WithPinChangeOnChange: public base, public PinChangeInterruptOnChange<typename info::pcintInfo, _BV(info::pcintBit)> {};
+
+template <typename base, typename info>
 class WithPinChangeOption: public base {
 public:
     static WithPinChange<base, info> withInterrupt() {
         return WithPinChange<base, info>();
+    }
+    static WithPinChangeOnChange<base, info> withInterruptOnChange() {
+    	return WithPinChangeOnChange<base, info>();
     }
 };
 

@@ -13,6 +13,7 @@ namespace Loggers {
     class Main;
     class Passive;
     class TWI;
+    class PinChangeInterrupt;
 }
 
 namespace Logging {
