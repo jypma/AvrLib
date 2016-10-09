@@ -28,7 +28,7 @@ struct Main {
     auto_field(rt, realTimer(timer0));
 
     auto_field(startMeasure, deadline(rt, 2_s));
-    auto_field(readResult, deadline(rt, 2_s));
+    //auto_field(readResult, deadline(rt, 240_ms));
     TWI<> twi = {};
     auto_field(bh, bh1750(twi, rt));
 
@@ -49,14 +49,17 @@ struct Main {
     	};
 
 */
-        readResult.cancel();
+        bool measuring;
+        //readResult.cancel();
         while (true) {
             if (startMeasure.isNow()) {
+            	measuring = true;
             	log::debug(F("Measuring"));
-                bh.configure(BH1750Mode::oneTimeHighRes);
-                readResult.schedule();
+                bh.measure(BH1750Mode::oneTimeHighRes);
+                //readResult.schedule();
                 // TODO embed into BH1750 when the result can be read
-            } else if (readResult.isNow()) {
+            } else if (measuring && !bh.isMeasuring()) {
+            	measuring = false;
             	auto level = bh.readLevel();
             	log::debug(F("Level: "), dec(level));
                 startMeasure.schedule();
