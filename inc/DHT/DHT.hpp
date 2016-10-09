@@ -22,10 +22,6 @@ enum class DHTState: uint8_t {
 namespace Impl {
 
 /** Abstract base class for all DHT-based temperature & humidity sensors */
-//FIXME needs timeout for error
-//TODO test that measure() immediately after power on waits for 1 sec
-//TODO merge powerOn() and measure() methods since they do the same
-//TODO what's the actual timeout on the pulse counter? maybe make that explicit
 template <typename datapin_t, typename powerpin_t, typename comparator_t, typename rt_t>
 class DHT {
 	static_assert(!(Logging::Log<Loggers::Serial>::isTimingEnabled()), "Current PulseCounter implementation is too slow to count 80us pulses AND output profiling data. Disable timing data please.");
@@ -36,7 +32,7 @@ class DHT {
     datapin_t *pin;
     powerpin_t *power;
     DHTState state;
-    PulseCounter<comparator_t, datapin_t, 250> counter;
+    PulseCounter<comparator_t, datapin_t, 200> counter;
     VariableDeadline<rt_t> timeout;
     uint8_t bit = 7;
     uint8_t pos = 0;
