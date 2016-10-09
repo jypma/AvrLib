@@ -170,6 +170,13 @@ public:
     }
 
     /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */
+    __attribute__((always_inline)) inline void fastUncheckedWrite(uint16_t b) {
+    	uint8_t *p = (uint8_t *) &b;
+    	_uncheckedWrite(p[0]);
+    	_uncheckedWrite(p[1]);
+    }
+
+    /** Only for use in interrupts. Force inlined, and does not disable interrupt flag. */
     // TODO make template for these variations, like normal write.
     __attribute__((always_inline)) inline void fastwrite(uint8_t b1, uint8_t b2) {
         if (_getSpace() >= 2) {
