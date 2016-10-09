@@ -55,7 +55,7 @@ struct RoomSensor {
     auto_var(timer1, Timer1::withPrescaler<1>::inNormalMode());
     auto_var(timer2, Timer2::withPrescaler<64>::inNormalMode());
     auto_var(rt, realTimer(timer0));
-    auto_var(nextMeasurement, deadline(rt, 30_s));
+    auto_var(nextMeasurement, deadline(rt, 5_s));
 
     auto_var(pinRFM12_INT, PinPD2());
     auto_var(pinRFM12_SS, PinPB2());
@@ -69,13 +69,6 @@ struct RoomSensor {
     auto_var(rfm, (rfm12<4,128>(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz)));
     auto_var(supplyVoltage, (SupplyVoltage<4700, 1000, bandgapVoltage>(adc, pinSupply)));
     auto_var(power, Power(rt));
-    // OK: timer2.comparatorA / 8 (60us = 120)
-    // OK: timer2.comparatorB / 8 (60us = 120)
-    // OK: timer2.comparatorA / 64 (60us = 15)
-    // OK: timer0.comparatorB / 64 (60us = 15), +DHT, +SerialTiming
-    // OK: timer0.comparatorB / 64 (60us = 15), +SerialTiming
-    // OK: timer0.comparatorB / 64 (60us = 15)
-
     auto_var(dht, DHT22(pinDHT, pinDHTPower, timer0.comparatorB(), rt));
 
 	uint8_t seq = 0;
@@ -108,6 +101,7 @@ struct RoomSensor {
         dht.loop();
         pinTX.flush();
         Logging::printTimings();
+        //pinTX.write(dec(pls));
         pinTX.flush();
 
         if (measuring && !dht.isMeasuring() && !ds.isMeasuring()) {
@@ -121,10 +115,11 @@ struct RoomSensor {
             m.supply = supplyVoltage.get();
             log::debug(F("Reading DHT"));
 			m.humidity = dht.getHumidity();
-            log::debug(F("Humidity : "), dec(m.humidity));
+            log::debug(F("Hum  : "), dec(m.humidity));
             pinTX.flush();
             log::debug(F("Suppl: "), dec(m.supply));
             log::debug(F("Temp : "), dec(m.temp));
+            log::debug(F("TempH: "), dec(dht.getTemperature()));
             seq++;
             m.seq = seq;
             m.sender = 'Q' << 8 | read(id);
