@@ -22,6 +22,9 @@ using namespace Time;
 using namespace HAL::Atmel::InterruptHandlers;
 
 
+// TODO make a version that uses rt instead of comparator for timeout. That way,
+// many pulse counters can share 1 timer.
+
 /**
  * Counts up/down pulse lengths on a pin by using a timer.
  */

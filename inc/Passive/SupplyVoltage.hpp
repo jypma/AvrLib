@@ -30,6 +30,8 @@ template <uint16_t R1, uint16_t R2, uint16_t EEPROM::*bandgapVoltage, typename a
 class SupplyVoltage {
     typedef Logging::Log<Loggers::Passive> log;
     adc_t *adc;
+    static constexpr uint8_t lowReadingsNeeded = 100; // number of low readings before stop
+    uint8_t lowReadingsUntilStop = lowReadingsNeeded;
 public:
     SupplyVoltage(adc_t &_adc): adc(&_adc) {}
 
@@ -58,9 +60,21 @@ public:
         const uint8_t oldEIMSK = EIMSK;
 
         while (true) {
-            for (uint8_t count = 4; count > 0; count--) {
-                if (get() >= threshold) return;
-            }
+        	bool low = true;
+			for (uint8_t count = 4; count > 0; count--) {
+				if (get() >= threshold) {
+					low = false;
+					break;
+				}
+			}
+			if (low) {
+				if (lowReadingsUntilStop > 0) {
+					lowReadingsUntilStop--;
+					return;
+				}
+        	} else {
+        		return;
+        	}
 
             onShutdown();
 
@@ -76,6 +90,7 @@ public:
             sleep_cpu();
 
             // If by some magic, we manage to wake up, restore and re-measure
+            lowReadingsUntilStop = lowReadingsNeeded;
             ADCSRA = oldADCSRA;
             PCICR = oldPCICR;
             EIMSK = oldEIMSK;

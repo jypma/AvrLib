@@ -213,6 +213,18 @@ public:
         }
     }
 
+    /**
+     * Returns the approximate time left until any ongoing measurement completes,
+     * or 0xFFFFFFFF if no measurement is in progress.
+     */
+    Microseconds<> timeLeft() const {
+    	if (state == DHTState::BOOTING || state == DHTState::OFF || state == DHTState::IDLE) {
+    		return 0xFFFFFFFF;
+    	} else {
+    		return 30;
+    	}
+    }
+
     DHTState getState() const {
         return state;
     }

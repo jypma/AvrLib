@@ -177,6 +177,7 @@ public:
         return sleepFor(p.timeLeft(), mode, SleepGranularity::_8000ms);
     }
 
+    // FIXME assert that the periodics are of the same rt_t
     template <typename periodic_t, typename... periodic_ts>
     bool sleepUntilAny(SleepMode mode, const periodic_t &head, const periodic_ts&... tail) {
         return sleepUntilAnyLT(toMillisOn<rt_t>(head.timeLeft()), mode, tail...);

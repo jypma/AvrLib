@@ -304,6 +304,9 @@ public:
         const float v = getValue();
         return (v >= max) ? 0xFFFFFFFF : v * ticksPerUs;
     }
+
+    template <typename prescaled_t>
+    constexpr Milliseconds<> toMillisOn() const;
 };
 
 template <char ...cv>
@@ -428,6 +431,11 @@ constexpr Milliseconds<> Ticks<>::toMillisOn() const {
 
     const float v = getValue();
     return (v >= max) ? 0xFFFFFFFF : v / ticksPerMs;
+}
+
+template <typename prescaled_t>
+constexpr Milliseconds<> Microseconds<>::toMillisOn() const {
+	return getValue() / 1000;
 }
 
 template <char... cv>

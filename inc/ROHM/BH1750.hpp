@@ -91,11 +91,15 @@ public:
     	return !isMeasuring();
     }
 
+    auto timeLeft() const {
+    	return measurementComplete.timeLeft();
+    }
+
     BH1750(twi_t &_twi, rt_t &_rt): twi(&_twi), rt(&_rt) {
         measure(BH1750Mode::oneTimeHighRes);
     }
 
-    Option<uint16_t> readLevel() {
+    Option<uint16_t> getLightLevel() {
     	if (isMeasuring()) {
     		return none();
     	}

@@ -106,4 +106,8 @@ TEST(PulseCounterTest, pulsecounter_reacts_to_changes_only_after_minimum_length)
     wasInvoked = false;
 }
 
+TEST(PulseCounterTest, pulsecounter_works_with_16_bit_timers) {
+	FAIL("pending");
+}
+
 }

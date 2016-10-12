@@ -324,4 +324,8 @@ TEST(DHTTest, dht22_reads_negative_temperatures) {
     EXPECT_EQ(some(-101), dht.getTemperature());
 }
 
+TEST(DHTTest, reports_none_during_bootup) {
+	FAIL("pending");
+}
+
 }

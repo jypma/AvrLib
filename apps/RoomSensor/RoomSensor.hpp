@@ -9,6 +9,7 @@
 #include "Time/Units.hpp"
 #include "DHT/DHT22.hpp"
 #include "Option.hpp"
+#include "ROHM/BH1750.hpp"
 
 #define auto_var(name, expr) decltype(expr) name = expr
 
@@ -21,6 +22,7 @@ using namespace Passive;
 using namespace HopeRF;
 using namespace Dallas;
 using namespace DHT;
+using namespace ROHM;
 
 struct Measurement {
 	Option<int16_t> temp;
@@ -28,6 +30,7 @@ struct Measurement {
 	uint16_t supply;
 	uint8_t seq;
 	uint16_t sender;
+	Option<uint16_t> lux;
 
     typedef Protobuf::Protocol<Measurement> P;
 
@@ -36,7 +39,8 @@ struct Measurement {
         P::Varint<8, uint8_t, &Measurement::seq>,
 		P::Varint<9, uint16_t, &Measurement::supply>,
 		P::Varint<10, Option<int16_t>, &Measurement::temp>,
-		P::Varint<11, Option<uint16_t>, &Measurement::humidity>
+		P::Varint<11, Option<uint16_t>, &Measurement::humidity>,
+		P::Varint<12, Option<uint16_t>, &Measurement::lux>
 	> DefaultProtocol;
 };
 
@@ -70,6 +74,8 @@ struct RoomSensor {
     auto_var(supplyVoltage, (SupplyVoltage<4700, 1000, bandgapVoltage>(adc, pinSupply)));
     auto_var(power, Power(rt));
     auto_var(dht, DHT22(pinDHT, pinDHTPower, timer0.comparatorB(), rt));
+    TWI<> twi = {};
+    auto_var(bh, bh1750(twi, rt));
 
 	uint8_t seq = 0;
 
@@ -77,15 +83,17 @@ struct RoomSensor {
             Delegate<This, decltype(rt), &This::rt,
 			Delegate<This, decltype(dht), &This::dht,
             Delegate<This, decltype(rfm), &This::rfm,
-            Delegate<This, decltype(power), &This::power>>>>> Handlers;
+			Delegate<This, decltype(twi), &This::twi,
+            Delegate<This, decltype(power), &This::power>>>>>> Handlers;
 
     bool measuring = false;
 
     void measure() {
-        log::debug(F("Measuring DS"));
+        log::debug(F("Measuring"));
+        log::flush();
         ds.measure();
-        log::debug(F("Measuring DHT"));
         dht.measure();
+        bh.measure(BH1750Mode::oneTimeHighRes);
         measuring = true;
     }
 
@@ -97,14 +105,17 @@ struct RoomSensor {
 
     Measurement m;
     void loop() {
-        supplyVoltage.stopOnLowBattery(3000);
+        supplyVoltage.stopOnLowBattery(3000, [&] {
+        	log::debug(F("**LOW**"));
+        	log::flush();
+        });
         dht.loop();
         pinTX.flush();
         Logging::printTimings();
         //pinTX.write(dec(pls));
         pinTX.flush();
 
-        if (measuring && !dht.isMeasuring() && !ds.isMeasuring()) {
+        if (measuring && !dht.isMeasuring() && !ds.isMeasuring() && !bh.isMeasuring()) {
             pinTX.flush();
             measuring = false;
             log::debug(F("Reading DS"));
@@ -117,9 +128,11 @@ struct RoomSensor {
 			m.humidity = dht.getHumidity();
             log::debug(F("Hum  : "), dec(m.humidity));
             pinTX.flush();
+            m.lux = bh.getLightLevel();
             log::debug(F("Suppl: "), dec(m.supply));
             log::debug(F("Temp : "), dec(m.temp));
             log::debug(F("TempH: "), dec(dht.getTemperature()));
+            log::debug(F("Lux  : "), dec(m.lux));
             seq++;
             m.seq = seq;
             m.sender = 'Q' << 8 | read(id);
@@ -130,12 +143,14 @@ struct RoomSensor {
         } else if (nextMeasurement.isNow()) {
             measure();
         } else {
-            auto mode = (rfm.isIdle() && dht.isIdle() && ds.isIdle()) ? SleepMode::POWER_DOWN
+            auto mode = (rfm.isIdle() && dht.isIdle() && ds.isIdle() && bh.isIdle()) ? SleepMode::POWER_DOWN
                       : SleepMode::IDLE;                    // dht is running, needs timers
             if (mode == SleepMode::POWER_DOWN && measuring) {
             	// don't power down if everything is idle here but we haven't found out yet we're done measuring
             } else {
-            	//power.sleepUntilAny(mode, nextMeasurement, ds);
+            	//log::debug(F("States:"), '0' + rfm.isIdle(), '0' + dht.isIdle(), '0' + ds.isIdle(), '0' + bh.isIdle());
+            	//log::flush();
+            	power.sleepUntilAny(mode, nextMeasurement, ds, dht, bh); // TODO have dht participate in "how much time left"
             }
         }
     }

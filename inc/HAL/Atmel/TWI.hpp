@@ -340,7 +340,7 @@ public:
     }
 
     template <typename... types>
-    void read(uint8_t address, types... args) {
+    ReadResult read(uint8_t address, types... args) {
         flush();
         readExpected = Streams::StreamedSize<types...>::fixedSizeReading;
         log::debug(F("read start: "), dec(readExpected));
@@ -351,7 +351,7 @@ public:
         }
         flush();
         log::debug(F("read: "), dec(rxFifo.getSize()));
-        rxFifo.read(args...);
+        return rxFifo.read(args...);
     }
 };
 

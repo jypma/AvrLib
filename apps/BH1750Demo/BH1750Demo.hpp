@@ -60,7 +60,7 @@ struct Main {
                 // TODO embed into BH1750 when the result can be read
             } else if (measuring && !bh.isMeasuring()) {
             	measuring = false;
-            	auto level = bh.readLevel();
+            	auto level = bh.getLightLevel();
             	log::debug(F("Level: "), dec(level));
                 startMeasure.schedule();
             }
