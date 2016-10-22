@@ -8,7 +8,6 @@
 #ifndef TIME_PRESCALED_HPP_
 #define TIME_PRESCALED_HPP_
 
-#include <avr/common.h>
 #include "Time/Counting.hpp"
 
 namespace Time {

@@ -6,8 +6,7 @@
 #include "Fifo.hpp"
 #include "Streams/Format.hpp"
 #include "AtomicScope.hpp"
-
-#include <avr/io.h>
+#include <HAL/Atmel/Registers.hpp>
 
 #ifndef AVR
 #include <stdarg.h>
@@ -23,6 +22,8 @@ extern volatile uint8_t debugTimingsCount;
 static uint16_t debugStartTime;
 
 namespace Logging {
+
+using namespace HAL::Atmel::Registers;
 
 #ifndef AVR
 namespace Impl {
@@ -41,11 +42,11 @@ struct TimingEnabled {
     static constexpr bool isTimingEnabled() { return true; }
 
     __attribute__((always_inline)) inline static void timeStart() {
-        debugStartTime = TCNT1;
+        debugStartTime = TCNT1.get();
     }
 
     __attribute__((always_inline)) inline static void timeEnd() {
-        uint16_t duration = TCNT1 - debugStartTime;
+        uint16_t duration = TCNT1.get() - debugStartTime;
 
         if (debugTimingsCount < debugTimingMax) {
             debugTimings[debugTimingsCount] = duration;

@@ -1,14 +1,11 @@
-/*
- * SPI.hpp
- *
- *  Created on: Jan 16, 2015
- *      Author: jan
- */
+#pragma once
 
-#ifndef SPI_HPP_
-#define SPI_HPP_
+#include "HAL/Atmel/Registers.hpp"
 
-#include <avr/io.h>
+namespace HAL {
+namespace Atmel {
+
+using namespace HAL::Atmel::Registers;
 
 enum class SPIPrescaler: uint8_t {
     _4, _16, _64, _128, _2, _8, _32
@@ -58,7 +55,7 @@ public:
      * Disables SPI mode, releasing pins 10-13 to be used as general purpose I/O.
      */
     inline void disable() const {
-        SPCR &= ~_BV(SPE);
+        SPE.clear();
     }
 
     /**
@@ -74,6 +71,6 @@ public:
     void send(uint8_t out) const;
 };
 
+}
+}
 
-
-#endif /* SPI_HPP_ */

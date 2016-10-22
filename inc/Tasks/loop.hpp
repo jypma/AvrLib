@@ -1,6 +1,8 @@
 #pragma once
 
 #include "gcc_type_traits.h"
+#include <stdint.h>
+#include "Tasks/TaskState.hpp"
 
 using namespace Time;
 

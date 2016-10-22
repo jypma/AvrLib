@@ -5,6 +5,7 @@
 #include "HAL/Atmel/ExternalInterrupt.hpp"
 #include "HAL/Atmel/PinChangeInterrupt.hpp"
 #include "HAL/Atmel/Timer.hpp"
+#include "HAL/attributes.hpp"
 
 namespace HAL {
 namespace Atmel {
@@ -18,22 +19,22 @@ public:
 
     typedef info info_t;
 
-    __attribute__((always_inline)) inline void configureAsOutput() const {
+    INLINE void configureAsOutput() const {
         info::configureAsGPIO();
-        *info::ddr |= info::bitmask;
+        info::DDR.set();
     }
 
-    __attribute__((always_inline)) inline void configureAsInputWithoutPullup() const {
+    INLINE void configureAsInputWithoutPullup() const {
         info::configureAsGPIO();
-        *info::ddr &= ~info::bitmask;
-        *info::port &= ~info::bitmask;
+        info::DDR.clear();
+        info::PORT.clear();
     }
-    __attribute__((always_inline)) inline void configureAsInputWithPullup() const {
-        *info::ddr &= ~info::bitmask;
-        *info::port |= info::bitmask;
+    INLINE void configureAsInputWithPullup() const {
+    	info::DDR.clear();
+    	info::PORT.set();
     }
 
-    __attribute__((always_inline)) inline void setHigh (bool on) const {
+    INLINE void setHigh (bool on) const {
         if (on) {
             setHigh();
         } else {
@@ -41,36 +42,36 @@ public:
         }
     }
 
-    __attribute__((always_inline)) inline void setHigh() const {
-        *info::port |= info::bitmask;
+    INLINE void setHigh() const {
+        info::PORT.set();
     }
 
-    __attribute__((always_inline)) inline void setLow() const {
-        *info::port &= ~info::bitmask;
+    INLINE void setLow() const {
+        info::PORT.clear();
     }
 
-    __attribute__((always_inline)) inline bool isOutputHigh() const {
-        return (*info::port & info::bitmask) != 0;
+    INLINE bool isOutputHigh() const {
+        return info::PORT.isSet();
     }
 
-    __attribute__((always_inline)) inline bool isOutputLow() const {
-        return (*info::port & info::bitmask) == 0;
+    INLINE bool isOutputLow() const {
+        return info::PORT.isCleared();
     }
 
-    __attribute__((always_inline)) inline bool isHigh() const {
-        return (*info::pin & info::bitmask) != 0;
+    INLINE bool isHigh() const {
+        return info::PIN.isSet();
     }
 
-    __attribute__((always_inline)) inline bool isLow() const {
-        return (*info::pin & info::bitmask) == 0;
+    INLINE bool isLow() const {
+        return info::PIN.isCleared();
     }
 
-    __attribute__((always_inline)) inline void configureAsOutputLow() const {
+    INLINE void configureAsOutputLow() const {
         setLow();
         configureAsOutput();
     }
 
-    __attribute__((always_inline)) inline void configureAsOutputHigh() const {
+    INLINE void configureAsOutputHigh() const {
         setHigh();
         configureAsOutput();
     }
@@ -167,13 +168,13 @@ public:
 };
 
 template <typename base, typename info>
-class WithPinChange: public base, public PinChangeInterrupt<typename info::pcintInfo, _BV(info::pcintBit)> {
+class WithPinChange: public base, public PinChangeInterrupt<typename info::pcintInfo, (1 << info::pcintBit)> {
 public:
 	using base::base;
 };
 
 template <typename base, typename info>
-class WithPinChangeOnChange: public base, public PinChangeInterruptOnChange<typename info::pcintInfo, _BV(info::pcintBit)> {
+class WithPinChangeOnChange: public base, public PinChangeInterruptOnChange<typename info::pcintInfo, (1 << info::pcintBit)> {
 public:
 	using base::base;
 };

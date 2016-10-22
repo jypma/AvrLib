@@ -1,14 +1,15 @@
 #ifndef HAL_ATMEL_USART_HPP_
 #define HAL_ATMEL_USART_HPP_
 
-#include <avr/io.h>
 #include "Fifo.hpp"
 #include "HAL/Atmel/InterruptHandlers.hpp"
+#include "HAL/Atmel/Registers.hpp"
 
 namespace HAL {
 namespace Atmel {
 
 using namespace InterruptHandlers;
+using namespace Registers;
 
 /**
  * Configures the USART to use the given baud rate, and configures both pins (0 and 1) as transmitter
@@ -26,14 +27,17 @@ public:
         uint16_t baud_setting = (F_CPU / 4 / baud - 1) / 2;
         if (baud_setting > 4095) {
             baud_setting = (F_CPU / 8 / baud - 1) / 2;
-            *info::ucsra = 0;
+            info::U2X.clear();
         } else {
-            *info::ucsra = 1 << U2X0;
+            info::U2X.set();
         }
 
-        *info::ubrr = baud_setting;
-        *info::ucsrb = (*info::ucsrb | _BV(TXEN0) | _BV(RXEN0) | _BV(RXCIE0)) & ~_BV(UDRIE0);
-        *info::ucsrc = _BV(UCSZ00) | _BV(UCSZ01);
+        info::UBRR.val() = baud_setting;
+        info::TXEN.set();
+        info::RXEN.set();
+        info::RXCIE.set();
+        info::UDRIE.clear();
+        info::UCSRC = info::UCSZ0 | info::UCSZ1;
     }
 };
 
@@ -44,26 +48,26 @@ class UsartTx {
     uint8_t available = 0;
 
     static void startWriting() {
-        if ((*info::ucsrb & _BV(UDRIE0)) == 0) {
-            *info::ucsrb |= _BV(UDRIE0);
+        if (info::UDRIE.isCleared()) {
+        	info::UDRIE.set();
             // clear the TXC bit -- "can be cleared by writing a one to its bit location"
-            *info::ucsra |= _BV(TXC0);
+        	info::TXC.set();
         }
     }
 
     __attribute__((always_inline)) inline void onSendComplete() {
         // clear the TXC bit -- "can be cleared by writing a one to its bit location"
-        *info::ucsra |= _BV(TXC0);
+    	info::TXC.set();
 
         if (available > 0 || ((available = writeFifo._getSize()) > 0)) {
             // There is more data in the output buffer. Send the next byte
             uint8_t next;
             writeFifo._uncheckedRead(next);
-            *info::udr = next;
-        	available--;
+            info::UDR.val() = next;
+            available--;
         } else {
 			// Buffer empty, so disable interrupts
-			*info::ucsrb &= ~_BV(UDRIE0);
+        	info::UDRIE.clear();
         }
     }
 
@@ -109,7 +113,7 @@ public:
     }
 
     void flush() {
-        if ((SREG & (1 << SREG_I)) == 0) {
+        if (SREG_I.isCleared()) {
         	// interrupts disabled, so can't flush.
         	return;
         }
@@ -117,9 +121,9 @@ public:
     	uint16_t counter = 65000;
         while (writeFifo.hasContent() && ((counter--) > 0)) ;
     	counter = 65000;
-        while ((*info::ucsrb & _BV(UDRIE0)) && ((counter--) > 0)) ;
+        while (info::UDRIE.isSet() && ((counter--) > 0)) ;
         counter = 65000;
-        while (((*info::ucsra & _BV(TXC0)) == 0) && ((counter--) > 0)) ;
+        while (info::TXC.isCleared() && ((counter--) > 0)) ;
     }
 };
 
@@ -132,7 +136,7 @@ class UsartRx:
     Fifo<readFifoCapacity> readFifo = {};
 
     inline void onReceive() {
-        uint8_t ch = *info::udr;
+        uint8_t ch = info::UDR.get();
         readFifo.fastwrite(ch);
     }
 

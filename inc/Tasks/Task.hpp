@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Tasks/TaskState.hpp"
+
 class Task {
 public:
     // By default, tasks return an idle task state. Subclasses can redefine this method to return an actual task state.

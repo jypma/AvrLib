@@ -1,6 +1,7 @@
 #ifndef STREAMS_READRESULT_HPP_
 #define STREAMS_READRESULT_HPP_
 
+#include <stdint.h>
 #include "Enum.hpp"
 
 namespace Streams {

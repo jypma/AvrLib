@@ -3,7 +3,6 @@
 
 #include "gcc_type_traits.h"
 #include "FOREACH.h"
-#include <avr/interrupt.h>
 
 namespace HAL {
 namespace Atmel {
@@ -116,9 +115,21 @@ mkINTS(
         PCINT1_, \
         PCINT2_)
 
-#define mkISR(name) \
-    ISR( name##vect ) { \
-        decltype(app)::Handlers::Handler < ::HAL::Atmel::Int_##name >::invoke(app); \
+#ifdef AVR
+#define __INTR_ATTRS signal, used, externally_visible
+#define __INTR_EXTERN extern "C"
+#else
+#define __INTR_ATTRS
+#define __INTR_EXTERN
+#endif
+
+#define mkISR(name, N) \
+    __INTR_EXTERN void __vector_ ## N (void) __attribute__ ((__INTR_ATTRS)); \
+    void __vector_ ## N (void) { \
+        decltype(app)::Handlers::Handler < ::HAL::Atmel::Int_##name##_ >::invoke(app); \
+    } \
+    inline void name ## _vect() { \
+        __vector_ ## N (); \
     }
 
 /**

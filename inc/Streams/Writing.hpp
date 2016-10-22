@@ -1,8 +1,8 @@
 #ifndef STREAMS_WRITING_HPP_
 #define STREAMS_WRITING_HPP_
 
-#include <avr/common.h>
 #include "WritingN.hpp"
+#include "HAL/Atmel/Registers.hpp"
 
 namespace Streams {
 namespace Impl {
@@ -10,6 +10,8 @@ namespace Impl {
 inline void noop() {
 
 }
+
+using namespace HAL::Atmel::Registers;
 
 template <typename fifo_t, void (*block)() = noop>
 class BlockingWriteSemantics {
@@ -23,7 +25,7 @@ public:
     }
 
     static inline void write(fifo_t &fifo, uint8_t value) {
-        if ((SREG & (1 << SREG_I)) > 0) {
+        if (SREG_I.isSet()) {
             uint16_t counter = 65000;
             while (fifo.isFull() && ((counter--) > 0)) block();
             fifo.uncheckedWrite(value);

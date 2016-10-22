@@ -1,7 +1,5 @@
 #pragma once
 
-#include <avr/io.h>
-
 // We don't want the log() function in the global namespace, just because we're using _delay_ms
 #ifndef __MATH_H
 #define __MATH_H

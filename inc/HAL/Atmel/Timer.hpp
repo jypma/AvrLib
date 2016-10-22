@@ -1,7 +1,6 @@
 #ifndef HAL_ATMEL_TIMER_HPP_
 #define HAL_ATMEL_TIMER_HPP_
 
-#include <avr/io.h>
 #include "Time/Counting.hpp"
 #include "Time/Prescaled.hpp"
 #include "Time/TimerValue.hpp"
@@ -25,48 +24,46 @@ enum class FastPWMOutputMode: uint8_t {
 namespace Timer {
 
 template <typename info>
-class TimerComparator: public Time::Counting<typename info::value_t> {
+class TimerComparator: public Time::Counting<typename info::timer_info_t::value_t> {
 public:
     typedef typename info::INT INT;
     typedef typename info::timer_info_t timer_info_t;
     typedef info comparator_info_t;
 
-    static typename info::value_t getValue() {
-        return *info::tcnt;
+    static typename timer_info_t::value_t getValue() {
+      return timer_info_t::TCNT.val();
     }
     __attribute__((always_inline)) inline static void interruptOn() {
-        *info::tifr |= _BV(info::tifr_bit); // Datasheet: "OCF is cleared by writing logic 1 to the bit"
-        *info::timsk |= _BV(info::timsk_bit);
+    	info::OCF.set();  // Datasheet: "OCF is cleared by writing logic 1 to the bit"
+        info::OCIE.set();
     }
     __attribute__((always_inline)) inline static void interruptOff() {
-        *info::timsk &= ~_BV(info::timsk_bit);
+        info::OCIE.clear();
     }
 
     static bool isOutputConnected() {
-        return (*info::tccra & info::output_mode_bitmask) >> info::output_mode_bitstart != 0;
+    	return info::COM0.isSet() || info::COM1.isSet();
     }
 };
 
 template <typename info, typename prescaler_t, prescaler_t prescaler>
-class NonPWMTimerComparator: public TimerComparator<info>, public Time::Prescaled<typename info::value_t, prescaler_t, prescaler> {
+class NonPWMTimerComparator: public TimerComparator<info>,
+                             public Time::Prescaled<typename info::timer_info_t::value_t, prescaler_t, prescaler> {
 public:
 	typedef NonPWMTimerComparator<info, prescaler_t, prescaler> This;
     typedef ::Time::TimerValue<This> timervalue_t;
-
-    static timervalue_t getValue() {
-        return *info::tcnt;
-    }
 
     /**
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
      * pin whenever the comparator matches.
      */
     static void setOutput(NonPWMOutputMode mode) {
-        *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
+    	info::COM0.apply(static_cast<uint8_t>(mode) & 1);
+    	info::COM1.apply(static_cast<uint8_t>(mode) & 2);
     }
 
     static NonPWMOutputMode getOutput() {
-    	return static_cast<NonPWMOutputMode> ((*info::tccra & info::output_mode_bitmask) >> info::output_mode_bitstart);
+    	return static_cast<NonPWMOutputMode> ((1 & info::COM0.getValue()) | (2 & info::COM1.getValue()));
     }
 
     /**
@@ -74,11 +71,11 @@ public:
      * Takes effect immediately.
      */
     static void setTarget(timervalue_t value) {
-        *info::ocr = value;
+      info::OCR.val() = value;
     }
 
-    static typename info::value_t getTarget() {
-        return *info::ocr;
+    static timervalue_t getTarget() {
+      return info::OCR.val();
     }
 
     /**
@@ -86,7 +83,7 @@ public:
      * nor will it affect timer operation.
      */
     static void applyOutput() {
-        *info::tccr_foc |= (1 << info::foc);
+        info::FOC.set();
     }
 };
 
@@ -96,27 +93,29 @@ public:
 	typedef FastPWMTimerComparator<info, prescaler_t, prescaler> This;
     typedef ::Time::TimerValue<This> timervalue_t;
 
-    static timervalue_t getValue() {
-        return *info::tcnt;
-    }
-
     /**
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
      * pin whenever the comparator matches.
      */
     static void setOutput(FastPWMOutputMode mode) {
-        *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
+    	info::COM0.apply(static_cast<uint8_t>(mode) & 1);
+    	info::COM1.apply(static_cast<uint8_t>(mode) & 2);
     }
+
+    static FastPWMOutputMode getOutput() {
+    	return static_cast<FastPWMOutputMode> ((1 & info::COM0.getValue()) | (2 & info::COM1.getValue()));
+    }
+
     /**
      * Sets the target at which the next comparator match event is to take place.
      * Takes effect at the start of the next timer run (i.e. after the next overflow).
      */
     static void setTargetFromNextRun(timervalue_t value) {
-        *info::ocr = value;
+        info::OCR.set(value);
     }
 
     static typename info::value_t getTarget() {
-        return *info::ocr;
+        return info::OCR;
     }
 };
 
@@ -139,17 +138,17 @@ public:
         return comparator_b;
     }
     static void interruptOnOverflowOn() {
-        *info::tifr |= _BV(TOV0); // Datasheet: "[...] is cleared by writing logic 1 to the bit"
-        *info::timsk |= _BV(TOIE0);
+    	info::TOV.set();    // Datasheet: "[...] is cleared by writing logic 1 to the bit"
+    	info::TOIE.set();
     }
     static void interruptOnOverflowOff() {
-        *info::timsk &= ~_BV(TOIE0);
+    	info::TOIE.clear();
     }
     static typename info::value_t getValue() {
-        return *info::tcnt;
+        return info::TCNT;
     }
     static bool isOverflow() {
-        return *info::tifr & _BV(TOV0);
+    	return info::TOV.isSet();
     }
 };
 
@@ -162,7 +161,7 @@ public:
     typedef ::Time::TimerValue<This> timervalue_t;
 
     static timervalue_t getValue() {
-        return *info::tcnt;
+      return info::TCNT.val();
     }
 };
 

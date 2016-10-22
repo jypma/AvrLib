@@ -1,15 +1,14 @@
-/*
- * AtomicScope.hpp
- *
- *  Created on: Mar 3, 2015
- *      Author: jan
- */
+#pragma once
 
-#ifndef ATOMICSCOPE_HPP_
-#define ATOMICSCOPE_HPP_
+#include <HAL/Atmel/Registers.hpp>
 
-#include <avr/common.h>
-#include <avr/interrupt.h>
+#ifdef AVR
+# define sei()  __asm__ __volatile__ ("sei" ::: "memory")
+# define cli()  __asm__ __volatile__ ("cli" ::: "memory")
+#else
+# define sei() { HAL::Atmel::Registers::SREG_I.set(); }
+# define cli() { HAL::Atmel::Registers::SREG_I.clear(); }
+#endif
 
 /**
  * Executes the scope in which the instance is declared atomically, i.e. with
@@ -17,7 +16,7 @@
  * to its previous state.
  */
 class AtomicScope {
-    uint8_t const oldSREG;
+    HAL::Atmel::Registers::SREG_t const oldSREG;
 public:
     /**
      * Executes the scope in which the instance is declared atomically, i.e. with
@@ -34,12 +33,11 @@ public:
         }
     };
 
-    inline __attribute__((always_inline)) AtomicScope(): oldSREG(SREG) {
+    inline __attribute__((always_inline)) AtomicScope(): oldSREG(HAL::Atmel::Registers::SREG) {
         cli();
     }
     inline __attribute__((always_inline)) ~AtomicScope() {
-        SREG = oldSREG;
+    	HAL::Atmel::Registers::SREG = oldSREG;
     }
 };
 
-#endif /* ATOMICSCOPE_HPP_ */

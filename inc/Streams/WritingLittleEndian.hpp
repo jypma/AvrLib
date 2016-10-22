@@ -7,13 +7,15 @@
 #error Only little endian supported. Make sure to use gcc or define __BYTE_ORDER__ to be __ORDER_LITTLE_ENDIAN__
 #endif
 
-
+#include "HAL/Register8.hpp"
 #include "EEPROM.hpp"
 #include <stdint.h>
 #include "gcc_type_traits.h"
 
 namespace Streams {
 namespace Impl {
+
+using namespace HAL;
 
 //FIXME provide manual unrolled loops for sizes 1,2,4, and decide which of those to force_inline
 template <typename sem, typename fifo_t>
@@ -147,6 +149,28 @@ void write1unchecked(fifo_t &fifo, uint16_t EEPROM::*field) {
 template <typename sem, typename fifo_t>
 void write1unchecked(fifo_t &fifo, uint32_t EEPROM::*field) {
     writeLiteralByteValue<sem>(fifo, read(field));
+}
+
+template <
+  typename sem,
+  typename fifo_t,
+  uintptr_t addr,
+  template<typename, uint8_t> class _bit0,
+  template<typename, uint8_t> class _bit1,
+  template<typename, uint8_t> class _bit2,
+  template<typename, uint8_t> class _bit3,
+  template<typename, uint8_t> class _bit4,
+  template<typename, uint8_t> class _bit5,
+  template<typename, uint8_t> class _bit6,
+  template<typename, uint8_t> class _bit7
+>
+void write1unchecked(fifo_t &fifo, const Register8<addr, _bit0, _bit1, _bit2, _bit3, _bit4, _bit5, _bit6, _bit7> r) {
+    writeLiteralByteValue<sem>(fifo, r.val());
+}
+
+template <typename sem, typename fifo_t, typename Reg>
+void write1unchecked(fifo_t &fifo, const StaticRegister8<Reg> r) {
+    writeLiteralByteValue<sem>(fifo, r.val());
 }
 
 }

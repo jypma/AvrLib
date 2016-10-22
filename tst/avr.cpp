@@ -1,42 +1,16 @@
-#include "avr/common.h"
-#include "util/crc16.h"
-#include "avr/sleep.h"
-#include "avr/io.h"
+#include "HAL/Atmel/Registers.hpp"
+#include <functional>
 #include <iostream>
+
+using namespace HAL::Atmel::Registers;
 
 std::function<void()> onSleep_cpu = nullptr;
 
-uint16_t SpecialFunctionRegister16::lastAddr = 0;
-SpecialFunctionRegister sfr_mem[256];
-SpecialFunctionRegister16 sfr_mem16[255];
+uint8_t sfr_mem[256];
+
 uint8_t eeprom_contents[1024];
 
-SpecialFunctionRegister::SpecialFunctionRegister() {
-	//std::cout << "this=" << uint64_t(this) << " SPDR=" << uint64_t(&SPDR) << std::endl;
-	if (this == &SPDR) {
-		callback = [] {
-			// SPI complete
-			SPSR |= _BV(SPIF);
-		};
-	} else if (this == &UCSR0A) {
-		callback = [this] {
-			// TXC bit should always be 1, indicating serial tx complete
-			value |= _BV(TXC0);
-		};
-	} else if (this == &ADCSRA) {
-		callback = [this] {
-			// A/D conversion complete
-			value &= ~(1 << ADSC);
-		};
-	}
-}
-
-void cli() {
-    SREG &= ~_BV(SREG_I);
-}
-
-void sei() {
-    SREG |= _BV(SREG_I);
+void HAL::Register8_onChange(volatile void *address) {
 }
 
 uint16_t _crc16_update(uint16_t crc, uint8_t a) {

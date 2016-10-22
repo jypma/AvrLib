@@ -1,86 +1,91 @@
-#ifndef HAL_ATMEL_DEVICES_ATMEGA328_HPP_
-#define HAL_ATMEL_DEVICES_ATMEGA328_HPP_
+#ifndef HAL_ATMEL_DEVICES_ATMEGA328P_HPP_
+#define HAL_ATMEL_DEVICES_ATMEGA328P_HPP_
 
+#include <HAL/Atmel/Registers.hpp>
 #include "Time/Prescaled.hpp"
 #include "HAL/Atmel/InterruptHandlers.hpp"
 #include "HAL/Atmel/Usart.hpp"
 #include "HAL/Atmel/Pin.hpp"
 #include "HAL/Atmel/TWI.hpp"
-
-#ifdef AVR
-typedef volatile uint8_t sfr8_t;
-typedef volatile uint16_t sfr16_t;
-#else
-typedef SpecialFunctionRegister sfr8_t;
-typedef SpecialFunctionRegister16 sfr16_t;
-#endif
+#include "HAL/Atmel/SleepMode.hpp"
 
 namespace HAL {
 namespace Atmel {
 namespace Info {
 
+using namespace HAL::Atmel::Registers;
+
+struct Power {
+	void set_sleep_mode(SleepMode mode) {
+        switch(mode) {
+        case SleepMode::POWER_DOWN:
+            SMCR.apply(~SM2 | SM1 | ~SM0); break;
+        case SleepMode::STANDBY:
+            SMCR.apply(SM2 | SM1 | ~SM0); break;
+        case SleepMode::IDLE:
+            SMCR.apply(~SM2 | ~SM1 | ~SM0); break;
+        }
+	}
+};
+
 struct Int0Info {
     typedef Int_INT0_ INT;
-    inline static void on(uint8_t mode) {
-    	EIFR |= _BV(INTF0);
-        EICRA = (EICRA & ~(_BV(ISC00) | _BV(ISC01))) | (mode << ISC00);
-        EIMSK |= _BV(INT0);
-    }
-    inline static void off() {
-        EIMSK &= ~_BV(INT0);
-    }
+
+    static constexpr auto INT_r = INT0;
+    static constexpr auto INTF = INTF0;
+    static constexpr auto ISC0 = ISC00;
+    static constexpr auto ISC1 = ISC01;
+    static constexpr auto EICR = EICRA;
 };
 
 struct Int1Info {
     typedef Int_INT1_ INT;
-    inline static void on(uint8_t mode) {
-    	EIFR |= _BV(INTF1);
-        EICRA = (EICRA & ~(_BV(ISC10) | _BV(ISC11))) | (mode << ISC10);
-        EIMSK |= _BV(INT1);
-    }
-    inline static void off() {
-        EIMSK &= ~_BV(INT1);
-    }
+
+    static constexpr auto INT_r = INT1;
+    static constexpr auto INTF = INTF1;
+    static constexpr auto ISC0 = ISC10;
+    static constexpr auto ISC1 = ISC11;
+    static constexpr auto EICR = EICRA;
 };
 
 struct PCInt0Info {
     typedef Int_PCINT0_ PCINT;
-    static constexpr uint8_t PCIE = PCIE0;
-    static constexpr sfr8_t *pin = &PINB;
-    static constexpr sfr8_t *pcmsk = &PCMSK0;
+    static constexpr auto PCIE = PCIE0;
+    static constexpr auto PIN = PINB;
+    static constexpr auto PCMSK = PCMSK0;
 };
 
 struct PCInt1Info {
     typedef Int_PCINT1_ PCINT;
-    static constexpr uint8_t PCIE = PCIE1;
-    static constexpr sfr8_t *pin = &PINC;
-    static constexpr sfr8_t *pcmsk = &PCMSK1;
+    static constexpr auto PCIE = PCIE1;
+    static constexpr auto PIN = PINC;
+    static constexpr auto PCMSK = PCMSK1;
 };
 
 struct PCInt2Info {
     typedef Int_PCINT2_ PCINT;
-    static constexpr uint8_t PCIE = PCIE2;
-    static constexpr sfr8_t *pin = &PIND;
-    static constexpr sfr8_t *pcmsk = &PCMSK2;
+    static constexpr auto PCIE = PCIE2;
+    static constexpr auto PIN = PIND;
+    static constexpr auto PCMSK = PCMSK2;
 };
 
 struct Usart0Info {
-    static constexpr sfr8_t *ucsra = &UCSR0A;
-    static constexpr sfr8_t *ucsrb = &UCSR0B;
-    static constexpr sfr8_t *ucsrc = &UCSR0C;
-    static constexpr sfr16_t *ubrr = &UBRR0;
-    static constexpr sfr8_t *udr = &UDR0;
+	static constexpr auto U2X = U2X0;
+	static constexpr auto UBRR = UBRR0;
+	static constexpr auto TXEN = TXEN0;
+	static constexpr auto RXEN = RXEN0;
+	static constexpr auto RXCIE = RXCIE0;
+	static constexpr auto UDRIE = UDRIE0;
+	static constexpr auto UCSRC = UCSR0C;
+	static constexpr auto UCSZ0 = UCSZ00;
+	static constexpr auto UCSZ1 = UCSZ01;
+	static constexpr auto TXC = TXC0;
+	static constexpr auto UDR = UDR0;
 };
 
 } // namespace Info
 
-enum class ExtPrescaler: uint8_t {
-    _1 = _BV(CS00),
-    _8 = _BV(CS01),
-    _64 = _BV(CS00) | _BV(CS01),
-    _256 = _BV(CS02),
-    _1024 = _BV(CS02) | _BV(CS00)
-};
+enum class ExtPrescaler: uint8_t { _1, _8, _64, _256, _1024 };
 
 template <uint16_t i> struct ExtPrescalerFromInt {};
 template<> struct ExtPrescalerFromInt<1> { static constexpr ExtPrescaler value = ExtPrescaler::_1; };
@@ -89,15 +94,7 @@ template<> struct ExtPrescalerFromInt<64> { static constexpr ExtPrescaler value 
 template<> struct ExtPrescalerFromInt<256> { static constexpr ExtPrescaler value = ExtPrescaler::_256; };
 template<> struct ExtPrescalerFromInt<1024> { static constexpr ExtPrescaler value = ExtPrescaler::_1024; };
 
-enum class IntPrescaler: uint8_t {
-    _1 = _BV(CS00),
-    _8 = _BV(CS01),
-    _32 = _BV(CS00) | _BV(CS01),
-    _64 = _BV(CS02),
-    _128 = _BV(CS02) | _BV(CS00),
-    _256 = _BV(CS02) | _BV(CS01),
-    _1024 = _BV(CS02) | _BV(CS01) | _BV(CS00)
-};
+enum class IntPrescaler: uint8_t { _1, _8, _32, _64, _128, _256, _1024 };
 
 template <uint16_t i> struct IntPrescalerFromInt {};
 template<> struct IntPrescalerFromInt<1> { static constexpr IntPrescaler value = IntPrescaler::_1; };
@@ -166,238 +163,226 @@ template<> struct PrescalerMeta<HAL::Atmel::IntPrescaler,HAL::Atmel::IntPrescale
 struct Timer0Info {
     typedef Int_TIMER0_OVF_ INT;
 
-    static constexpr sfr8_t *tccra = &TCCR0A;
-    static constexpr sfr8_t *tccrb = &TCCR0B;
-    static constexpr sfr8_t *tcnt = &TCNT0;
-    static constexpr sfr8_t *timsk = &TIMSK0;
-    static constexpr sfr8_t *tifr = &TIFR0;
+    static constexpr auto TCNT = TCNT0;
+    static constexpr auto TOV = TOV0;
+    static constexpr auto TOIE = TOIE0;
 
     typedef uint8_t value_t;
     typedef ExtPrescaler prescaler_t;
     template <uint16_t i> using PrescalerFromInt = ExtPrescalerFromInt<i>;
 
-    inline static void configureNormal(prescaler_t p) {
-        // Existing settings for COM0A1 etc. should be kept
-        AtomicScope::SEI _;
-        *tccra &= ~_BV(WGM00);
-        *tccra &= ~_BV(WGM01); // Mode 0, normal
-        *tccrb = static_cast<uint8_t>(p);
+    static void setPrescaler(prescaler_t p) {
+    	switch(p) {
+    	case ExtPrescaler::_1    : TCCR0B.apply( CS00 | ~CS01 | ~CS02); break;
+    	case ExtPrescaler::_8    : TCCR0B.apply(~CS00 |  CS01 | ~CS02); break;
+    	case ExtPrescaler::_64   : TCCR0B.apply( CS00 |  CS01 | ~CS02); break;
+    	case ExtPrescaler::_256  : TCCR0B.apply(~CS00 | ~CS01 |  CS02); break;
+    	case ExtPrescaler::_1024 : TCCR0B.apply( CS00 | ~CS01 |  CS02); break;
+    	}
     }
 
-    inline static void configureFastPWM(prescaler_t p) {
-        // Existing settings for COM0A1 etc. should be kept
-        AtomicScope::SEI _;
-        *tccra |= _BV(WGM00);
-        *tccra |= _BV(WGM01); // Mode 3, count up to 0xFF
-        *tccrb = static_cast<uint8_t>(p);
+    static void configureNormal(prescaler_t p) {
+        WGM00.clear(); // Mode 0, normal
+        WGM01.clear();
+        setPrescaler(p);
+    }
+
+    static void configureFastPWM(prescaler_t p) {
+        WGM00.set(); // Mode 3, count up to 0xFF
+        WGM01.set();
+        setPrescaler(p);
     }
 
     struct Comparator {
-        typedef uint8_t value_t;
         typedef Timer0Info timer_info_t;
-        static constexpr sfr8_t *tcnt = &TCNT0;
-        static constexpr sfr8_t *timsk = &TIMSK0;
-        static constexpr sfr8_t *tifr = &TIFR0;
-        static constexpr sfr8_t *tccra = &TCCR0A;
-        static constexpr sfr8_t *tccrb = &TCCR0B;
-        static constexpr sfr8_t *tccr_foc = &TCCR0B;
+        typedef timer_info_t::value_t value_t;
     };
 
     struct ComparatorA: public Comparator {
         typedef Int_TIMER0_COMPA_ INT;
-        static constexpr sfr8_t *ocr = &OCR0A;
-        static constexpr uint8_t timsk_bit = OCIE0A;
-        static constexpr uint8_t tifr_bit = OCF0A;
-        static constexpr uint8_t output_mode_bitmask = (1 << COM0A0) | (1 << COM0A1);
-        static constexpr uint8_t output_mode_bitstart = COM0A0;
-        static constexpr uint8_t foc = FOC0A;
+        static constexpr auto OCR = OCR0A;
+        static constexpr auto OCIE = OCIE0A;
+        static constexpr auto OCF = OCF0A;
+        static constexpr auto COM0 = COM0A0;
+        static constexpr auto COM1 = COM0A1;
+        static constexpr auto FOC = FOC0A;
     };
     struct ComparatorB: public Comparator {
         typedef Int_TIMER0_COMPB_ INT;
-        static constexpr sfr8_t *ocr = &OCR0B;
-        static constexpr uint8_t timsk_bit = OCIE0B;
-        static constexpr uint8_t tifr_bit = OCF0B;
-        static constexpr uint8_t output_mode_bitmask = (1 << COM0B0) | (1 << COM0B1);
-        static constexpr uint8_t output_mode_bitstart = COM0B0;
-        static constexpr uint8_t foc = FOC0B;
+        static constexpr auto OCR = OCR0B;
+        static constexpr auto OCIE = OCIE0B;
+        static constexpr auto OCF = OCF0B;
+        static constexpr auto COM0 = COM0B0;
+        static constexpr auto COM1 = COM0B1;
+        static constexpr auto FOC = FOC0B;
     };
 };
 
 struct Timer1Info {
     typedef Int_TIMER1_OVF_ INT;
 
-    static constexpr sfr8_t *tccra = &TCCR1A;
-    static constexpr sfr8_t *tccrb = &TCCR1B;
-    static constexpr sfr16_t *tcnt = &TCNT1;
-    static constexpr sfr8_t *timsk = &TIMSK1;
-    static constexpr sfr8_t *tifr = &TIFR1;
+    static constexpr auto TCNT = TCNT1;
+    static constexpr auto TOV = TOV1;
+    static constexpr auto TOIE = TOIE1;
 
     typedef uint16_t value_t;
     typedef ExtPrescaler prescaler_t;
     template <uint16_t i> using PrescalerFromInt = ExtPrescalerFromInt<i>;
 
-    inline static void configureNormal(prescaler_t p) {
-        // Existing settings for COM0A1 etc. should be kept
-        AtomicScope::SEI _;
-        *tccra &= ~_BV(WGM10);
-        *tccra &= ~_BV(WGM11);
-        *tccrb = static_cast<uint8_t>(p);
+    static void setPrescaler(prescaler_t p) {
+    	switch(p) {
+    	case ExtPrescaler::_1    : TCCR1B.apply( CS10 | ~CS11 | ~CS12); break;
+    	case ExtPrescaler::_8    : TCCR1B.apply(~CS10 |  CS11 | ~CS12); break;
+    	case ExtPrescaler::_64   : TCCR1B.apply( CS10 |  CS11 | ~CS12); break;
+    	case ExtPrescaler::_256  : TCCR1B.apply(~CS10 | ~CS11 |  CS12); break;
+    	case ExtPrescaler::_1024 : TCCR1B.apply( CS10 | ~CS11 |  CS12); break;
+    	}
+    }
+
+    static void configureNormal(prescaler_t p) {
+        WGM10.clear();
+        WGM11.clear();
+        WGM12.clear();
+        WGM13.clear();
+        setPrescaler(p);
     }
 
     inline static void configureFastPWM(prescaler_t p) {
-        // Existing settings for COM0A1 etc. should be kept
-        AtomicScope::SEI _;
-        *tccra &= ~_BV(WGM10);
-        *tccra |= _BV(WGM11);
-        *tccrb = _BV(WGM13) | _BV(WGM12) | static_cast<uint8_t>(p);
-        ICR1 = 0xFFFF; // Mode 14, count up to ICR1, which we always set at 0xFFFF.
+        WGM10.clear();
+        WGM11.set();
+        WGM12.set();
+        WGM13.set();
+        setPrescaler(p);
+        ICR1.set(0xFFFF); // Mode 14, count up to ICR1, which we always set at 0xFFFF.
     }
 
     struct Comparator {
-        typedef uint16_t value_t;
         typedef Timer1Info timer_info_t;
-        static constexpr sfr16_t *tcnt = &TCNT1;
-        static constexpr sfr8_t *timsk = &TIMSK1;
-        static constexpr sfr8_t *tifr = &TIFR1;
-        static constexpr sfr8_t *tccra = &TCCR1A;
-        static constexpr sfr8_t *tccrb = &TCCR1B;
-        static constexpr sfr8_t *tccr_foc = &TCCR1C;
+        typedef timer_info_t::value_t value_t;
     };
 
     struct ComparatorA: public Comparator {
         typedef Int_TIMER1_COMPA_ INT;
-        static constexpr sfr16_t *ocr = &OCR1A;
-        static constexpr uint8_t timsk_bit = OCIE1A;
-        static constexpr uint8_t tifr_bit = OCF1A;
-        static constexpr uint8_t output_mode_bitmask = (1 << COM1A0) | (1 << COM1A1);
-        static constexpr uint8_t output_mode_bitstart = COM1A0;
-        static constexpr uint8_t foc = FOC1A;
+        static constexpr auto OCR = OCR1A;
+        static constexpr auto OCIE = OCIE1A;
+        static constexpr auto OCF = OCF1A;
+        static constexpr auto COM0 = COM1A0;
+        static constexpr auto COM1 = COM1A1;
+        static constexpr auto FOC = FOC1A;
     };
     struct ComparatorB: public Comparator {
         typedef Int_TIMER1_COMPB_ INT;
-        static constexpr sfr16_t *ocr = &OCR1B;
-        static constexpr uint8_t timsk_bit = OCIE1B;
-        static constexpr uint8_t tifr_bit = OCF1B;
-        static constexpr uint8_t output_mode_bitmask = (1 << COM1B0) | (1 << COM1B1);
-        static constexpr uint8_t output_mode_bitstart = COM1B0;
-        static constexpr uint8_t foc = FOC1B;
+        static constexpr auto OCR = OCR1B;
+        static constexpr auto OCIE = OCIE1B;
+        static constexpr auto OCF = OCF1B;
+        static constexpr auto COM0 = COM1B0;
+        static constexpr auto COM1 = COM1B1;
+        static constexpr auto FOC = FOC1B;
     };
 };
 
 struct Timer1LoInfo: public Timer1Info {
-    static constexpr sfr8_t *tcnt = &TCNT1L;
+    static constexpr auto TCNT = TCNT1L;
     typedef uint8_t value_t;
 
     struct Comparator {
         typedef uint16_t value_t;
         typedef Timer1Info timer_info_t;
-        static constexpr sfr16_t *tcnt = &TCNT1;
-        static constexpr sfr8_t *timsk = &TIMSK1;
-        static constexpr sfr8_t *tifr = &TIFR1;
-        static constexpr sfr8_t *tccra = &TCCR1A;
-        static constexpr sfr8_t *tccrb = &TCCR1B;
-        static constexpr sfr8_t *tccr_foc = &TCCR1C;
     };
 
     struct ComparatorA: public Timer1Info::ComparatorA {
-        typedef uint8_t value_t;
         typedef Timer1LoInfo timer_info_t;
-        static constexpr sfr8_t *ocr = &OCR1AL;
+        static constexpr auto OCR = OCR1AL;
     };
     struct ComparatorB: public Timer1Info::ComparatorB {
-        typedef uint8_t value_t;
         typedef Timer1LoInfo timer_info_t;
-        static constexpr sfr8_t *ocr = &OCR1BL;
+        static constexpr auto OCR = OCR1BL;
     };
 };
 
 struct Timer2Info {
     typedef Int_TIMER2_OVF_ INT;
 
-    static constexpr sfr8_t *tccra = &TCCR2A;
-    static constexpr sfr8_t *tccrb = &TCCR2B;
-    static constexpr sfr8_t *tcnt = &TCNT2;
-    static constexpr sfr8_t *timsk = &TIMSK2;
-    static constexpr sfr8_t *tifr = &TIFR2;
+    static constexpr auto TCNT = TCNT2;
+    static constexpr auto TOV = TOV2;
+    static constexpr auto TOIE = TOIE2;
 
     typedef uint8_t value_t;
     typedef IntPrescaler prescaler_t;
     template <uint16_t i> using PrescalerFromInt = IntPrescalerFromInt<i>;
 
-    inline static void configureNormal(prescaler_t p) {
-        // Existing settings for COM0A1 etc. should be kept
-        AtomicScope::SEI _;
-        *tccra &= ~_BV(WGM20);
-        *tccra &= ~_BV(WGM21); // Mode 0, normal
-        *tccrb = static_cast<uint8_t>(p);
+    static void setPrescaler(prescaler_t p) {
+    	switch(p) {
+    	case IntPrescaler::_1    : TCCR2B.apply( CS20 | ~CS21 | ~CS22); break;
+    	case IntPrescaler::_8    : TCCR2B.apply(~CS20 |  CS21 | ~CS22); break;
+    	case IntPrescaler::_32   : TCCR2B.apply( CS20 |  CS21 | ~CS22); break;
+    	case IntPrescaler::_64   : TCCR2B.apply(~CS20 | ~CS21 |  CS22); break;
+    	case IntPrescaler::_128  : TCCR2B.apply( CS20 | ~CS21 |  CS22); break;
+    	case IntPrescaler::_256  : TCCR2B.apply(~CS20 |  CS21 |  CS22); break;
+    	case IntPrescaler::_1024 : TCCR2B.apply( CS20 |  CS21 |  CS22); break;
+    	}
     }
 
-    inline static void configureFastPWM(prescaler_t p) {
-        // Existing settings for COM0A1 etc. should be kept
-        AtomicScope::SEI _;
-        *tccra |= _BV(WGM20);
-        *tccra |= _BV(WGM21); // Mode 3, count up to 0xFF
-        *tccrb = static_cast<uint8_t>(p);
+    static void configureNormal(prescaler_t p) {
+        WGM20.clear();
+        WGM21.clear();
+        setPrescaler(p);
+    }
+
+    static void configureFastPWM(prescaler_t p) {
+        WGM20.set();
+        WGM21.set();
+        setPrescaler(p);
     }
 
     struct Comparator {
-        typedef uint8_t value_t;
         typedef Timer2Info timer_info_t;
-        static constexpr sfr8_t *tcnt = &TCNT2;
-        static constexpr sfr8_t *timsk = &TIMSK2;
-        static constexpr sfr8_t *tifr = &TIFR2;
-        static constexpr sfr8_t *tccra = &TCCR2A;
-        static constexpr sfr8_t *tccrb = &TCCR2B;
-        static constexpr sfr8_t *tccr_foc = &TCCR2B;
+        typedef timer_info_t::value_t value_t;
     };
 
     struct ComparatorA: public Comparator {
         typedef Int_TIMER2_COMPA_ INT;
-        static constexpr sfr8_t *ocr = &OCR2A;
-        static constexpr uint8_t timsk_bit = OCIE2A;
-        static constexpr uint8_t tifr_bit = OCF2A;
-        static constexpr uint8_t output_mode_bitmask = (1 << COM2A0) | (1 << COM2A1);
-        static constexpr uint8_t output_mode_bitstart = COM2A0;
-        static constexpr uint8_t foc = FOC2A;
+        static constexpr auto OCR = OCR2A;
+        static constexpr auto OCIE = OCIE2A;
+        static constexpr auto OCF = OCF2A;
+        static constexpr auto COM0 = COM2A0;
+        static constexpr auto COM1 = COM2A1;
+        static constexpr auto FOC = FOC2A;
     };
     struct ComparatorB: public Comparator {
         typedef Int_TIMER2_COMPB_ INT;
-        static constexpr sfr8_t *ocr = &OCR2B;
-        static constexpr uint8_t timsk_bit = OCIE2B;
-        static constexpr uint8_t tifr_bit = OCF2B;
-        static constexpr uint8_t output_mode_bitmask = (1 << COM2B0) | (1 << COM2B1);
-        static constexpr uint8_t output_mode_bitstart = COM2B0;
-        static constexpr uint8_t foc = FOC2B;
+        static constexpr auto OCR = OCR2B;
+        static constexpr auto OCIE = OCIE2B;
+        static constexpr auto OCF = OCF2B;
+        static constexpr auto COM0 = COM2B0;
+        static constexpr auto COM1 = COM2B1;
+        static constexpr auto FOC = FOC2B;
     };
 };
 
 template <uint8_t bit>
 struct PinOnPortD {
-    static constexpr sfr8_t *ddr = &DDRD;
-    static constexpr sfr8_t *port = &PORTD;
-    static constexpr sfr8_t *pin = &PIND;
-    static constexpr uint8_t bitmask = _BV(bit);
+    static constexpr auto DDR = DDRD.bit<bit>();
+    static constexpr auto PORT = PORTD.bit<bit>();
+    static constexpr auto PIN = PIND.bit<bit>();
     typedef Info::PCInt2Info pcintInfo;
     static constexpr uint8_t pcintBit = bit;
 };
 
 template <uint8_t bit>
 struct PinOnPortB {
-    static constexpr sfr8_t *ddr = &DDRB;
-    static constexpr sfr8_t *port = &PORTB;
-    static constexpr sfr8_t *pin = &PINB;
-    static constexpr uint8_t bitmask = _BV(bit);
+    static constexpr auto DDR = DDRB.bit<bit>();
+    static constexpr auto PORT = PORTB.bit<bit>();
+    static constexpr auto PIN = PINB.bit<bit>();
     typedef Info::PCInt0Info pcintInfo;
     static constexpr uint8_t pcintBit = bit;
 };
 
 template <uint8_t bit>
 struct PinOnPortC {
-    static constexpr sfr8_t *ddr = &DDRC;
-    static constexpr sfr8_t *port = &PORTC;
-    static constexpr sfr8_t *pin = &PINC;
-    static constexpr sfr8_t *pcmsk = &PCMSK1;
-    static constexpr uint8_t bitmask = _BV(bit);
+    static constexpr auto DDR = DDRC.bit<bit>();
+    static constexpr auto PORT = PORTC.bit<bit>();
+    static constexpr auto PIN = PINC.bit<bit>();
     typedef Info::PCInt1Info pcintInfo;
     static constexpr uint8_t pcintBit = bit;
 };
@@ -406,7 +391,7 @@ struct PinPD0Info: public PinOnPortD<0> {
     typedef Usart0Info usart_info_t;
 
     static inline void configureAsGPIO() {
-        UCSR0B &= ~_BV(RXEN0); // disable hardware USART receiver
+    	RXEN0.clear();   // disable hardware USART receiver
     }
 };
 
@@ -414,7 +399,7 @@ struct PinPD1Info: public PinOnPortD<1> {
     typedef Usart0Info usart_info_t;
 
     static inline void configureAsGPIO() {
-        UCSR0B &= ~_BV(TXEN0); // disable hardware USART transmitter
+    	TXEN0.clear();  // disable hardware USART transmitter
     }
 };
 
@@ -449,28 +434,28 @@ struct PinPB4Info: public PinOnPortB<4>, public GPIOPin {};
 struct PinPB5Info: public PinOnPortB<5>, public GPIOPin {};
 
 struct PinPC0Info: public PinOnPortC<0>, public GPIOPin {
-    static constexpr uint8_t adc_mux = 0;
+  static constexpr auto adc_mux = ~(MUX0 | MUX1 | MUX2 | MUX3);
 };
 struct PinPC1Info: public PinOnPortC<1>, public GPIOPin {
-    static constexpr uint8_t adc_mux = 1;
+  static constexpr auto adc_mux = MUX0 | ~MUX1 | ~MUX2 | ~MUX3;
 };
 struct PinPC2Info: public PinOnPortC<2>, public GPIOPin {
-    static constexpr uint8_t adc_mux = 2;
+  static constexpr auto adc_mux = ~MUX0 | MUX1 | ~MUX2 | ~MUX3;
 };
 struct PinPC3Info: public PinOnPortC<3>, public GPIOPin {
-    static constexpr uint8_t adc_mux = 3;
+  static constexpr auto adc_mux = MUX0 | MUX1 | ~MUX2 | ~MUX3;
 };
 struct PinPC4Info: public PinOnPortC<4>, public GPIOPin {
-    static constexpr uint8_t adc_mux = 4;
+  static constexpr auto adc_mux = ~MUX0 | ~MUX1 | MUX2 | ~MUX3;
 };
 struct PinPC5Info: public PinOnPortC<5>, public GPIOPin {
-    static constexpr uint8_t adc_mux = 5;
+  static constexpr auto adc_mux = MUX0 | ~MUX1 | MUX2 | ~MUX3;
 };
 struct PinA6Info {
-    static constexpr uint8_t adc_mux = 6;
+  static constexpr auto adc_mux = ~MUX0 | MUX1 | MUX2 | ~MUX3;
 };
 struct PinA7Info {
-    static constexpr uint8_t adc_mux = 7;
+  static constexpr auto adc_mux = MUX0 | MUX1 | MUX2 | ~MUX3;
 };
 
 } // namespace Info
@@ -792,26 +777,34 @@ using TWI = Impl::TWI<TWIInfo, txFifoSize, rxFifoSize, twiFreq>;
  * Defines all ISRS that exist on THIS chip.
  */
 #define mkISRS \
-    FOR_EACH(mkISR, \
-        WDT_, \
-        ADC_, \
-        TWI_, \
-        INT0_, \
-        INT1_, \
-        TIMER0_OVF_, \
-        TIMER0_COMPA_, \
-        TIMER0_COMPB_, \
-        TIMER1_OVF_, \
-        TIMER1_COMPA_, \
-        TIMER1_COMPB_, \
-        TIMER2_OVF_, \
-        TIMER2_COMPA_, \
-        TIMER2_COMPB_, \
-        USART_RX_, \
-        USART_UDRE_, \
-        PCINT0_, \
-        PCINT1_, \
-        PCINT2_)
+    mkISR(INT0, 1) \
+    mkISR(INT1, 2) \
+    mkISR(PCINT0, 3) \
+    mkISR(PCINT1, 4) \
+    mkISR(PCINT2, 5) \
+    mkISR(WDT, 6) \
+    mkISR(TIMER2_COMPA, 7) \
+    mkISR(TIMER2_COMPB, 8) \
+    mkISR(TIMER2_OVF, 9) \
+    mkISR(TIMER1_COMPA, 11) \
+    mkISR(TIMER1_COMPB, 12) \
+    mkISR(TIMER1_OVF, 13) \
+    mkISR(TIMER0_COMPA, 14) \
+    mkISR(TIMER0_COMPB, 15) \
+    mkISR(TIMER0_OVF, 16) \
+    mkISR(USART_RX, 18) \
+    mkISR(USART_UDRE, 19) \
+    mkISR(ADC, 21) \
+    mkISR(TWI, 24) \
+
+/*
+//    mkISR(TIMER1_CAPT, 10) \
+//    mkISR(SPI_STC, 17) \
+//    mkISR(USART_TX, 20) \
+//mkISR(EE_READY, 22) \
+//mkISR(ANALOG_COMP, 23) \
+//    mkISR(SPM_READY, 25) \
+*/
 
 // --------------------------------- Arduino stuff -------------------------------------
 
@@ -885,4 +878,4 @@ using TWI = Impl::TWI<TWIInfo, txFifoSize, rxFifoSize, twiFreq>;
  */
 #define JeeNodePort4D ::HAL::Atmel::PinPD7
 
-#endif /* HAL_ATMEL_DEVICES_ATMEGA328_HPP_ */
+#endif /* HAL_ATMEL_DEVICES_ATMEGA328P_HPP_ */

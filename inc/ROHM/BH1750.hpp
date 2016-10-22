@@ -121,7 +121,7 @@ public:
     }
 
     auto getTaskState() const {
-    	return TaskState(measurementComplete, SleepMode::POWER_DOWN);
+      return TaskState(measurementComplete.timeLeftIfScheduled(), SleepMode::POWER_DOWN);
     }
 };
 

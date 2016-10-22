@@ -168,7 +168,7 @@ public:
     }
 
     auto getTaskState() {
-		return TaskState(timeout, SleepMode::POWER_DOWN);
+      return TaskState(timeout.timeLeftIfScheduled(), SleepMode::POWER_DOWN);
     }
 };
 
