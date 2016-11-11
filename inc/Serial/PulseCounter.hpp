@@ -145,7 +145,7 @@ public:
     }
 };
 
-template <int fifo_length = 128, typename _comparator_t, typename pin_t, typename minimumLength_t>
+template <int fifo_length = 128, typename _comparator_t, typename pin_t>
 inline PulseCounter<_comparator_t,pin_t,fifo_length> pulseCounter(_comparator_t &comparator, pin_t &pin) {
     return PulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin);
 }

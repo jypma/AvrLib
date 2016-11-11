@@ -10,7 +10,7 @@ struct MockADC {
     uint16_t value = 0;
 
     void setReference(ADReference ref) {}
-    template<typename pin_t> void start() {}
+    template<typename pin_t> void measure() {}
     uint16_t awaitValue() { return value; }
 };
 

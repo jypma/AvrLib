@@ -90,6 +90,9 @@ public:
         return !isFull();
     }
 
+    /**
+     * Returns the number of bytes currently in the fifo, not counting any uncommitted reads or writes in progress.
+     */
     uint8_t getSize() const;
 
     uint8_t getReadAvailable() const;
@@ -192,7 +195,7 @@ public:
  */
 template<uint8_t Capacity>
 class Fifo: public AbstractFifo {
-    uint8_t buffer[Capacity + 1];
+    uint8_t buffer[Capacity + 1] = {};
 public:
     Fifo(): AbstractFifo(buffer, Capacity + 1) {}
 };

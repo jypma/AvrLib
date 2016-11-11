@@ -11,10 +11,11 @@ namespace Mocks {
 using namespace Time;
 using namespace HAL::Atmel;
 
+template <typename _value_t = uint8_t, uint8_t _prescalerPower2 = 3>
 struct MockComparator {
-    constexpr static uint8_t prescalerPower2 = 3; // prescaler is 2^3 = 8
+    constexpr static uint8_t prescalerPower2 = _prescalerPower2;
 
-    typedef uint8_t value_t;
+    typedef _value_t value_t;
     typedef Int_TIMER0_COMPA_ INT;
 
     value_t value = 0;
@@ -140,9 +141,9 @@ struct MockTWI {
         writeAddress = address;
         out.write(args...);
     }
-    template <typename... types> void read(uint8_t address, types... args) {
+    template <typename... types> Streams::ReadResult read(uint8_t address, types... args) {
         readAddress = address;
-        in.read(args...);
+        return in.read(args...);
     }
 };
 

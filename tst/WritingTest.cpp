@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "Option.hpp"
 #include "Fifo.hpp"
 #include "ChunkedFifo.hpp"
 #include "EEPROMTest.hpp"
@@ -603,6 +604,59 @@ TEST(WritingTest, can_write_protobuf_struct_with_optional) {
 	EXPECT_EQ(true, s.hasA);
 	EXPECT_EQ(40, s.optA);
 	EXPECT_EQ(some(42), s.optB);
+}
+
+TEST(WritingTest, can_write_optional_decimal) {
+	Option<uint8_t> present = 42;
+	Option<uint8_t> absent = none();
+	Fifo<24> fifo;
+
+	fifo.write(F("This is not written"), dec(absent));
+	EXPECT_TRUE(fifo.isEmpty());
+	fifo.write(F("This is written"), dec(present));
+	EXPECT_TRUE(fifo.read(F("This is written42")));
+}
+
+struct Measurement {
+	Option<int16_t> temp;
+	Option<uint16_t> humidity;
+	uint16_t supply;
+	uint8_t seq;
+	uint16_t sender;
+	Option<uint16_t> lux;
+	Option<uint8_t> motion;
+
+    typedef Protobuf::Protocol<Measurement> P;
+
+    typedef P::Message<
+		P::Varint<1, uint16_t, &Measurement::sender>,
+        P::Varint<8, uint8_t, &Measurement::seq>,
+		P::Varint<9, uint16_t, &Measurement::supply>,
+		P::Varint<10, Option<int16_t>, &Measurement::temp>,
+		P::Varint<11, Option<uint16_t>, &Measurement::humidity>,
+		P::Varint<12, Option<uint16_t>, &Measurement::lux>,
+	    P::Varint<13, Option<uint8_t>, &Measurement::motion>
+	> DefaultProtocol;
+};
+
+TEST(WritingTest, can_write_opt_protobuf_to_chunked_fifo) {
+    Fifo<64> data;
+    ChunkedFifo fifo(data);
+
+    EXPECT_EQ(0, fifo.getSize());
+    EXPECT_EQ(0, data.getSize());
+
+    Measurement m;
+	m.temp = 239;
+	m.humidity = 427;
+	m.supply = 4788;
+	m.seq = 3;
+    m.sender = 'Q' << 8 | '1';
+    m.lux = 4693;
+    fifo.write(uint16_t(0), uint8_t(42), &m);
+
+    EXPECT_EQ(22, fifo.getSize());
+    EXPECT_EQ(22, data.getSize());
 }
 
 }

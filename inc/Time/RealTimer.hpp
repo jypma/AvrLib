@@ -495,6 +495,7 @@ public:
         Super::schedule(d);
     }
 
+    // FIXME rewrite in terms of Option
     AnimatorEvent nextEvent() {
         AtomicScope _;
 

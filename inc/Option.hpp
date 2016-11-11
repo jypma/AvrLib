@@ -5,7 +5,11 @@
 template <typename T>
 class Option;
 
-class None {};
+class None {
+public:
+	template <typename T>
+	constexpr bool operator ==(const Option<T> t) const { return t.isEmpty(); }
+};
 constexpr None NONE = None();
 
 inline constexpr None none() {

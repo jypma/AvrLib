@@ -101,12 +101,17 @@ public:
     }
 
     void flush() {
-        if ((SREG & (1 << SREG_I)) > 0) {
-            while (writeFifo.hasContent()) ;
+        if ((SREG & (1 << SREG_I)) == 0) {
+        	// interrupts disabled, so can't flush.
+        	return;
         }
 
-        while (*info::ucsrb & _BV(UDRIE0)) ;
-        while ((*info::ucsra & _BV(TXC0)) == 0) ;
+    	uint16_t counter = 65000;
+        while (writeFifo.hasContent() && ((counter--) > 0)) ;
+    	counter = 65000;
+        while ((*info::ucsrb & _BV(UDRIE0)) && ((counter--) > 0)) ;
+        counter = 65000;
+        while (((*info::ucsra & _BV(TXC0)) == 0) && ((counter--) > 0)) ;
     }
 };
 

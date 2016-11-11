@@ -124,6 +124,8 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
     MockRealTimer rt;
 
     auto dht = DHT11(pin, power, comparator, rt);
+    EXPECT_EQ(none(), dht.getHumidity());
+    EXPECT_EQ(none(), dht.getTemperature());
     EXPECT_FALSE(pin.isOutput);
     EXPECT_TRUE(power.isOutput);
     EXPECT_TRUE(power.high);
@@ -322,10 +324,6 @@ TEST(DHTTest, dht22_reads_negative_temperatures) {
 
     EXPECT_EQ(some(652), dht.getHumidity());
     EXPECT_EQ(some(-101), dht.getTemperature());
-}
-
-TEST(DHTTest, reports_none_during_bootup) {
-	FAIL("pending");
 }
 
 }

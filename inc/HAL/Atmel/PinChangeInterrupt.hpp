@@ -92,7 +92,7 @@ struct PinChangeVector {
     typedef PinChangeSupport<pcintInfo, bitmask> support;
 
     template <typename body_t>
-    static void wrap(body_t body) {
+    static __attribute__((always_inline)) inline void wrap(body_t body) {
         support::wrap(body);
     }
 };

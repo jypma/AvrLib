@@ -48,7 +48,7 @@ struct GardenSensor {
     auto_var(pinTX, PinPD1<128>(usart0));
 
     SPIMaster spi;
-    ADConverter adc;
+    ADConverter<uint16_t> adc;
 
     auto_var(timer1, Timer1::withPrescaler<1>::inNormalMode());
     auto_var(timer2, Timer2::withPrescaler<1024>::inNormalMode());

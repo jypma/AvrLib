@@ -195,14 +195,22 @@ public:
 };
 
 template <typename base, typename info>
-class WithPinChange: public base, public PinChangeInterrupt<typename info::pcintInfo, _BV(info::pcintBit)> {};
+class WithPinChange: public base, public PinChangeInterrupt<typename info::pcintInfo, _BV(info::pcintBit)> {
+public:
+	using base::base;
+};
 
 template <typename base, typename info>
-class WithPinChangeOnChange: public base, public PinChangeInterruptOnChange<typename info::pcintInfo, _BV(info::pcintBit)> {};
+class WithPinChangeOnChange: public base, public PinChangeInterruptOnChange<typename info::pcintInfo, _BV(info::pcintBit)> {
+public:
+	using base::base;
+};
 
 template <typename base, typename info>
 class WithPinChangeOption: public base {
 public:
+	using base::base;
+
     static WithPinChange<base, info> withInterrupt() {
         return WithPinChange<base, info>();
     }
@@ -212,10 +220,18 @@ public:
 };
 
 template <typename info>
-class PinWithPinChange: public WithPinChange<Pin<info>, info> {};
+class PinWithPinChange: public WithPinChange<Pin<info>, info> {
+	typedef WithPinChange<Pin<info>, info> Super;
+public:
+	using Super::Super;
+};
 
 template <typename info>
-class PinWithPinChangeOption: public WithPinChangeOption<Pin<info>, info> {};
+class PinWithPinChangeOption: public WithPinChangeOption<Pin<info>, info> {
+	typedef WithPinChangeOption<Pin<info>, info> Super;
+public:
+	using Super::Super;
+};
 
 } // namespace AVR
 } // namespace HAL

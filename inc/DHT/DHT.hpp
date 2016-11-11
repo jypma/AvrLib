@@ -38,7 +38,7 @@ class DHT {
     uint8_t pos = 0;
     uint8_t data[4] = { 0, 0, 0, 0 };
     bool seenHigh = false;
-    uint8_t lastFailure = 0;
+    uint8_t lastFailure = -1;
 
 public:
     void powerOff() {

@@ -41,7 +41,7 @@ public:
      * the I/O clock is running.
      */
     __attribute__((always_inline)) inline void interruptOnRising() {
-        info::on(2);
+        info::on(3);
     }
 
     /**
@@ -49,7 +49,7 @@ public:
      * the I/O clock is running.
      */
     __attribute__((always_inline)) inline void interruptOnFalling() {
-        info::on(3);
+        info::on(2);
     }
 };
 

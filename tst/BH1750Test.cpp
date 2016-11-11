@@ -11,8 +11,8 @@ TEST(BH1750Test, can_compile) {
     auto rt = MockRealTimer();
     auto twi = MockTWI();
     auto bh = bh1750(twi, rt);
-    bh.configure(BH1750Mode::continuousHighRes);
-    bh.readLevel();
+    bh.measure(BH1750Mode::continuousHighRes);
+    bh.getLightLevel();
 }
 
 }

@@ -5,6 +5,7 @@
 #include "Strings.hpp"
 #include "Fifo.hpp"
 #include "Streams/Format.hpp"
+#include "AtomicScope.hpp"
 
 #include <avr/io.h>
 
@@ -58,6 +59,8 @@ struct MessagesDisabled {
     inline static void debug(types... args) {}
 
     static constexpr bool isDebugEnabled() { return false; }
+
+    inline static void flush() {}
 };
 
 template <typename... types>

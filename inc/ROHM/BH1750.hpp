@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "Enum.hpp"
 #include "Option.hpp"
+#include "Time/RealTimer.hpp"
 
 #define auto_field(name, expr) decltype(expr) name = expr
 

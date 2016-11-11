@@ -41,7 +41,7 @@ public:
      */
     uint16_t get() {
         adc->setReference(ADReference::BANDGAP);
-        adc->template start<pin_t>();
+        adc->template measure<pin_t>();
         uint16_t result = adc->awaitValue();
         //return result;
         auto bg = read(bandgapVoltage);
@@ -64,6 +64,7 @@ public:
 			for (uint8_t count = 4; count > 0; count--) {
 				if (get() >= threshold) {
 					low = false;
+					lowReadingsUntilStop = lowReadingsNeeded;
 					break;
 				}
 			}

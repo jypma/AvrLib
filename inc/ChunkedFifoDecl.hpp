@@ -38,6 +38,10 @@ public:
         return data->getSpace();
     }
 
+    /**
+     * Returns the number of bytes currently in the fifo, not counting any uncommitted reads or writes in progress,
+     * but including any length markers.
+     **/
     inline uint8_t getSize() const {
         return data->getSize();
     }

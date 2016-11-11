@@ -3,16 +3,28 @@
 
 using namespace HAL::Atmel;
 
-void ADConverter::enable() {
+Impl::BaseADC::BaseADC() {
+    ADMUX |= (1 << REFS0); // Set ADC reference to AVCC
+    ADCSRA |= (1 << ADIE);  // Enable ADC Interrupt
+    enable();
+}
+
+void Impl::BaseADC::enable() {
     ADCSRA |= (1 << ADEN);  // Enable ADC
 }
 
-uint16_t ADConverter::awaitValue() {
-    while (ADCSRA & (1 << ADSC)) ;
-    return getValue();
+void Impl::BaseADC::setReference(ADReference ref) {
+    switch (ref) {
+    case ADReference::AREF:
+        ADMUX &= ~(_BV(REFS0) | _BV(REFS1));
+        break;
+    case ADReference::AVCC:
+        ADMUX = (ADMUX | _BV(REFS0)) & ~_BV(REFS1);
+        break;
+    case ADReference::BANDGAP:
+        ADMUX |= _BV(REFS0) | _BV(REFS1);
+        break;
+    }
 }
 
-uint16_t ADConverter::getValue() {
-    AtomicScope _;
-    return ADC;
-}
+

@@ -22,6 +22,7 @@ namespace Info {
 struct Int0Info {
     typedef Int_INT0_ INT;
     inline static void on(uint8_t mode) {
+    	EIFR |= _BV(INTF0);
         EICRA = (EICRA & ~(_BV(ISC00) | _BV(ISC01))) | (mode << ISC00);
         EIMSK |= _BV(INT0);
     }
@@ -33,6 +34,7 @@ struct Int0Info {
 struct Int1Info {
     typedef Int_INT1_ INT;
     inline static void on(uint8_t mode) {
+    	EIFR |= _BV(INTF1);
         EICRA = (EICRA & ~(_BV(ISC10) | _BV(ISC11))) | (mode << ISC10);
         EIMSK |= _BV(INT1);
     }
@@ -586,7 +588,11 @@ constexpr PinPD3_t<timer2_t> PinPD3(timer2_t &timer) {
 typedef PinWithPinChangeOption<Info::PinPD4Info> PinPD4;
 
 template <typename timer0_t>
-class PinPD5_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPD5Info,timer0_t>,Info::PinPD5Info> {};
+class PinPD5_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPD5Info,timer0_t>,Info::PinPD5Info> {
+	typedef WithPinChangeOption<PinOnComparatorB<Info::PinPD5Info,timer0_t>,Info::PinPD5Info> Super;
+public:
+	using Super::Super;
+};
 
 /**
  * Declares pin PD5 / PCINT21 / OC0B / T1 (TODO) / Arduino Digital 5, without timer capability.

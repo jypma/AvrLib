@@ -33,7 +33,7 @@ struct GardenValve {
     auto_var(resendState, deadline(rt, 30_s));
     auto_var(resendPing, deadline(rt, 1_s));
     auto_var(deepsleep, deadline(rt, 120_min));
-    auto_var(adc, ADConverter());
+    auto_var(adc, (ADConverter<uint16_t>()));
     bool on1 = false;
 
     auto_var(pinRFM12_INT, PinPD2());
