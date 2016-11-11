@@ -111,87 +111,54 @@ struct RoomSensor {
     RoomSensor() {
         log::debug(F("Starting"));
         rfm.onIdleSleep();
-        //measure();
     }
 
     Measurement m;
     void loop() {
-    	/*
-    	pinTX.write(dec(toMillisOn(rt, nextMeasurement.timeLeft()).getValue()), endl);
-    	pinTX.flush();
-    	pinTX.write(dec(nextMeasurement.getNext()), endl);
-    	pinTX.flush();
-    	pinTX.write(dec(rt.counts().getValue()), endl);
-    	pinTX.flush();
-    	pinTX.write(dec(TIMSK0), endl);
-    	pinTX.flush();
-    	*/
         supplyVoltage.stopOnLowBattery(3000, [&] {
         	log::debug(F("**LOW**"));
         	log::flush();
         });
         dht.loop();
         pir.loop();
-        pinTX.flush();
-        Logging::printTimings();
-        //pinTX.write(dec(pls));
-        pinTX.flush();
 
         if (pir.isMotionDetected()) {
             log::debug(F("Motion!"));
-            log::flush();
         	m.motion = 1;
             m = {};
             seq++;
             m.seq = seq;
             m.sender = 'Q' << 8 | read(id);
-//            for (uint8_t i = 3; i > 0; i--) {
-                rfm.write_fsk(42, &m);
-//            }
+            rfm.write_fsk(42, &m);
             m = {};
         }
 
         if (measuring && !dht.isMeasuring() && !ds.isMeasuring() && !bh.isMeasuring()) {
             pinTX.flush();
             measuring = false;
-            //log::debug(F("Reading DS"));
             m.temp = ds.getTemperature();
-            //log::debug(F("Reading Supply 1"));
+            log::debug(F("Temp : "), dec(m.temp));
+
             for (int i = 0; i < 10; i++) supplyVoltage.get();
-            //log::debug(F("Reading Supply 2"));
             m.supply = supplyVoltage.get();
-            //log::debug(F("Reading DHT"));
-            //pinTX.flush();
-			m.humidity = dht.getHumidity();
-			//log::debug(F("done."));
-            //pinTX.flush();
-            if (m.humidity.isDefined()) log::debug(F("Hum  : "), dec(m.humidity));
-            pinTX.flush();
-            m.lux = bh.getLightLevel();
             log::debug(F("Suppl: "), dec(m.supply));
-            if (m.temp.isDefined()) log::debug(F("Temp : "), dec(m.temp));
+
+            m.humidity = dht.getHumidity();
+            log::debug(F("Hum  : "), dec(m.humidity));
+            log::flush();
+
             auto dt = dht.getTemperature();
-            if (dt.isDefined()) log::debug(F("TempH: "), dec(dt));
-            pinTX.flush();
-            if (m.lux.isDefined()) log::debug(F("Lux  : "), dec(m.lux));
-            //if (m.motion.isDefined()) log::debug(F("Motn : "), dec(m.motion));
-        	pinTX.flush();
-            seq++;
+            log::debug(F("TempH: "), dec(dt));
+
+            m.lux = bh.getLightLevel();
+            log::debug(F("Lux  : "), dec(m.lux));
+        	log::flush();
+
+        	seq++;
             m.seq = seq;
             m.sender = 'Q' << 8 | read(id);
-            //for (uint8_t i = 3; i > 0; i--) {
             rfm.write_fsk(42, &m);
-            //bool ok = rfm.write_fsk(42, FB(1,2,3,4,5));
-               /*
-            log::debug(F("ok: "), '0' + ok, F("f: "), dec(rfm.txFifo.fifo.getSize()), F("d: "), dec(rfm.txFifo.data.getSize()));
-            log::flush();
-            log::debug(F("fifo: "), dec(uint16_t(&(rfm.txFifo.data))), F(" cfif: "), dec(uint16_t(rfm.txFifo.fifo.data)));
-            log::flush();
-            */
-            //}
             nextMeasurement.schedule();
-            //log::debug(F("next now"), dec(toMillisOn(rt, nextMeasurement.timeLeft()).getValue()));
-        	//pinTX.flush();
             m = {};
         } else if (nextMeasurement.isNow()) {
             measure();
@@ -202,14 +169,8 @@ struct RoomSensor {
             if (mode == SleepMode::POWER_DOWN && measuring) {
             	// don't power down if everything is idle here but we haven't found out yet we're done measuring
             } else {
-            	//log::debug(F("States:"), '0' + rfm.isIdle(), '0' + dht.isIdle(), '0' + ds.isIdle(), '0' + bh.isIdle());
-            	//log::flush();
-            	power.sleepUntilAny(mode, nextMeasurement, ds, dht, bh, pir); // TODO have dht participate in "how much time left"
-            	//pinTX.write('0' + hcr_ints);
-            	//pinTX.flush();
-            	//uint16_t spb = SPL | (SPH<<8);
-            	//log::debug(F("Awake: "), dec(spb));
-            	//log::flush();
+            	pinTX.flush();
+            	power.sleepUntilAny(mode, nextMeasurement, ds, dht, bh, pir);
             }
         }
     }
