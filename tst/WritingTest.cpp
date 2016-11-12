@@ -659,4 +659,29 @@ TEST(WritingTest, can_write_opt_protobuf_to_chunked_fifo) {
     EXPECT_EQ(22, data.getSize());
 }
 
+TEST(WritingTest, can_zigzag_signed_ints) {
+    Fifo<64> fifo;
+    int16_t i = -1024;
+	fifo.write(Protobuf::Varint<1>(i));
+	EXPECT_TRUE(fifo.read(FB(8,255,15)));
+}
+
+struct SignedInt {
+	int16_t sint;
+
+    typedef Protobuf::Protocol<SignedInt> P;
+    typedef P::Message<
+		P::Varint<1, int16_t, &SignedInt::sint>
+    > DefaultProtocol;
+};
+
+TEST(WritingTest, can_read_back_signed_ints) {
+    Fifo<64> fifo;
+    SignedInt s = { -1024 };
+	fifo.write(&s);
+	SignedInt s2;
+	EXPECT_TRUE(fifo.read(&s2));
+	EXPECT_EQ(-1024, s2.sint);
+}
+
 }

@@ -240,10 +240,10 @@ struct Protocol {
 
 		static ReadResult assign(This *t, uint32_t value) {
 			int32_t v = Impl::Protobuf::unzigzag32(value);
-			if (value > std::numeric_limits<T>::max() || value < std::numeric_limits<T>::min()) {
+			if (v > std::numeric_limits<T>::max() || v < std::numeric_limits<T>::min()) {
 				return ReadResult::Invalid;
 			} else {
-				(t->*field) = value;
+				(t->*field) = v;
 				return ReadResult::Valid;
 			}
 		}
