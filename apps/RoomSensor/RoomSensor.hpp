@@ -70,14 +70,11 @@ struct RoomSensor {
     auto_var(pinRFM12_INT, PinPD2());
     auto_var(pinRFM12_SS, PinPB2());
     auto_var(pinSupply, JeeNodePort2A());
-    auto_var(pinOneWire, JeeNodePort3D());
     auto_var(pinDHT, JeeNodePort2D().withInterrupt());
     auto_var(pinDHTPower, JeeNodePort3A());
-    auto_var(pinPIRPower, JeeNodePort1D());
+    auto_var(pinPIRPower, JeeNodePort4D());
     auto_var(pinPIRData, PinPD3());
 
-    auto_var(wire, OneWireParasitePower(pinOneWire, rt));
-    auto_var(ds, SingleDS18x20(wire));
     auto_var(rfm, (rfm12<4,100>(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz)));
     auto_var(supplyVoltage, (SupplyVoltage<4700, 1000, bandgapVoltage>(adc, pinSupply)));
     auto_var(power, Power(rt));
@@ -102,7 +99,6 @@ struct RoomSensor {
     void measure() {
         log::debug(F("Measuring"));
         log::flush();
-        ds.measure();
         dht.measure();
         bh.measure(BH1750Mode::oneTimeHighRes);
         measuring = true;
@@ -124,8 +120,8 @@ struct RoomSensor {
 
         if (pir.isMotionDetected()) {
             log::debug(F("Motion!"));
-        	m.motion = 1;
             m = {};
+        	m.motion = 1;
             seq++;
             m.seq = seq;
             m.sender = 'Q' << 8 | read(id);
@@ -133,11 +129,9 @@ struct RoomSensor {
             m = {};
         }
 
-        if (measuring && !dht.isMeasuring() && !ds.isMeasuring() && !bh.isMeasuring()) {
+        if (measuring && !dht.isMeasuring() && !bh.isMeasuring()) {
             pinTX.flush();
             measuring = false;
-            m.temp = ds.getTemperature();
-            log::debug(F("Temp : "), dec(m.temp));
 
             for (int i = 0; i < 10; i++) supplyVoltage.get();
             m.supply = supplyVoltage.get();
@@ -145,10 +139,10 @@ struct RoomSensor {
 
             m.humidity = dht.getHumidity();
             log::debug(F("Hum  : "), dec(m.humidity));
-            log::flush();
 
-            auto dt = dht.getTemperature();
-            log::debug(F("TempH: "), dec(dt));
+            m.temp = dht.getTemperature();
+            log::debug(F("Temp : "), dec(m.temp));
+            log::flush();
 
             m.lux = bh.getLightLevel();
             log::debug(F("Lux  : "), dec(m.lux));
@@ -164,13 +158,13 @@ struct RoomSensor {
             measure();
         } else {
 
-            auto mode = (rfm.isIdle() && dht.isIdle() && ds.isIdle() && bh.isIdle()) ? SleepMode::POWER_DOWN
+            auto mode = (rfm.isIdle() && dht.isIdle() && bh.isIdle()) ? SleepMode::POWER_DOWN
                       : SleepMode::IDLE;                    // dht is running, needs timers
             if (mode == SleepMode::POWER_DOWN && measuring) {
             	// don't power down if everything is idle here but we haven't found out yet we're done measuring
             } else {
             	pinTX.flush();
-            	power.sleepUntilAny(mode, nextMeasurement, ds, dht, bh, pir);
+            	power.sleepUntilAny(mode, nextMeasurement, dht, bh, pir);
             }
         }
     }
