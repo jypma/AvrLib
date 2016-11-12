@@ -31,7 +31,7 @@ using namespace PIR;
 struct Measurement {
 	Option<int16_t> temp;
 	Option<uint16_t> humidity;
-	uint16_t supply;
+	Option<uint16_t> supply;
 	uint8_t seq;
 	uint16_t sender;
 	Option<uint16_t> lux;
@@ -42,7 +42,7 @@ struct Measurement {
     typedef P::Message<
 		P::Varint<1, uint16_t, &Measurement::sender>,
         P::Varint<8, uint8_t, &Measurement::seq>,
-		P::Varint<9, uint16_t, &Measurement::supply>,
+		P::Varint<9, Option<uint16_t>, &Measurement::supply>,
 		P::Varint<10, Option<int16_t>, &Measurement::temp>,
 		P::Varint<11, Option<uint16_t>, &Measurement::humidity>,
 		P::Varint<12, Option<uint16_t>, &Measurement::lux>,
