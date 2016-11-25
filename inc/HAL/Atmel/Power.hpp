@@ -178,6 +178,9 @@ public:
     }
 
     // FIXME assert that the periodics are of the same rt_t
+    /**
+     * Sleeps until the EARLIEST of the given periodic or deadline instances fires.
+     */
     template <typename periodic_t, typename... periodic_ts>
     bool sleepUntilAny(SleepMode mode, const periodic_t &head, const periodic_ts&... tail) {
         return sleepUntilAnyLT(toMillisOn<rt_t>(head.timeLeft()), mode, tail...);

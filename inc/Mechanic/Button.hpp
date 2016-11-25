@@ -16,10 +16,11 @@ enum class ButtonEvent: uint8_t {
     DOWN, UP, PRESSED, RELEASED
 };
 
+
+namespace Impl {
+
 /**
- * Reads a button including debouncing, and configuring to wake the MCU from sleep. If you put a button
- * on INT0 or INT1, don't put the MCU into POWER_DOWN until nextEvent() has informed you that the
- * button was released.
+ * Reads a button including debouncing, and configuring to wake the MCU from sleep.
  */
 template <typename pin_t, typename rt_t, typename debounce_time = decltype(8_ms)>
 class Button {
@@ -34,7 +35,6 @@ class Button {
 
     void onInterrupt() {
         gotInterrupt = true;
-        pin->interruptOff(); // disable interrupt handler so we don't hang around in here while the user holds down the button
     }
 
     bool getState() {
@@ -51,16 +51,11 @@ public:
 
     Button(pin_t &_pin, rt_t &_rt): pin(&_pin), rt(&_rt), stopDebouncing(deadline(_rt, debounce_time::instance)) {
         pin->configureAsInputWithPullup();
-        pin->interruptOnLow();
+        pin->interruptOnChange();
         prevState = pin->isHigh();
     }
 
     ButtonEvent nextEvent() {
-        if (pin->isHigh()) {
-            // button was released, re-enable interrupt
-            pin->interruptOnLow();
-        }
-
         if (stopDebouncing.isNow()) {
             debouncing = false;
         }
@@ -79,14 +74,16 @@ public:
     }
 };
 
+}
+
 template <typename pin_t, typename rt_t>
-Button<pin_t, rt_t, decltype(8_ms)> button(rt_t &rt, pin_t &pin) {
-    return Button<pin_t, rt_t, decltype(8_ms)>(pin, rt);
+Impl::Button<pin_t, rt_t, decltype(8_ms)> Button(rt_t &rt, pin_t &pin) {
+    return Impl::Button<pin_t, rt_t, decltype(8_ms)>(pin, rt);
 }
 
 template <typename pin_t, typename rt_t, typename debounce_time>
-Button<pin_t, rt_t, debounce_time> button(rt_t &rt, pin_t &pin, debounce_time d) {
-    return Button<pin_t, rt_t, debounce_time>(pin, rt);
+Impl::Button<pin_t, rt_t, debounce_time> Button(rt_t &rt, pin_t &pin, debounce_time d) {
+    return Impl::Button<pin_t, rt_t, debounce_time>(pin, rt);
 }
 
 }

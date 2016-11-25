@@ -23,6 +23,11 @@ SpecialFunctionRegister::SpecialFunctionRegister() {
 			// TXC bit should always be 1, indicating serial tx complete
 			value |= _BV(TXC0);
 		};
+	} else if (this == &ADCSRA) {
+		callback = [this] {
+			// A/D conversion complete
+			value &= ~(1 << ADSC);
+		};
 	}
 }
 

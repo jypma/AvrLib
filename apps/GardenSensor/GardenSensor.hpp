@@ -96,13 +96,13 @@ struct GardenSensor {
         measure();
     }
 
+	Measurement m = {};
     void loop() {
-        //supplyVoltage.stopOnLowBattery(3000);
+        supplyVoltage.stopOnLowBattery(3000);
 
         if (measuring && !soil.isMeasuring() && !ds.isMeasuring()) {
             pinTX.flush();
             measuring = false;
-            Measurement m;
             log::debug(F("Reading DS"));
             m.temp = ds.getTemperature();
             log::debug(F("Reading Supply 1"));

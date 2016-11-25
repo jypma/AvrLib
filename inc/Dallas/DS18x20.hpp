@@ -4,6 +4,7 @@
 #include "OneWire.hpp"
 #include "Option.hpp"
 #include <stdint.h>
+#include <Tasks/TaskState.hpp>
 
 namespace Dallas {
 
@@ -162,6 +163,11 @@ public:
     Option<int16_t> getTemperature() {
         update();
         return temp;
+    }
+
+    auto getTaskState() {
+    	AtomicScope _;
+    	return TaskState(measureDone, HAL::Atmel::SleepMode::POWER_DOWN);
     }
 };
 
