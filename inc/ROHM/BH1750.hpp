@@ -16,11 +16,13 @@ struct BH1750Mode {
     enum type: uint8_t {
         /**
          * Start measurement at 1 lux resolution. Measurement time is approx 120ms.
+         * Mode 1 is more appropriate for light areas.
          */
         continuousHighRes = 0x10,
 
         /**
          * Start measurement at 0.5 lux resolution. Measurement time is approx 120ms.
+         * Mode 2 is more appropriate for dark areas, but will clip when in full light.
          */
         continuousHighRes2 = 0x11,
 

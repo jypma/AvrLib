@@ -37,6 +37,9 @@ private:
 public:
     OneWire(pin_t &p, rt_t &r, bool _power): rt(&r), pin(&p), power(_power) {}
 
+    /**
+     * Resets the one-wire devices on the bus, and returns whether at least one device was detected.
+     */
     bool reset() {
         uint8_t retries = 125;
         pin->configureAsInputWithPullup();

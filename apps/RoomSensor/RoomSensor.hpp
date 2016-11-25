@@ -57,6 +57,7 @@ struct RoomSensor {
 
     Usart0 usart0 = { 57600 };
     auto_var(pinTX, PinPD1<100>(usart0));
+    auto_var(pinRX, PinPD0());
 
     SPIMaster spi;
     ADConverter<uint16_t> adc;
@@ -105,6 +106,7 @@ struct RoomSensor {
     }
 
     RoomSensor() {
+    	pinRX.configureAsInputWithPullup();
         log::debug(F("Starting"));
         rfm.onIdleSleep();
     }
@@ -163,6 +165,9 @@ struct RoomSensor {
             if (mode == SleepMode::POWER_DOWN && measuring) {
             	// don't power down if everything is idle here but we haven't found out yet we're done measuring
             } else {
+            	if (mode == SleepMode::POWER_DOWN) {
+            		pinTX.write('.');
+            	}
             	pinTX.flush();
             	power.sleepUntilAny(mode, nextMeasurement, dht, bh, pir);
             }

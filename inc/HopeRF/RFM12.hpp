@@ -328,6 +328,9 @@ public:
         enable(band);
     }
 
+    /**
+     * Lets the RFM module listen when idle, i.e. it will be able to receive packets.
+     */
     void onIdleListen() {
         AtomicScope _;
 
@@ -337,6 +340,9 @@ public:
         }
     }
 
+    /**
+     * Lets the RFM module sleep when idling, i.e. it will never receive any packets. Useful when we're only sending.
+     */
     void onIdleSleep() {
         AtomicScope _;
 

@@ -34,8 +34,11 @@ using namespace HAL::Atmel::InterruptHandlers;
  *      |  C1            | VCC  | DATA | GND  |      C2   |
  *      \----------------+------+------+------+-----------/
  *
- * Instead of relying on its built-in delay mechanism, we power the module through a microcontroller pin,
+ * Instead of relying on its built-in delay mechanism, we can power the module through a microcontroller pin,
  * in order to save power during the sleep time after having detected movement.
+ *
+ * NOTE: This does NOT work reliably on all modules. Some trigger immediately after waiting for even 30 seconds.
+ * This may be a software bug in this library, or a hardware bug in the module.
  *
  * By default, the module is somewhat power-inefficient. It expects 5V on VCC and drops this through a diode and
  * a linear regulator to 3.3V. In order to power it from 3.3V directly, you can conveniently put +3.3V on the
@@ -81,7 +84,7 @@ class HCSR501 {
     	log::debug(F("Turning on"));
         power->setHigh();
         state = State::INITIALIZING;
-        timeout.schedule(8_s); // datasheet says 5s, let's be on the safe side
+        timeout.schedule(30_s); // datasheet says 5s, let's be on the safe side
     }
 
     void sleeping() {
@@ -150,7 +153,7 @@ Impl::HCSR501<datapin_t, powerpin_t, rt_t, delay_t> HCSR501(datapin_t &data, pow
  * Declares a HCSR501 with a 1-minute sleep delay
  */
 template <typename datapin_t, typename powerpin_t, typename rt_t>
-Impl::HCSR501<datapin_t, powerpin_t, rt_t, decltype(1_s)> HCSR501(datapin_t &data, powerpin_t &power, rt_t &rt) {
+Impl::HCSR501<datapin_t, powerpin_t, rt_t, decltype(30_s)> HCSR501(datapin_t &data, powerpin_t &power, rt_t &rt) {
     return { data, power, rt };
 }
 

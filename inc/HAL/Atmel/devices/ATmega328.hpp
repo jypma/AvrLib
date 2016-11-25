@@ -821,6 +821,11 @@ using TWI = Impl::TWI<TWIInfo, txFifoSize, rxFifoSize, twiFreq>;
 // --------------------------------- JeeNode stuff -------------------------------------
 
 /**
+ * Declares the shared "I" Interrupt pin on all JeeNode ports
+ */
+#define JeeNodePortI ::HAL::Atmel::PinPD3
+
+/**
  * Declares JeeNode Port 1 Analog
  */
 #define JeeNodePort1A ::HAL::Atmel::PinPC0

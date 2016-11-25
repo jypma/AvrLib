@@ -13,6 +13,7 @@ namespace Loggers {
     class Main;
     class Passive;
     class TWI;
+    class PIR;
     class PinChangeInterrupt;
 }
 
@@ -33,6 +34,7 @@ namespace Logging {
 
     template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
+    template<> class Log<Loggers::PIR>: public MessagesEnabled<STR("PIR")> {};
     //template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};
     //template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};
     //template<> class Log<Loggers::Passive>: public MessagesEnabled<STR("Passive")> {};

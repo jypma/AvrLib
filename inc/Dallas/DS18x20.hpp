@@ -75,7 +75,10 @@ class DS18x20 {
 
     void readTemperature() {
         log::debug(F("Retrieving temp"));
-        wire->reset();
+        if (!wire->reset()) {
+        	temp = none();
+        	return;
+        }
         wire->select(addr);
         wire->write(0xBE); // READ SCRATCHPAD
         uint8_t data[9];
@@ -123,7 +126,13 @@ public:
         if (measureDone.isScheduled()) {
             return;
         }
-        wire->reset();
+        if (!wire->reset()) {
+        	if (!wire->reset()) {
+        		measureDone.cancel();
+        		temp = none();
+        		return;
+        	}
+        }
         wire->select(addr);
         wire->write(0x44); // CONVERT T
         measureDone.schedule();

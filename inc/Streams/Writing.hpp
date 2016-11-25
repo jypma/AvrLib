@@ -24,13 +24,11 @@ public:
 
     static inline void write(fifo_t &fifo, uint8_t value) {
         if ((SREG & (1 << SREG_I)) > 0) {
-            PORTD |= (1 << 5);
             uint16_t counter = 65000;
             while (fifo.isFull() && ((counter--) > 0)) block();
             fifo.uncheckedWrite(value);
             block();
         } else {
-            PORTD &= ~(1 << 5);
             if (fifo.hasSpace()) {
                fifo.uncheckedWrite(value);
             }
