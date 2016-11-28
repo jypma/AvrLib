@@ -6,6 +6,7 @@
 #include <Time/Units.hpp>
 #include "Logging.hpp"
 #include "Option.hpp"
+#include <Tasks/TaskState.hpp>
 
 namespace Passive {
 
@@ -46,8 +47,7 @@ class CapacitorRC {
     CapacitorRCState state = CapacitorRCState::IDLE;
     uint32_t startTime = 0;
     Option<uint32_t> time;
-    Deadline<rt_t, rise_time> chargeDone = { *rt };
-    Deadline<rt_t, timeout_time> timeout = { *rt };
+    VariableDeadline<rt_t> timeout = { *rt };
     uint16_t measurements = 0;
 
     void charge() {
@@ -55,8 +55,7 @@ class CapacitorRC {
         state = CapacitorRCState::CHARGING;
         pin->interruptOff();
         pin->configureAsOutputHigh();
-        chargeDone.schedule();
-        timeout.cancel();
+        timeout.schedule(rise_time::instance);
     }
 
     void idle() {
@@ -64,7 +63,6 @@ class CapacitorRC {
         state = CapacitorRCState::IDLE;
         pin->interruptOff();
         pin->configureAsOutputLow();
-        chargeDone.cancel();
         timeout.cancel();
         if (measurements > 0) {
             charge();
@@ -78,10 +76,9 @@ class CapacitorRC {
         state = CapacitorRCState::MEASURING;
         startTime = rt->counts();
         pin->configureAsInputWithoutPullup();
-        chargeDone.cancel();
         if (pin->isHigh()) {
             pin->interruptOnChange();
-            timeout.schedule();
+            timeout.schedule(timeout_time::instance);
         } else {
             time = none();
             measurements = 0;
@@ -94,8 +91,7 @@ class CapacitorRC {
         state = CapacitorRCState::DISCHARGING;
         pin->configureAsOutputLow();
         pin->interruptOff();
-        chargeDone.schedule();
-        timeout.cancel();
+        timeout.schedule(rise_time::instance);
     }
 
     void onPinChange() {
@@ -118,18 +114,21 @@ public:
 
     bool isMeasuring() {
         AtomicScope _;
-        if (chargeDone.isNow()) {
-            if (state == CapacitorRCState::CHARGING) {
+        if (timeout.isNow()) {
+        	switch(state) {
+        	case CapacitorRCState::CHARGING:
                 doMeasure();
-            } else if (state == CapacitorRCState::DISCHARGING) {
+        		break;
+        	case CapacitorRCState::DISCHARGING:
                 log::debug(F("after discharge: "), pin->isHigh() ? '1' : '0');
                 idle();
-            }
-        } else if (timeout.isNow()) {
-            log::debug(F("timed out"));
-            time = none();
-            measurements = 0;
-            idle();
+                break;
+        	default:
+                log::debug(F("timed out"));
+                time = none();
+                measurements = 0;
+                idle();
+        	}
         }
         return (state != CapacitorRCState::IDLE || measurements > 0);
     }
@@ -142,12 +141,8 @@ public:
     	return state;
     }
 
-    const decltype(chargeDone) getChargeDone() const {
-    	return chargeDone;
-    }
-
-    const decltype(timeout) getTimeout() const {
-    	return timeout;
+    const auto timeLeft() const {
+    	return timeout.timeLeft();
     }
 
     void measure() {
@@ -159,8 +154,24 @@ public:
         }
     }
 
-    Option<uint32_t> getTime() const {
+    Option<uint32_t> getValue() const {
         return time;
+    }
+
+    ::Impl::TaskState<Counts<>> getTaskState() {
+    	AtomicScope _;
+    	isMeasuring();
+    	switch (state) {
+    	case CapacitorRCState::CHARGING:
+    	case CapacitorRCState::DISCHARGING:
+    		//return TaskState(Counts<>(timeout_time::template toCounts<rt_t>()), HAL::Atmel::SleepMode::POWER_DOWN);
+    		return TaskState(timeout, HAL::Atmel::SleepMode::POWER_DOWN);
+    	case CapacitorRCState::MEASURING:
+    		return TaskState(timeout, HAL::Atmel::SleepMode::IDLE); // we need the timers to count
+    	default:
+    		return TaskStateIdle<Counts<>>();
+    	}
+    	//return TaskState(timeout, HAL::Atmel::SleepMode::IDLE); // can't really sleep, we need the timers to count.
     }
 };
 

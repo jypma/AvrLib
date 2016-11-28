@@ -1,12 +1,14 @@
 #ifndef HAL_ATMEL_POWER_HPP_
 #define HAL_ATMEL_POWER_HPP_
 
+#include "SleepMode.hpp"
 #include "HAL/Atmel/InterruptHandlers.hpp"
 #include "AtomicScope.hpp"
 #include "HAL/Atmel/Device.hpp"
 #include "Time/Units.hpp"
 #include <util/atomic.h>
 #include <avr/sleep.h>
+#include "Tasks/TaskState.hpp"
 
 namespace HAL {
 namespace Atmel {
@@ -14,20 +16,12 @@ namespace Atmel {
 using namespace Time;
 using namespace InterruptHandlers;
 
-enum class SleepMode: uint8_t {
-    /** Lowest power mode. */
-    POWER_DOWN,
-    /**
-     * Like POWER_DOWN, but leaves the oscillator running so resuming is (a lot) faster. Use this if you're expecting
-     * serial or SPI data to come in via interrupts that you need to quickly read in.
-     */
-    STANDBY,
-    /**
-     * Least power savings, basically only halts the CPU and Flash. But this is the only sleep mode
-     * where PWM keeps running.
-     */
-    IDLE
-};
+/**
+ * Returns whether s1 indicates a deeper sleep than s2.
+ */
+inline bool operator > (SleepMode s1, SleepMode s2) {
+	return ((uint8_t)s1) > ((uint8_t)s2);
+}
 
 enum class SleepGranularity: uint8_t {
     _16ms = 0,
@@ -184,6 +178,20 @@ public:
     template <typename periodic_t, typename... periodic_ts>
     bool sleepUntilAny(SleepMode mode, const periodic_t &head, const periodic_ts&... tail) {
         return sleepUntilAnyLT(toMillisOn<rt_t>(head.timeLeft()), mode, tail...);
+    }
+
+    template <typename time_t>
+    bool sleepUntilTasks(::Impl::TaskState<time_t> task) {
+    	return sleepFor(task.timeLeft(), task.getMaxSleepMode(), SleepGranularity::_8000ms);
+    }
+
+    template <typename time1_t, typename time2_t, typename... types>
+    bool sleepUntilTasks(::Impl::TaskState<time1_t> task1, ::Impl::TaskState<time2_t> task2, types... tail) {
+    	auto mode = (task1.getMaxSleepMode() > task2.getMaxSleepMode()) ? task2.getMaxSleepMode() : task1.getMaxSleepMode();
+    	auto time1 = task1.isIdle() ? 8000_ms : toMillisOn<rt_t>(task1.timeLeft());
+    	auto time2 = task2.isIdle() ? 8000_ms : toMillisOn<rt_t>(task2.timeLeft());
+    	auto time = (time1 > time2) ? time2 : time1;
+    	return sleepUntilTasks(::TaskState(time, mode));
     }
 
     /**

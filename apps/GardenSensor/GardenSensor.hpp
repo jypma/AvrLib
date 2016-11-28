@@ -96,11 +96,17 @@ struct GardenSensor {
         measure();
     }
 
+    auto getTaskState() {
+    	return TaskState(nextMeasurement, SleepMode::POWER_DOWN);
+    }
+
 	Measurement m = {};
     void loop() {
         supplyVoltage.stopOnLowBattery(3000);
+        auto soilState = soil.getTaskState();
+        auto dsState = ds.getTaskState();
 
-        if (measuring && !soil.isMeasuring() && !ds.isMeasuring()) {
+        if (measuring && soilState.isIdle() && dsState.isIdle()) {
             pinTX.flush();
             measuring = false;
             log::debug(F("Reading DS"));
@@ -110,7 +116,7 @@ struct GardenSensor {
             log::debug(F("Reading Supply 2"));
             m.supply = supplyVoltage.get();
             log::debug(F("Reading Soil"));
-            m.soil = soil.getTime();
+            m.soil = soil.getValue();
             log::debug(F("Soil : "), dec(m.soil));
             pinTX.flush();
             log::debug(F("Suppl: "), dec(m.supply));
@@ -127,6 +133,7 @@ struct GardenSensor {
             measure();
             pinTX.write('a', '0' + soil.isIdle());
         } else {
+        	/*
             auto mode = (rfm.isIdle() && soil.isIdle() && ds.isIdle()) ? SleepMode::POWER_DOWN
                       : SleepMode::IDLE;                    // moisture sensor is running, needs timers
             if (mode == SleepMode::POWER_DOWN) {
@@ -139,6 +146,8 @@ struct GardenSensor {
             	pinTX.flush();
             	power.sleepUntilAny(mode, nextMeasurement, ds);
             }
+            */
+        	power.sleepUntilTasks(dsState, soilState, getTaskState()); // , nextMeasurement...
         }
     }
 

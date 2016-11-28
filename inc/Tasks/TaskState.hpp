@@ -1,13 +1,15 @@
 #pragma once
 
-#include "HAL/Atmel/Power.hpp"
+#include "HAL/Atmel/SleepMode.hpp"
+#include "Time/RealTimer.hpp"
+#include "Time/Units.hpp"
+#include "Option.hpp"
 
 namespace Impl {
 
 template <typename time_t>
 class TaskState {
-	bool idle;
-	time_t tLeft;
+	Option<time_t> tLeft;
 	HAL::Atmel::SleepMode maxSleepMode;
 public:
 	/**
@@ -16,28 +18,64 @@ public:
 	 */
 	HAL::Atmel::SleepMode getMaxSleepMode() const { return maxSleepMode; }
 
-	constexpr TaskState(bool i, time_t t, HAL::Atmel::SleepMode s): idle(i), tLeft(t), maxSleepMode(s) {}
+	constexpr TaskState(Option<time_t> t, HAL::Atmel::SleepMode s): tLeft(t), maxSleepMode(s) {}
 
 	/**
 	 * Returns whether this task is currently idle.
 	 */
-	bool isIdle() const { return idle; }
+	constexpr bool isIdle() const { return tLeft.isEmpty(); }
 
 	/**
-	 * Returns how much time the current (non-idle) task expects to need before being idle again.
-	 * Any task defines this; for undefined untimes, the task should then implement and return
+	 * For non-idle tasks, returns the amount of time until the task will reach its next deadline or timeout.
+	 * This method must not be called for idle tasks.
+	 * Any task defines this; for unknown run-times, the task should then implement and return
 	 * a reasonable timeout.
 	 */
-	time_t timeLeft() const { return tLeft; }
+	constexpr time_t timeLeft() const { return tLeft.get(); }
 };
 
 }
 
 /**
- * Returns a task state from the given Deadline instance, marking the task as idle
+ * Returns a TaskState from the given Deadline instance, marking the task as idle
  * if the deadline isn't currently scheduled.
  */
-template <typename deadline_t>
-auto TaskState(deadline_t t, HAL::Atmel::SleepMode s) -> Impl::TaskState<decltype(t.timeLeft())>  {
-	return { !t.isScheduled(), t.timeLeft(), s };
+template <typename rt_t, typename value, typename check>
+constexpr Impl::TaskState<Time::Counts<>> TaskState(Time::Deadline<rt_t,value,check> t, HAL::Atmel::SleepMode s) {
+	if (t.isScheduled()) {
+		return { some(t.timeLeft().template toCountsOn<rt_t>()), s };
+	} else {
+		return { none(), s };
+	}
+}
+
+/**
+ * Returns a TaskState from the given VariableDeadline instance, marking the task as idle
+ * if the deadline isn't currently scheduled.
+ */
+template <typename rt_t>
+constexpr Impl::TaskState<Time::Counts<>> TaskState(Time::VariableDeadline<rt_t> t, HAL::Atmel::SleepMode s) {
+	if (t.isScheduled()) {
+		return { some(t.timeLeft().template toCountsOn<rt_t>()), s };
+	} else {
+		return { none(), s };
+	}
+}
+
+/**
+ * Returns a TaskState indicating a non-idle task, which will run for [time] allowing sleep mode [s].
+ * FIXME put in a check that it's actually a time unit
+ */
+template <typename time_t>
+constexpr Impl::TaskState<time_t> TaskState(time_t time, HAL::Atmel::SleepMode s) {
+	return { some(time), s };
+}
+
+/**
+ * Returns a TaskState indicating an idle task, that allows for the system to go to full shutdown.
+ * FIXME put in a check that it's actually a time unit
+ */
+template <typename time_t>
+constexpr Impl::TaskState<time_t> TaskStateIdle() {
+	return Impl::TaskState<time_t>(none(), HAL::Atmel::SleepMode::POWER_DOWN);
 }

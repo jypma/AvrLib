@@ -63,7 +63,7 @@ struct Doorbell {
     auto_var(pinRFM12_INT, PinPD2());
     auto_var(pinRFM12_SS, PinPB2());
     auto_var(pinSupply, JeeNodePort2A());
-    auto_var(pinOneWire, JeeNodePort2D());
+    auto_var(pinOneWire, JeeNodePort1D());
     auto_var(pinButton, JeeNodePortI());
 
     auto_var(rfm, (rfm12<4,100>(spi, pinRFM12_SS, pinRFM12_INT, timer0.comparatorA(), RFM12Band::_868Mhz)));

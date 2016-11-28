@@ -166,7 +166,7 @@ public:
     }
 
     auto getTaskState() {
-    	AtomicScope _;
+    	update();
     	return TaskState(measureDone, HAL::Atmel::SleepMode::POWER_DOWN);
     }
 };

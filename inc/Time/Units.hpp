@@ -167,6 +167,9 @@ public:
     constexpr Counts(Counts<cv...> us): RuntimeTimeUnit<Counts<>>(TimeUnit<cv...>::to_uint64) {}
 
     template <typename prescaled_t>
+    constexpr Counts<> toCountsOn() const { return *this; }
+
+    template <typename prescaled_t>
     constexpr Milliseconds<> toMillisOn() const;
 
     template <typename prescaled_t>
@@ -235,6 +238,10 @@ public:
 
     template <typename prescaled_t>
     constexpr Milliseconds<> toMillisOn() const;
+
+    template <typename prescaled_t>
+    constexpr Counts<> toCountsOn() const { return Counts<>(getValue() * (prescaled_t::maximum + 1)); }
+
 };
 
 template <char... cv>
@@ -513,6 +520,14 @@ public:
 
 template <char ...cv>
 constexpr Minutes<cv...> operator "" _min() { return Minutes<cv...>(); }
+
+class Never {
+public:
+	constexpr Never() {}
+	constexpr Never(int) {} // to allow Option<Never>
+};
+
+constexpr Never NEVER = Never();
 
 /**
  * Converts the given time unit duration to timer counts, when running on the given prescaled timer.
