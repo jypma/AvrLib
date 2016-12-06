@@ -54,9 +54,9 @@ constexpr auto TaskState(Time::Deadline<rt_t,value> t, HAL::Atmel::SleepMode s) 
  * if the deadline isn't currently scheduled.
  */
 template <typename rt_t>
-constexpr Impl::TaskState<Time::Counts<>> TaskState(Time::VariableDeadline<rt_t> t, HAL::Atmel::SleepMode s) {
+constexpr Impl::TaskState<Time::Counts> TaskState(Time::VariableDeadline<rt_t> t, HAL::Atmel::SleepMode s) {
 	if (t.isScheduled()) {
-		return { some(t.timeLeft().template toCountsOn<rt_t>()), s };
+		return { some(t.timeLeft().template toCounts<rt_t>()), s };
 	} else {
 		return { none(), s };
 	}

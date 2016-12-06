@@ -3,6 +3,7 @@
 
 #include "HAL/Atmel/InterruptHandlers.hpp"
 #include "Time/Units.hpp"
+#include "Time/TimerValue.hpp"
 #include <gtest/gtest.h>
 #include "Fifo.hpp"
 #include <limits.h>
@@ -17,6 +18,7 @@ struct MockComparator {
     constexpr static uint8_t prescalerPower2 = _prescalerPower2;
 
     typedef _value_t value_t;
+    typedef TimerValue<MockComparator<_value_t, _prescalerPower2>> timervalue_t;
     typedef Int_TIMER0_COMPA_ INT;
 
     value_t value = 0;
@@ -29,7 +31,7 @@ struct MockComparator {
 
     template<typename duration_t>
     void advance(duration_t duration) {
-        value += value_t(toCountsOn<MockComparator>(duration));
+        value += value_t(toCountsOn<MockComparator>(duration).getValue());
     }
 
     void interruptOff() {
@@ -40,11 +42,11 @@ struct MockComparator {
         isInterruptOn = true;
     }
 
-    value_t getValue() {
+    timervalue_t getValue() const {
         return value;
     }
 
-    void setTarget(value_t t) {
+    void setTarget(timervalue_t t) {
         target = t;
     }
 };
@@ -114,13 +116,13 @@ struct MockRealTimerPrescaled {
     uint32_t c = 0;
     int slept = 0;
 
-    void haveSlept(Milliseconds<> millis) {
+    void haveSlept(Milliseconds millis) {
         slept += millis.getValue();
     }
 
     template<typename duration_t>
     void advance(duration_t duration) {
-        c += uint32_t(toCountsOn<MockRealTimerPrescaled<p>>(duration));
+        c += uint32_t(toCountsOn<MockRealTimerPrescaled<p>>(duration).getValue());
     }
 
     uint32_t counts() {

@@ -30,8 +30,8 @@ class LogResistor {
     static_assert(R_min < R_max, "R_min must be less than R_max");
     typedef LogResistor<rt_t, pin_out_t, pin_in_t, C, R_min, R_max> This;
     typedef decltype((1_us).times<C * R_max / 1000000>()) RC_max;
-    constexpr static uint32_t counts_min = toCountsOn<rt_t>((1_us).times<C * R_min / 1000000>());
-    constexpr static uint32_t counts_max = toCountsOn<rt_t>((1_us).times<C * R_max / 1000000>());
+    constexpr static uint32_t counts_min = toCountsOn<rt_t>((1_us).times<C * R_min / 1000000>()).getValue();
+    constexpr static uint32_t counts_max = toCountsOn<rt_t>((1_us).times<C * R_max / 1000000>()).getValue();
 
     rt_t *const rt;
     pin_out_t *const pin_out;

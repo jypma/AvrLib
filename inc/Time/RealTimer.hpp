@@ -31,8 +31,8 @@ inline void noop() {
 
 template <typename rt_t, typename value>
 struct Overflow {
-    static constexpr bool countsLargerThanUint31 = toCountsOn<rt_t,value>().value >= 0xFFFFFFF;
-    static constexpr bool countsLargerThanUint32 = !toCountsOn<rt_t,value>().is_uint32;
+    static constexpr bool countsLargerThanUint31 = toCountsOn<rt_t,value>().getValue().value >= 0xFFFFFFF;
+    static constexpr bool countsLargerThanUint32 = !toCountsOn<rt_t,value>().getValue().is_uint32;
 };
 
 using namespace HAL::Atmel::InterruptHandlers;
@@ -98,7 +98,7 @@ public:
     /**
      * Returns a 32-bit value that increments with every timer overflow.
      */
-    Ticks<> ticks() const {
+    Ticks ticks() const {
         AtomicScope _;
         return _ticks;
     }
@@ -106,12 +106,12 @@ public:
     /**
      * Returns a 32-bit value that increments with every timer increment.
      */
-    Counts<> counts() const {
+    Counts counts() const {
         AtomicScope _;
         return (_ticks << timer_t::maximumPower2) | timer->getValue();
     }
 
-    Microseconds<> micros() const {
+    Microseconds micros() const {
         AtomicScope _;
 
 #if F_CPU != 16000000
@@ -124,7 +124,7 @@ public:
         return (((((uint64_t)_ticks) << timer_t::prescalerPower2) + timer->getValue()) / 16) << timer_t::maximumPower2;
     }
 
-    Milliseconds<> millis() const {
+    Milliseconds millis() const {
         AtomicScope _;
 
 #if F_CPU != 16000000
@@ -140,12 +140,12 @@ public:
 
     template <typename duration_t>
     typename std::enable_if<Overflow<This, duration_t>::countsLargerThanUint31>::type delay(const duration_t) {
-        delayTicks(toTicksOn<timer_t,duration_t>());
+        delayTicks(toTicksOn<timer_t,duration_t>().getValue());
     }
 
     template <typename duration_t>
     typename std::enable_if<!Overflow<This, duration_t>::countsLargerThanUint31>::type delay(const duration_t) {
-        delayCounts(toCountsOn<timer_t,duration_t>());
+        delayCounts(toCountsOn<timer_t,duration_t>().getValue());
     }
 };
 
@@ -166,7 +166,7 @@ protected:
 
 template <typename rt_t, typename value, typename check = void>
 class Periodic: public AbstractPeriodic {
-    static constexpr uint32_t delay = toCountsOn<rt_t, value>();
+    static constexpr uint32_t delay = toCountsOn<rt_t, value>().getValue();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
     rt_t *rt;
@@ -179,14 +179,14 @@ public:
         return AbstractPeriodic::isNow(rt->counts(), delay);
     }
 
-    Counts<> timeLeft() const {
-        return Counts<>(getTimeLeft(rt->counts()));
+    Counts timeLeft() const {
+        return Counts(getTimeLeft(rt->counts()));
     }
 };
 
 template <typename rt_t, typename value>
 class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::countsLargerThanUint31>::type>: public AbstractPeriodic {
-    static constexpr uint32_t delay = toTicksOn<rt_t, value>();
+    static constexpr uint32_t delay = toTicksOn<rt_t, value>().getValue();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
     rt_t *rt;
@@ -199,8 +199,8 @@ public:
         return AbstractPeriodic::isNow(rt->ticks(), delay);
     }
 
-    Ticks<> timeLeft() const {
-        return Ticks<>(getTimeLeft(rt->ticks()));
+    Ticks timeLeft() const {
+        return Ticks(getTimeLeft(rt->ticks()));
     }
 };
 
@@ -215,7 +215,7 @@ class AbstractDeadline {
 protected:
     volatile bool elapsed;
     AbstractDeadline(bool _elapsed): elapsed(_elapsed) {}
-
+public:
     uint32_t getNext() const {
         return next;
     }
@@ -249,7 +249,7 @@ template <typename rt_t, typename value, typename check = void>
 class Deadline: public AbstractDeadline {
     rt_t *rt;
 public:
-    static constexpr uint32_t delay = toCountsOn<rt_t, value>();
+    static constexpr uint32_t delay = toCountsOn<rt_t, value>().getValue();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer integer wraparound");
 public:
     Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
@@ -266,7 +266,7 @@ public:
         elapsed = false;
     }
 
-    Counts<> timeLeft() const {
+    Counts timeLeft() const {
         return getTimeLeft(rt->counts());
     }
 };
@@ -275,7 +275,7 @@ template <typename rt_t, typename value>
 class Deadline<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::countsLargerThanUint31>::type>: public AbstractDeadline {
     rt_t *rt;
 protected:
-    static constexpr uint32_t delay = toTicksOn<rt_t, value>();
+    static constexpr uint32_t delay = toTicksOn<rt_t, value>().getValue();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer integer wraparound");
 public:
     Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
@@ -292,7 +292,7 @@ public:
         elapsed = false;
     }
 
-    Ticks<> timeLeft() const {
+    Ticks timeLeft() const {
         return getTimeLeft(rt->ticks());
     }
 };
@@ -314,7 +314,7 @@ public:
 
     template <typename value>
     void schedule() {
-        static constexpr uint32_t delay = toCountsOn<rt_t, value>();
+        static constexpr uint32_t delay = toCountsOn<rt_t, value>().getValue();
         static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
         AtomicScope _;
@@ -327,7 +327,7 @@ public:
         schedule<value>();
     }
 
-    Counts<> timeLeft() const {
+    Counts timeLeft() const {
         return getTimeLeft(rt->counts());
     }
 };
@@ -483,7 +483,7 @@ public:
         } else if (_mode == AnimatorInterpolation::EASE_DOWN) {
             mode = (backwards) ? AnimatorInterpolation::EASE_IN : AnimatorInterpolation::EASE_OUT;
         }
-        delay = toCountsOn<rt_t>(d);
+        delay = toCountsOn<rt_t>(d).getValue();
         startTime = Super::getNow();
         if (atStart) {
             // haven't invoked nextEvent() since from(), so we should report the start value.

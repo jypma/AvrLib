@@ -41,7 +41,7 @@ TEST(ESP8266Test, ESP_retries_reset_when_watchdog_fires) {
     auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset, rt);
 
     tx.clear();
-    rt.count = uint32_t(toCountsOn<MockRealTimer>(20000_ms)) + 1000; // after timeout
+    rt.count = uint32_t(toCountsOn<MockRealTimer>(20000_ms).getValue()) + 1000; // after timeout
     esp.loop();
     EXPECT_TRUE(tx.read(F("AT+RST\r\n")));
 

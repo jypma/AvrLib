@@ -46,7 +46,7 @@ TEST(RealTimerTest, timer_callback_increments_time) {
 
     invoke<MockTimer::INT>(rt);
 
-    EXPECT_EQ(Counts<>(256), rt.counts());
+    EXPECT_EQ(Counts(256), rt.counts());
     EXPECT_EQ(4_ms, rt.millis());
     EXPECT_EQ(4096_us, rt.micros());
 }
@@ -131,7 +131,7 @@ TEST(RealTimerTest, periodic_catches_up_after_long_invocation) {
 TEST(RealTimerTest, periodic_returns_time_left) {
     auto rt = MockRealTimer();
     auto p = periodic(rt, 200_counts);
-    EXPECT_EQ(Counts<>(200), p.timeLeft());
+    EXPECT_EQ(Counts(200), p.timeLeft());
 }
 
 TEST(RealTimerTest, periodic_copes_with_timer_wraparound_after_deadline) {
@@ -150,11 +150,11 @@ TEST(RealTimerTest, periodic_copes_with_timer_wraparound_after_deadline) {
 TEST(RealTimerTest, unelapsed_periodic_deadline_has_no_time_left) {
     auto rt = MockRealTimer();
     auto p = deadline(rt, 200_counts);
-    EXPECT_EQ(Counts<>(200), p.timeLeft());
+    EXPECT_EQ(Counts(200), p.timeLeft());
     rt.count = 201;
-    EXPECT_EQ(Counts<>(0), p.timeLeft());
+    EXPECT_EQ(Counts(0), p.timeLeft());
     rt.count = 401;
-    EXPECT_EQ(Counts<>(0), p.timeLeft());
+    EXPECT_EQ(Counts(0), p.timeLeft());
 }
 
 TEST(RealTimerTest, cancelled_periodic_deadline_does_not_fire) {
@@ -184,23 +184,23 @@ TEST(RealTimerTest, fixed_deadline_elapses_after_timer_hits_and_isNow_is_called)
 TEST(RealTimerTest, unelapsed_variable_deadline_has_unlimited_time_left_until_first_use) {
     auto rt = MockRealTimer();
     auto p = deadline(rt);
-    EXPECT_EQ(Counts<>(0xFFFFFFFF), p.timeLeft());
+    EXPECT_EQ(Counts(0xFFFFFFFF), p.timeLeft());
     p.schedule(200_counts);
     rt.count = 201;
-    EXPECT_EQ(Counts<>(0), p.timeLeft());
+    EXPECT_EQ(Counts(0), p.timeLeft());
     rt.count = 401;
-    EXPECT_EQ(Counts<>(0), p.timeLeft());
+    EXPECT_EQ(Counts(0), p.timeLeft());
 }
 
 TEST(RealTimerTest, elapsed_deadline_has_infinite_time_left) {
     auto rt = MockRealTimer();
     auto p = deadline(rt, 200_counts);
-    EXPECT_EQ(Counts<>(200), p.timeLeft());
+    EXPECT_EQ(Counts(200), p.timeLeft());
     rt.count = 201;
     EXPECT_TRUE(p.isNow());
-    EXPECT_EQ(Counts<>(0xFFFFFFFF), p.timeLeft());
+    EXPECT_EQ(Counts(0xFFFFFFFF), p.timeLeft());
     rt.count = 401;
-    EXPECT_EQ(Counts<>(0xFFFFFFFF), p.timeLeft());
+    EXPECT_EQ(Counts(0xFFFFFFFF), p.timeLeft());
 }
 
 TEST(RealTimerTest, deadline_only_fires_once) {

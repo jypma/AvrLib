@@ -17,8 +17,8 @@ class FS20Decoder {
     typedef typename pulsecounter_t::count_t count_t;
 
 public:
-    static constexpr count_t zero_length  = (400_us).template toCounts<comparator_t>();
-    static constexpr count_t one_length  = (600_us).template toCounts<comparator_t>();
+    static constexpr count_t zero_length  = (400_us).toCounts<comparator_t>().getValue();
+    static constexpr count_t one_length  = (600_us).toCounts<comparator_t>().getValue();
 
     static inline bool isZero(count_t length) {
         return length > count_t(0.75*zero_length) && length <= count_t((zero_length + one_length) / 2);

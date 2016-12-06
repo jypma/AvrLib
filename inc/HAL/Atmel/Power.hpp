@@ -68,7 +68,7 @@ class Power {
         _watchdogCounter++;
     }
 
-    bool doSleepFor(Milliseconds<> ms, SleepMode mode, SleepGranularity maxGranularity) {
+    bool doSleepFor(Milliseconds ms, SleepMode mode, SleepGranularity maxGranularity) {
     	log::debug(F("Z: "), dec(ms.getValue()), F("ms in "), '0' + uint8_t(mode));
     	log::flush();
 
@@ -104,7 +104,7 @@ class Power {
             // adjust ticks for the delay we've just had. Not for IDLE, since timers keep running
             // there.
             millisSleep -= msleft;
-            auto ms = Milliseconds<>(millisSleep);
+            auto ms = Milliseconds(millisSleep);
             rt->haveSlept(ms);
         }
 
@@ -112,12 +112,12 @@ class Power {
         return interrupted;
     }
 
-    bool sleepUntilAnyLT(Milliseconds<> timeout, SleepMode mode) {
+    bool sleepUntilAnyLT(Milliseconds timeout, SleepMode mode) {
         return doSleepFor(timeout, mode, SleepGranularity::_8000ms);
     }
 
     template <typename periodic_t, typename... periodic_ts>
-    bool sleepUntilAnyLT(Milliseconds<> timeout, SleepMode mode, const periodic_t &head, const periodic_ts&... tail) {
+    bool sleepUntilAnyLT(Milliseconds timeout, SleepMode mode, const periodic_t &head, const periodic_ts&... tail) {
         auto headTime = toMillisOn<rt_t>(head.timeLeft());
         if (headTime < timeout) {
             return sleepUntilAnyLT(headTime, mode, tail...);
@@ -244,7 +244,7 @@ public:
         return sleepFor(time, mode, SleepGranularity::_8000ms);
     }
 
-    bool sleepFor(Milliseconds<> ms, SleepMode mode, SleepGranularity maxGranularity) {
+    bool sleepFor(Milliseconds ms, SleepMode mode, SleepGranularity maxGranularity) {
         return doSleepFor(ms, mode, maxGranularity);
     }
 };

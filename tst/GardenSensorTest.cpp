@@ -18,7 +18,7 @@ TEST(GardenSensorTest, should_measure) {
 
     onSleep_cpu = [&] {
         // when we go to sleep, we pretend enough time has passed to read out our sensors
-    	constexpr int counts = toCountsOn<decltype(sensor.rt)>(1000_ms);
+    	constexpr int counts = toCountsOn<decltype(sensor.rt)>(1000_ms).getValue();
     	for (int i = 0; i < counts; i++) {
     		invoke<decltype(sensor.timer1)::INT>(sensor.rt);
     	}

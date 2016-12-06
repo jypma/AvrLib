@@ -35,7 +35,7 @@ class PulseCounter {
 public:
     typedef PulseCounter<_comparator_t,pin_t,fifo_length> This;
     typedef _comparator_t comparator_t;
-    typedef typename comparator_t::value_t count_t;
+    typedef typename comparator_t::timervalue_t count_t;
     PulseCounter (const This &) = default;
 
 private:
@@ -56,20 +56,20 @@ private:
     	pls++;
         const count_t end = comparator->getValue();
         const count_t length = (end > start) ? end - start :
-                               Counting<count_t>::maximum - (start - end);
+                               count_t::maximum() - (start - end);
 
-    	if (space <= 1) {
+    	if (space <= 2) {
     		space = fifo.fastGetSpace();
     	}
-    	if (space > 1) {
+    	if (space > 2) {
     		//fifo.fastwrite(length, uint8_t(pin->isHigh() ? 0 : 1));
-    		fifo.fastUncheckedWrite(length);
+    		fifo.fastUncheckedWrite(length.getValue());
     		fifo.fastUncheckedWrite(uint8_t(pin->isHigh() ? 0 : 1));
     	}
 
         //log::debug(F("P s="), dec(start), F(" e="), dec(end), F(" l="), dec(lastWriteWasHigh));
 
-        comparator->setTarget(end - 1);
+        comparator->setTarget(end - 1_counts);
         comparator->interruptOn();
         start = end;
         log::timeEnd();
@@ -84,8 +84,9 @@ private:
 
     void go() {
     	space = fifo.getSpace();
-        start = comparator->getValue();
-        comparator->setTarget(start - 1);
+    	count_t s = comparator->getValue();
+        start = s;
+        comparator->setTarget(start - 1_counts);
         comparator->interruptOn();
         pin->interruptOnChange();
     }
@@ -124,7 +125,7 @@ public:
 
     template <typename Body>
     inline void on(Body body) {
-        count_t length ;
+        typename count_t::value_t length ;
         uint8_t value;
         if (fifo.read(&length, &value)) {
             body(PulseOn<_comparator_t>(value == 1, length));
@@ -134,7 +135,7 @@ public:
     template <typename Body>
     inline void onMax(uint8_t maxPulses, Body body) {
         for (uint8_t i = maxPulses; i > 0; i--) {
-            count_t length ;
+        	typename count_t::value_t length ;
             uint8_t value;
             if (fifo.read(&length, &value)) {
                 body(PulseOn<_comparator_t>(value == 1, length));
@@ -243,7 +244,7 @@ public:
 
     template <typename minimumLength_t>
     MinPulseCounter(comparator_t &_comparator, pin_t &_pin, const minimumLength_t minimumLength):
-        MinPulseCounter(_pin, _comparator, toCountsOn<comparator_t>(minimumLength)) {}
+        MinPulseCounter(_pin, _comparator, toCountsOn<comparator_t>(minimumLength).getValue()) {}
 
     ~MinPulseCounter() {
         comparator->interruptOff();
@@ -302,7 +303,7 @@ template <int fifo_length = 128, typename _comparator_t, typename pin_t, typenam
 inline MinPulseCounter<_comparator_t,pin_t,fifo_length> pulseCounter(_comparator_t &comparator, pin_t &pin, const minimumLength_t minimumLength) {
     // The extra code required to do minimum length checking takes about 12.5us. Hence, it only makes sense to do that
     // for minimumLength >= 25us.
-    static_assert(uint64_t(toMicrosOn<_comparator_t,minimumLength_t>()) > 25,
+    static_assert(uint64_t(toMicrosOn<_comparator_t,minimumLength_t>().getValue()) > 25,
         "minimumLength should at least be 25us. If expecting pulses smaller than that, use a plain pulsecounter without minimum.");
 
     return MinPulseCounter<_comparator_t,pin_t,fifo_length>(comparator, pin, minimumLength);

@@ -4,6 +4,7 @@
 #include <avr/io.h>
 #include "Time/Counting.hpp"
 #include "Time/Prescaled.hpp"
+#include "Time/TimerValue.hpp"
 
 namespace HAL {
 namespace Atmel {
@@ -49,6 +50,13 @@ public:
 template <typename info, typename prescaler_t, prescaler_t prescaler>
 class NonPWMTimerComparator: public TimerComparator<info>, public Time::Prescaled<typename info::value_t, prescaler_t, prescaler> {
 public:
+	typedef NonPWMTimerComparator<info, prescaler_t, prescaler> This;
+    typedef ::Time::TimerValue<This> timervalue_t;
+
+    static timervalue_t getValue() {
+        return *info::tcnt;
+    }
+
     /**
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
      * pin whenever the comparator matches.
@@ -60,7 +68,7 @@ public:
      * Sets the target at which the next comparator match event is to take place.
      * Takes effect immediately.
      */
-    static void setTarget(typename info::value_t value) {
+    static void setTarget(timervalue_t value) {
         *info::ocr = value;
     }
 
@@ -76,6 +84,13 @@ public:
 template <typename info, typename prescaler_t, prescaler_t prescaler>
 class FastPWMTimerComparator: public TimerComparator<info>, public Time::Prescaled<typename info::value_t, prescaler_t, prescaler> {
 public:
+	typedef FastPWMTimerComparator<info, prescaler_t, prescaler> This;
+    typedef ::Time::TimerValue<This> timervalue_t;
+
+    static timervalue_t getValue() {
+        return *info::tcnt;
+    }
+
     /**
      * Sets the pin output mode, i.e. what should happen to this comparator's linked
      * pin whenever the comparator matches.
@@ -87,7 +102,7 @@ public:
      * Sets the target at which the next comparator match event is to take place.
      * Takes effect at the start of the next timer run (i.e. after the next overflow).
      */
-    static void setTargetFromNextRun(typename info::value_t value) {
+    static void setTargetFromNextRun(timervalue_t value) {
         *info::ocr = value;
     }
 
@@ -132,7 +147,15 @@ public:
 template <typename info, typename info::prescaler_t _prescaler, typename comparator_a_t, typename comparator_b_t>
 class PrescaledTimer : public Timer<info, comparator_a_t, comparator_b_t>,
                        public Time::Prescaled<typename info::value_t, typename info::prescaler_t, _prescaler>
-{};
+{
+public:
+	typedef PrescaledTimer<info,_prescaler,comparator_a_t,comparator_b_t> This;
+    typedef ::Time::TimerValue<This> timervalue_t;
+
+    static timervalue_t getValue() {
+        return *info::tcnt;
+    }
+};
 
 /**
  * In fast PWM mode, changes to the comparator values apply on the next timer run.

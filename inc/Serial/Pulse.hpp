@@ -67,12 +67,12 @@ public:
 
     template <typename duration_t>
     constexpr bool operator > (const duration_t duration) const {
-        return getDuration() > uint16_t(toCountsOn<prescaled_t>(duration));
+        return getDuration() > uint16_t(toCountsOn<prescaled_t>(duration).getValue());
     }
 
     template <typename duration_t>
     constexpr bool operator < (const duration_t duration) const {
-        return getDuration() < uint16_t(toCountsOn<prescaled_t>(duration));
+        return getDuration() < uint16_t(toCountsOn<prescaled_t>(duration).getValue());
     }
 
     template <typename duration_t>
@@ -88,13 +88,13 @@ public:
 
 template <typename prescaled_t, typename Value>
 PulseOn<prescaled_t> constexpr highPulseOn(Value duration) {
-    constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration);
+    constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration).getValue();
     return { true, value };
 }
 
 template <typename prescaled_t, typename Value>
 PulseOn<prescaled_t> constexpr lowPulseOn(Value duration) {
-    constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration);
+    constexpr typename prescaled_t::value_t value = toCountsOn<prescaled_t>(duration).getValue();
     return { false, value };
 }
 

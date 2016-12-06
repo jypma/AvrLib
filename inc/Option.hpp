@@ -56,6 +56,10 @@ public:
 	template <typename T2> void operator += (const T2 t2) { if (present) value += t2; }
 	template <typename T2> void operator -= (const T2 t2) { if (present) value -= t2; }
 	template <typename T2> void operator *= (const T2 t2) { if (present) value *= t2; }
+	template <typename T2> constexpr bool operator < (const T2 t2) { return present && value < t2; }
+	template <typename T2> constexpr bool operator <= (const T2 t2) { return present && value <= t2; }
+	template <typename T2> constexpr bool operator > (const T2 t2) { return present && value > t2; }
+	template <typename T2> constexpr bool operator >= (const T2 t2) { return present && value >= t2; }
 };
 
 

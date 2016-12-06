@@ -197,7 +197,7 @@ public:
         power->configureAsOutput();
         counter.pause();
         powerOn();
-        log::debug(F("60us = "), dec((uint16_t) toCountsOn<comparator_t>(60_us)));
+        log::debug(F("60us = "), dec((uint16_t) toCountsOn<comparator_t>(60_us).getValue()));
     }
 
     void loop() {
@@ -217,7 +217,7 @@ public:
      * Returns the approximate time left until any ongoing measurement completes,
      * or 0xFFFFFFFF if no measurement is in progress.
      */
-    Microseconds<> timeLeft() const {
+    Microseconds timeLeft() const {
     	if (state == DHTState::BOOTING || state == DHTState::OFF || state == DHTState::IDLE) {
     		return 0xFFFFFFFF;
     	} else {

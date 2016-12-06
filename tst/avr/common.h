@@ -8,14 +8,36 @@
 #ifndef COMMON_H_
 #define COMMON_H_
 
+#define _AVR_IO_H_
+#define __AVR_ATmega328P__
+
+#define _SFR_IO8(addr) sfr_mem[addr +  + 0x20]
+#define _SFR_MEM8(addr) sfr_mem[addr]
+#define _SFR_MEM16(addr) sfr_mem16[addr]
+
+#define F_CPU 16000000
+
+#    define SREG _SFR_IO8(0x3F)
+
+#  define SREG_C  (0)
+#  define SREG_Z  (1)
+#  define SREG_N  (2)
+#  define SREG_V  (3)
+#  define SREG_S  (4)
+#  define SREG_H  (5)
+#  define SREG_T  (6)
+#  define SREG_I  (7)
+
+#define _VECTOR(idx) vector_##idx
+#define ISR(name) void name ()
+
+#define _BV(bit) (1 << (bit))
+
 #include <stdint.h>
 #include "Streams/FixedSizes.hpp"
 #include "Streams/ReadResult.hpp"
 #include "Streams/Format.hpp"
 #include <functional>
-
-#define _AVR_IO_H_
-#define __AVR_ATmega328P__
 
 class SpecialFunctionRegister {
 	//static std::function<void()> mkCallback();
@@ -30,6 +52,8 @@ public:
 	SpecialFunctionRegister();
 	void operator= (uint8_t v) { assign(v); }
 	operator uint8_t() const { return value; }
+	template <typename T>
+	operator T() const { return T(value); }
 	bool operator== (int v) const { return value == v; }
 	void operator|= (int v) { assign(value | v); }
 	void operator&= (int v) { assign(value & v); }
@@ -57,6 +81,8 @@ public:
 		((uint8_t*)(&result))[1] = b;
 		return result;
 	}
+	template <typename T>
+	operator T() const { return T( (uint16_t) *this ); }
 };
 
 extern SpecialFunctionRegister16 sfr_mem16[255];
@@ -103,28 +129,6 @@ bool write1(fifo_t &fifo, const Decimal<SpecialFunctionRegister> value) {
 
 
 //extern uint8_t sfr_mem[256];
-
-#define _SFR_IO8(addr) sfr_mem[addr +  + 0x20]
-#define _SFR_MEM8(addr) sfr_mem[addr]
-#define _SFR_MEM16(addr) sfr_mem16[addr]
-
-#define F_CPU 16000000
-
-#    define SREG _SFR_IO8(0x3F)
-
-#  define SREG_C  (0)
-#  define SREG_Z  (1)
-#  define SREG_N  (2)
-#  define SREG_V  (3)
-#  define SREG_S  (4)
-#  define SREG_H  (5)
-#  define SREG_T  (6)
-#  define SREG_I  (7)
-
-#define _VECTOR(idx) vector_##idx
-#define ISR(name) void name ()
-
-#define _BV(bit) (1 << (bit))
 
 void cli();
 void sei();

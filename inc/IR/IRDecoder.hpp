@@ -67,12 +67,12 @@ public:
 
     template <typename Value>
     static constexpr uint16_t min() {
-        return Value::template percent<60>().template toCounts<Timer>();
+        return Value::template percent<60>().template toCounts<Timer>().getValue();
     }
 
     template <typename Value>
     static constexpr uint16_t max() {
-        return Value::template percent<125>().template toCounts<Timer>();
+        return Value::template percent<125>().template toCounts<Timer>().getValue();
     }
 
     template <typename Value>

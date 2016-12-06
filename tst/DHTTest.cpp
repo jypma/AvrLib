@@ -2,104 +2,17 @@
 #include "HAL/Atmel/InterruptHandlers.hpp"
 #include "DHT/DHT11.hpp"
 #include "DHT/DHT22.hpp"
+#include "Mocks.hpp"
 #include "invoke.hpp"
 
 namespace DHTTest {
 
+using namespace Mocks;
 using namespace DHT;
 using namespace HAL::Atmel;
 
-struct MockComparator {
-    constexpr static uint8_t prescalerPower2 = 3; // prescaler is 2^3 = 8
-
-    typedef uint8_t value_t;
-    typedef Int_TIMER0_COMPA_ INT;
-
-    value_t value = 0;
-    value_t target = 0;
-    bool isInterruptOn = false;
-
-    void advance() {
-        value++;
-    }
-
-    template<typename duration_t>
-    void advance(duration_t duration) {
-        value += value_t(toCountsOn<MockComparator>(duration));
-    }
-
-    void interruptOff() {
-        isInterruptOn = false;
-    }
-
-    void interruptOn() {
-        isInterruptOn = true;
-    }
-
-    value_t getValue() {
-        return value;
-    }
-
-    void setTarget(value_t t) {
-        target = t;
-    }
-};
-
-struct MockPin {
-    typedef Int_INT0_ INT;
-
-    bool isOutput = true;
-    bool high = false;
-    bool isInterruptOn = false;
-
-    void configureAsInputWithPullup() {
-        isOutput = false;
-    }
-
-    void configureAsOutput() {
-        isOutput = true;
-    }
-
-    void setLow() {
-        EXPECT_TRUE(isOutput);
-        high = false;
-    }
-
-    void setHigh() {
-        EXPECT_TRUE(isOutput);
-        high = true;
-    }
-
-    bool isHigh() {
-        return high;
-    }
-
-    void interruptOnChange() {
-        isInterruptOn = true;
-    }
-
-    void interruptOff() {
-        isInterruptOn = false;
-    }
-};
-
-struct MockRealTimer {
-    constexpr static uint8_t prescalerPower2 = 10; // prescaler is 2^10 = 1024
-
-    uint32_t c = 0;
-
-    template<typename duration_t>
-    void advance(duration_t duration) {
-        c += uint32_t(toCountsOn<MockRealTimer>(duration));
-    }
-
-    uint32_t counts() {
-        return c;
-    }
-};
-
 TEST(DHTTest, powers_on_before_measuring) {
-    MockComparator comparator;
+    MockComparator<> comparator;
     MockPin pin, power;
     MockRealTimer rt;
 
@@ -119,7 +32,7 @@ TEST(DHTTest, powers_on_before_measuring) {
 }
 
 TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
-    MockComparator comparator;
+    MockComparator<> comparator;
     MockPin pin, power;
     MockRealTimer rt;
 
@@ -251,7 +164,7 @@ TEST(DHTTest, dht11_reads_5_bytes_and_updates_temperature_and_humidity) {
 }
 
 TEST(DHTTest, dht22_reads_negative_temperatures) {
-    MockComparator comparator;
+    MockComparator<> comparator;
     MockPin pin, power;
     MockRealTimer rt;
 

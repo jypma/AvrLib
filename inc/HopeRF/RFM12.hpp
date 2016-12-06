@@ -286,7 +286,7 @@ private:
                 // because of SPI delays, and the DELAY and TRANSMITTER_ON messages being processed by the RFM12
                 // at different delays, we need to make an adjustment between the desired pulse lengths, and the actual
                 // forwarded pulse lengths.
-                constexpr uint16_t correction = toCountsOn<comparator_t>(240_us);
+                constexpr uint16_t correction = toCountsOn<comparator_t>(240_us).getValue();
                 if (result.isHigh()) {
                     result = Pulse(true, result.getDuration() + correction);
                 } else {
@@ -376,10 +376,10 @@ public:
     auto getTaskState() const {
     	AtomicScope _;
     	if (isIdle()) {
-    		return TaskStateIdle<Microseconds<>>();
+    		return TaskStateIdle<Microseconds>();
     	} else {
     		// FIXME allow TaskState to lower sleep granularity, so we can do STANDBY here instead of IDLE
-    		return TaskStateBusyFor(Microseconds<>(160 * txFifo.getSize()), SleepMode::IDLE);
+    		return TaskStateBusyFor(Microseconds(160 * txFifo.getSize()), SleepMode::IDLE);
     	}
     }
 

@@ -68,6 +68,9 @@ class CapacitorRC {
             charge();
         } else {
             time /= MEASUREMENTS;
+            if (time < (MEASUREMENTS * uint32_t(4))) { // charged on average within 4 cycles, that's too fast to be useful.
+            	time = none();
+            }
         }
     }
 
@@ -158,7 +161,7 @@ public:
         return time;
     }
 
-    ::Impl::TaskState<Counts<>> getTaskState() {
+    ::Impl::TaskState<Counts> getTaskState() {
     	AtomicScope _;
     	isMeasuring();
     	switch (state) {
@@ -169,7 +172,7 @@ public:
     	case CapacitorRCState::MEASURING:
     		return TaskState(timeout, HAL::Atmel::SleepMode::IDLE); // we need the timers to count
     	default:
-    		return TaskStateIdle<Counts<>>();
+    		return TaskStateIdle<Counts>();
     	}
     	//return TaskState(timeout, HAL::Atmel::SleepMode::IDLE); // can't really sleep, we need the timers to count.
     }
