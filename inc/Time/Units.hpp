@@ -404,6 +404,10 @@ public:
         return (v >= max) ? 0xFFFFFFFF : v * ticksPerMs;
     }
 
+    template <typename prescaled_t>
+    constexpr Milliseconds<> toMillisOn() const {
+    	return getValue();
+    }
 
     template <typename time_t, typename check=decltype(&time_t::toMillis)>
     constexpr bool operator> (const time_t that) const { return value > that.toMillis(); }

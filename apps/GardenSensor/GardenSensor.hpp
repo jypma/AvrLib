@@ -24,7 +24,7 @@ using namespace Dallas;
 struct Measurement {
 	Option<uint32_t> soil;
 	Option<int16_t> temp;
-	uint16_t supply;
+	Option<uint16_t> supply;
 	uint8_t seq;
 	uint16_t sender;
 
@@ -33,7 +33,7 @@ struct Measurement {
     typedef P::Message<
 		P::Varint<1, uint16_t, &Measurement::sender>,
         P::Varint<8, uint8_t, &Measurement::seq>,
-		P::Varint<9, uint16_t, &Measurement::supply>,
+		P::Varint<9, Option<uint16_t>, &Measurement::supply>,
 		P::Varint<10, Option<int16_t>, &Measurement::temp>,
 		P::Varint<11, Option<uint32_t>, &Measurement::soil>
 	> DefaultProtocol;
@@ -94,6 +94,7 @@ struct GardenSensor {
         log::debug(F("Starting"));
         rfm.onIdleSleep();
         measure();
+        nextMeasurement.cancel();
     }
 
     auto getTaskState() {
@@ -105,6 +106,8 @@ struct GardenSensor {
         supplyVoltage.stopOnLowBattery(3000);
         auto soilState = soil.getTaskState();
         auto dsState = ds.getTaskState();
+        auto measureState = getTaskState();
+        auto rfmState = rfm.getTaskState();
 
         if (measuring && soilState.isIdle() && dsState.isIdle()) {
             pinTX.flush();
@@ -120,7 +123,14 @@ struct GardenSensor {
             log::debug(F("Soil : "), dec(m.soil));
             pinTX.flush();
             log::debug(F("Suppl: "), dec(m.supply));
+            pinTX.flush();
             log::debug(F("Temp : "), dec(m.temp));
+            /*
+            if (m.supply > uint16_t(4500) || m.supply < uint16_t(2000)) {
+            	// Don't log if we're on AC, or if the value is non-sensical.
+            	m.supply = none();
+            }
+            */
             seq++;
             m.seq = seq;
             m.sender = 'O' << 8 | read(id);
@@ -133,21 +143,7 @@ struct GardenSensor {
             measure();
             pinTX.write('a', '0' + soil.isIdle());
         } else {
-        	/*
-            auto mode = (rfm.isIdle() && soil.isIdle() && ds.isIdle()) ? SleepMode::POWER_DOWN
-                      : SleepMode::IDLE;                    // moisture sensor is running, needs timers
-            if (mode == SleepMode::POWER_DOWN) {
-            	pinTX.write('0' + rfm.isIdle(), '0' + soil.isIdle(), '0' + ds.isIdle(), '0' + measuring);
-            }
-            if (mode == SleepMode::POWER_DOWN && measuring) {
-            	// TODO rewrite this to be less nonsensical
-            	pinTX.write('!');
-            } else {
-            	pinTX.flush();
-            	power.sleepUntilAny(mode, nextMeasurement, ds);
-            }
-            */
-        	power.sleepUntilTasks(dsState, soilState, getTaskState()); // , nextMeasurement...
+        	power.sleepUntilTasks(dsState, soilState, rfmState, measureState); // , nextMeasurement...
         }
     }
 

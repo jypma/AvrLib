@@ -9,6 +9,7 @@
 #include <util/atomic.h>
 #include <avr/sleep.h>
 #include "Tasks/TaskState.hpp"
+#include "Logging.hpp"
 
 namespace HAL {
 namespace Atmel {
@@ -41,6 +42,7 @@ namespace Impl {
 template <typename rt_t>
 class Power {
     typedef Power<rt_t> This;
+    typedef Logging::Log<Loggers::Power> log;
 
     rt_t *rt;
     volatile uint8_t _watchdogCounter;
@@ -67,6 +69,9 @@ class Power {
     }
 
     bool doSleepFor(Milliseconds<> ms, SleepMode mode, SleepGranularity maxGranularity) {
+    	log::debug(F("Z: "), dec(ms.getValue()), F("ms in "), '0' + uint8_t(mode));
+    	log::flush();
+
         bool interrupted = false;
         uint32_t millisSleep = ms.getValue();
         if (millisSleep <= 16) {
@@ -103,6 +108,7 @@ class Power {
             rt->haveSlept(ms);
         }
 
+        log::debug(F("W: "), '0' + interrupted);
         return interrupted;
     }
 
@@ -180,6 +186,11 @@ public:
         return sleepUntilAnyLT(toMillisOn<rt_t>(head.timeLeft()), mode, tail...);
     }
 
+    bool sleepUntilTasks() {
+    	// all tasks are idle... programmer error. let's not sleep just to be safe.
+    	return false;
+    }
+
     template <typename time_t>
     bool sleepUntilTasks(::Impl::TaskState<time_t> task) {
     	return sleepFor(task.timeLeft(), task.getMaxSleepMode(), SleepGranularity::_8000ms);
@@ -187,11 +198,24 @@ public:
 
     template <typename time1_t, typename time2_t, typename... types>
     bool sleepUntilTasks(::Impl::TaskState<time1_t> task1, ::Impl::TaskState<time2_t> task2, types... tail) {
-    	auto mode = (task1.getMaxSleepMode() > task2.getMaxSleepMode()) ? task2.getMaxSleepMode() : task1.getMaxSleepMode();
-    	auto time1 = task1.isIdle() ? 8000_ms : toMillisOn<rt_t>(task1.timeLeft());
-    	auto time2 = task2.isIdle() ? 8000_ms : toMillisOn<rt_t>(task2.timeLeft());
-    	auto time = (time1 > time2) ? time2 : time1;
-    	return sleepUntilTasks(::TaskState(time, mode));
+    	if (task1.isIdle()) {
+    		if (task2.isIdle()) {
+    			return sleepUntilTasks(tail...);
+    		} else {
+    			return sleepUntilTasks(task2, tail...);
+    		}
+    	} else {
+    		if (task2.isIdle()) {
+    			return sleepUntilTasks(task1, tail...);
+    		} else {
+    			// both tasks are non-idle, let's compare them.
+    	    	auto mode = (task1.getMaxSleepMode() > task2.getMaxSleepMode()) ? task2.getMaxSleepMode() : task1.getMaxSleepMode();
+    	    	auto time1 = toMillisOn<rt_t>(task1.timeLeft());
+    	    	auto time2 = toMillisOn<rt_t>(task2.timeLeft());
+    	    	auto time = (time1 > time2) ? time2 : time1;
+    	    	return sleepUntilTasks(::TaskStateBusyFor(time, mode), tail...);
+    		}
+    	}
     }
 
     /**

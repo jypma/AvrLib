@@ -40,10 +40,10 @@ public:
  * Returns a TaskState from the given Deadline instance, marking the task as idle
  * if the deadline isn't currently scheduled.
  */
-template <typename rt_t, typename value, typename check>
-constexpr Impl::TaskState<Time::Counts<>> TaskState(Time::Deadline<rt_t,value,check> t, HAL::Atmel::SleepMode s) {
+template <typename rt_t, typename value>
+constexpr auto TaskState(Time::Deadline<rt_t,value> t, HAL::Atmel::SleepMode s) -> Impl::TaskState<decltype(t.timeLeft())> {
 	if (t.isScheduled()) {
-		return { some(t.timeLeft().template toCountsOn<rt_t>()), s };
+		return { some(t.timeLeft()), s };
 	} else {
 		return { none(), s };
 	}
@@ -67,7 +67,7 @@ constexpr Impl::TaskState<Time::Counts<>> TaskState(Time::VariableDeadline<rt_t>
  * FIXME put in a check that it's actually a time unit
  */
 template <typename time_t>
-constexpr Impl::TaskState<time_t> TaskState(time_t time, HAL::Atmel::SleepMode s) {
+constexpr Impl::TaskState<time_t> TaskStateBusyFor(time_t time, HAL::Atmel::SleepMode s) {
 	return { some(time), s };
 }
 

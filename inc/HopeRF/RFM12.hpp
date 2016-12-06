@@ -23,6 +23,7 @@
 #include "FS20/FS20Packet.hpp"
 #include "Serial/SerialTx.hpp"
 #include "Time/Units.hpp"
+#include "Tasks/TaskState.hpp"
 
 namespace HopeRF {
 
@@ -370,6 +371,16 @@ public:
 
     uint8_t getPulses() const {
         return pulses;
+    }
+
+    auto getTaskState() const {
+    	AtomicScope _;
+    	if (isIdle()) {
+    		return TaskStateIdle<Microseconds<>>();
+    	} else {
+    		// FIXME allow TaskState to lower sleep granularity, so we can do STANDBY here instead of IDLE
+    		return TaskStateBusyFor(Microseconds<>(160 * txFifo.getSize()), SleepMode::IDLE);
+    	}
     }
 
     template <typename... types>

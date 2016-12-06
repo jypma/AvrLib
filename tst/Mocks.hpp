@@ -5,6 +5,7 @@
 #include "Time/Units.hpp"
 #include <gtest/gtest.h>
 #include "Fifo.hpp"
+#include <limits.h>
 
 namespace Mocks {
 
@@ -124,6 +125,10 @@ struct MockRealTimerPrescaled {
 
     uint32_t counts() {
         return c;
+    }
+
+    uint32_t ticks() {
+    	return c / 256;
     }
 };
 

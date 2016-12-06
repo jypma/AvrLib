@@ -115,6 +115,9 @@ public:
         return fifo.hasContent();
     }
 
+    uint8_t getSize() const {
+    	return fifo.getSize();
+    }
 };
 
 }
