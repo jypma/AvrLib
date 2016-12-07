@@ -82,9 +82,8 @@ struct GardenSensor {
     static constexpr auto RISE_TIME = 500_us;
 
     void measure() {
-        log::debug(F("Measuring DS"));
+        log::debug(F("Measuring"));
         ds.measure();
-        log::debug(F("Measuring soil"));
         soil.measure();
         measuring = true;
     }
@@ -125,12 +124,10 @@ struct GardenSensor {
             log::debug(F("Suppl: "), dec(m.supply));
             pinTX.flush();
             log::debug(F("Temp : "), dec(m.temp));
-            /*
-            if (m.supply > uint16_t(4500) || m.supply < uint16_t(2000)) {
+            if (m.supply > 4500U || m.supply < 2000U) {
             	// Don't log if we're on AC, or if the value is non-sensical.
             	m.supply = none();
             }
-            */
             seq++;
             m.seq = seq;
             m.sender = 'O' << 8 | read(id);
@@ -139,9 +136,7 @@ struct GardenSensor {
             }
             nextMeasurement.schedule();
         } else if (nextMeasurement.isNow()) {
-        	pinTX.write('b', '0' + soil.isIdle());
             measure();
-            pinTX.write('a', '0' + soil.isIdle());
         } else {
         	power.sleepUntilTasks(dsState, soilState, rfmState, measureState); // , nextMeasurement...
         }
