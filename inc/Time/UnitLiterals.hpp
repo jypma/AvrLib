@@ -56,6 +56,9 @@ struct LiteralTimeUnit {
 
     constexpr bool operator== (const R that) const { return that.getValue() == value; }
 
+    template <uint64_t value2>
+    constexpr bool operator> (const This<value2> that) const { return value > value2; }
+
     constexpr operator R () const {
     	return R((uint32_t) ut64_t<value>());
     }

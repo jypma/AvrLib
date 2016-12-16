@@ -167,14 +167,12 @@ public:
     	switch (state) {
     	case CapacitorRCState::CHARGING:
     	case CapacitorRCState::DISCHARGING:
-    		//return TaskState(Counts<>(timeout_time::template toCounts<rt_t>()), HAL::Atmel::SleepMode::POWER_DOWN);
     		return TaskState(timeout, HAL::Atmel::SleepMode::POWER_DOWN);
     	case CapacitorRCState::MEASURING:
     		return TaskState(timeout, HAL::Atmel::SleepMode::IDLE); // we need the timers to count
     	default:
     		return TaskStateIdle<Counts>();
     	}
-    	//return TaskState(timeout, HAL::Atmel::SleepMode::IDLE); // can't really sleep, we need the timers to count.
     }
 };
 

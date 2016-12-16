@@ -3,6 +3,7 @@
 #include "Time/RealTimer.hpp"
 #include "Mocks.hpp"
 #include "invoke.hpp"
+#include "Tasks/TaskState.hpp"
 
 namespace PowerTest {
 
@@ -100,6 +101,37 @@ TEST(PowerTest, unscheduled_deadline_allows_unrestricted_sleep) {
     power.sleepUntil(d1, SleepMode::POWER_DOWN);
 
     EXPECT_EQ(4096, rt.slept);
+}
+
+TEST(PowerTest, sleepUntilTasks_should_sleep_for_lowest_task_duration) {
+    MockRealTimer rt;
+    auto power = Power<MockRealTimer>(rt);
+    onSleep_cpu = [&power] {
+        // simulate always waking up by watchdog
+        invoke<Int_WDT_>(power);
+    };
+
+    auto t1 = TaskStateBusyFor(1000_ms, SleepMode::POWER_DOWN);
+    auto t2 = TaskStateBusyFor(8000_ms, SleepMode::POWER_DOWN);
+    auto t3 = TaskStateBusyFor(16000_ms, SleepMode::POWER_DOWN);
+
+    power.sleepUntilTasks(t1, t2, t3);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    power.sleepUntilTasks(t2, t3, t1);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    power.sleepUntilTasks(t3, t1, t2);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    power.sleepUntilTasks(t3, t2, t1);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    onSleep_cpu = nullptr;
 }
 
 TEST(PowerTest, should_not_sleep_on_delays_less_than_16ms) {

@@ -54,5 +54,6 @@ namespace Logging {
     template<> class Log<Loggers::ESP8266>: public MessagesEnabled<STR("ESP8266")> {};
     template<> class Log<Loggers::DHT11>: public MessagesEnabled<STR("DHT11")> {};
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
+    template<> class Log<Loggers::Power>: public MessagesEnabled<STR("Power")> {};
 #endif
 }
