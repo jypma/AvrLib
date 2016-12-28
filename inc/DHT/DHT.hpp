@@ -7,6 +7,7 @@
 #include "Streams/Protocol.hpp"
 #include "Time/RealTimer.hpp"
 #include "AtomicScope.hpp"
+#include "Tasks/TaskState.hpp"
 
 namespace DHT {
 
@@ -227,6 +228,14 @@ public:
 
     DHTState getState() const {
         return state;
+    }
+
+    auto getTaskState() const {
+    	if (isIdle()) {
+    		return TaskStateIdle<Microseconds>();
+    	} else {
+    		return TaskStateBusyFor(timeLeft(), SleepMode::POWER_DOWN);
+    	}
     }
 
     bool isIdle() const {

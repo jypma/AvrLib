@@ -5,6 +5,7 @@
 #include "Enum.hpp"
 #include "Option.hpp"
 #include "Time/RealTimer.hpp"
+#include "Tasks/TaskState.hpp"
 
 #define auto_field(name, expr) decltype(expr) name = expr
 
@@ -64,6 +65,7 @@ public:
 namespace Impl {
 
 using namespace Time;
+using namespace HAL::Atmel;
 
 /**
  * Interface to the BH1750 ambient light sensor. Based off https://github.com/claws/BH1750 .
@@ -81,6 +83,10 @@ public:
     void measure(BH1750Mode mode) {
         twi->write(address, mode);
         measurementComplete.schedule();
+    }
+
+    void loop() {
+    	isMeasuring();
     }
 
     bool isMeasuring() {
@@ -112,6 +118,10 @@ public:
         } else {
         	return none();
         }
+    }
+
+    auto getTaskState() const {
+    	return TaskState(measurementComplete, SleepMode::POWER_DOWN);
     }
 };
 

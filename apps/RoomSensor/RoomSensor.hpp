@@ -111,7 +111,10 @@ struct RoomSensor {
         rfm.onIdleSleep();
     }
 
-    Measurement m;
+    auto getTaskState() {
+    	return TaskState(nextMeasurement, SleepMode::POWER_DOWN);
+    }
+
     void loop() {
         supplyVoltage.stopOnLowBattery(3000, [&] {
         	log::debug(F("**LOW**"));
@@ -119,19 +122,32 @@ struct RoomSensor {
         });
         dht.loop();
         pir.loop();
+        bh.loop();
 
         if (pir.isMotionDetected()) {
+        	Measurement m = {};
+        	log::debug(F("ints: "), dec(pir.getInts()));
             log::debug(F("Motion!"));
-            m = {};
         	m.motion = 1;
             seq++;
             m.seq = seq;
             m.sender = 'Q' << 8 | read(id);
             rfm.write_fsk(42, &m);
-            m = {};
         }
 
-        if (measuring && !dht.isMeasuring() && !bh.isMeasuring()) {
+        if (rfm.isIdle()) {
+        	pir.enable();
+        }
+
+        auto dhtState = dht.getTaskState();
+        auto bhState = bh.getTaskState();
+        auto rfmState = rfm.getTaskState();
+        auto pirState = pir.getTaskState();
+        auto measureState = getTaskState();
+
+        if (measuring && dhtState.isIdle() && bhState.isIdle()) {
+        	Measurement m = {};
+        	log::debug(F("ints: "), dec(pir.getInts()));
             pinTX.flush();
             measuring = false;
 
@@ -153,24 +169,13 @@ struct RoomSensor {
         	seq++;
             m.seq = seq;
             m.sender = 'Q' << 8 | read(id);
+            pir.disable();
             rfm.write_fsk(42, &m);
             nextMeasurement.schedule();
-            m = {};
         } else if (nextMeasurement.isNow()) {
             measure();
         } else {
-
-            auto mode = (rfm.isIdle() && dht.isIdle() && bh.isIdle()) ? SleepMode::POWER_DOWN
-                      : SleepMode::IDLE;                    // dht is running, needs timers
-            if (mode == SleepMode::POWER_DOWN && measuring) {
-            	// don't power down if everything is idle here but we haven't found out yet we're done measuring
-            } else {
-            	if (mode == SleepMode::POWER_DOWN) {
-            		pinTX.write('.');
-            	}
-            	pinTX.flush();
-            	power.sleepUntilAny(mode, nextMeasurement, dht, bh, pir);
-            }
+        	power.sleepUntilTasks(dhtState, bhState, rfmState, measureState, pirState);
         }
     }
 

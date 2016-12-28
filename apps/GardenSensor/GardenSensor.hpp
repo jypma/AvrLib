@@ -138,7 +138,7 @@ struct GardenSensor {
         } else if (nextMeasurement.isNow()) {
             measure();
         } else {
-        	power.sleepUntilTasks(dsState, soilState, rfmState, measureState); // , nextMeasurement...
+        	power.sleepUntilTasks(dsState, soilState, rfmState, measureState);
         }
     }
 

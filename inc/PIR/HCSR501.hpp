@@ -5,8 +5,7 @@
 #include "AtomicScope.hpp"
 #include "Time/RealTimer.hpp"
 #include "HAL/Atmel/InterruptHandlers.hpp"
-
-extern volatile uint8_t hcr_ints;
+#include "Tasks/TaskState.hpp"
 
 namespace PIR {
 
@@ -16,6 +15,7 @@ enum class HCSR501State { OFF, INITIALIZING, READY, DETECTED, SLEEPING };
 
 namespace Impl {
 
+using namespace HAL::Atmel;
 using namespace HAL::Atmel::InterruptHandlers;
 
 /**
@@ -60,6 +60,7 @@ class HCSR501 {
     powerpin_t *const power;
     VariableDeadline<rt_t> timeout;
     volatile State state = State::OFF;
+    volatile uint8_t ints = 0;
 
     void initializing() {
         if (timeout.isNow()) {
@@ -71,7 +72,7 @@ class HCSR501 {
     }
 
     void onPinRising() {
-    	hcr_ints++;
+    	ints++;
 
         if (state == State::READY) {
             state = State::DETECTED;
@@ -83,8 +84,20 @@ class HCSR501 {
     void turnPowerOn() {
     	log::debug(F("Turning on"));
         power->setHigh();
+		pin->interruptOff();
         state = State::INITIALIZING;
-        timeout.schedule(30_s); // datasheet says 5s, let's be on the safe side
+        timeout.schedule(5_s);
+    }
+
+    void turnPowerOff() {
+    	if (state != State::OFF) {
+    		log::debug(F("Turning off"));
+    		timeout.cancel();
+    		pin->interruptOff();
+    		power->setLow();
+    		state = State::OFF;
+    	}
+
     }
 
     void sleeping() {
@@ -137,6 +150,26 @@ public:
         	return false;
         }
     }
+
+    uint8_t getInts() const {
+    	return ints;
+    }
+
+    void disable() {
+    	turnPowerOff();
+    }
+
+    void enable() {
+    	AtomicScope _;
+
+    	if (state == State::OFF) {
+    		turnPowerOn();
+    	}
+    }
+
+    auto getTaskState() {
+		return TaskState(timeout, SleepMode::POWER_DOWN);
+    }
 };
 
 } // namespace Impl
@@ -153,7 +186,7 @@ Impl::HCSR501<datapin_t, powerpin_t, rt_t, delay_t> HCSR501(datapin_t &data, pow
  * Declares a HCSR501 with a 1-minute sleep delay
  */
 template <typename datapin_t, typename powerpin_t, typename rt_t>
-Impl::HCSR501<datapin_t, powerpin_t, rt_t, decltype(30_s)> HCSR501(datapin_t &data, powerpin_t &power, rt_t &rt) {
+Impl::HCSR501<datapin_t, powerpin_t, rt_t, decltype(60_s)> HCSR501(datapin_t &data, powerpin_t &power, rt_t &rt) {
     return { data, power, rt };
 }
 

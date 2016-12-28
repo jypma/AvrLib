@@ -54,15 +54,6 @@ struct TimingEnabled {
     }
 };
 
-struct MessagesDisabled {
-    template <typename... types>
-    inline static void debug(types... args) {}
-
-    static constexpr bool isDebugEnabled() { return false; }
-
-    inline static void flush() {}
-};
-
 template <typename... types>
 extern void onMessage(types... args);
 
@@ -71,6 +62,17 @@ extern void onFlush();
 #define LOGGING_TO(var) \
 	template <typename... types> void ::Logging::onMessage(types... args) { AtomicScope _; var.writeIfSpace(args...); } \
 	void ::Logging::onFlush() { var.flush(); }
+
+struct MessagesDisabled {
+    template <typename... types>
+    inline static void debug(types... args) {}
+
+    static constexpr bool isDebugEnabled() { return false; }
+
+    inline static void flush() {
+    	onFlush();
+    }
+};
 
 template <typename loggerName = STR("")>
 struct MessagesEnabled {

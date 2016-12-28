@@ -70,7 +70,10 @@ class Power {
 
     bool doSleepFor(Milliseconds ms, SleepMode mode, SleepGranularity maxGranularity) {
     	log::debug(F("Z: "), dec(ms.getValue()), F("ms in "), '0' + uint8_t(mode));
-    	log::flush();
+
+        if (mode != SleepMode::IDLE) {
+        	log::flush();
+        }
 
         bool interrupted = false;
         uint32_t millisSleep = ms.getValue();
