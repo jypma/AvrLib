@@ -8,6 +8,7 @@ template <typename timer_t>
 class PWM {
 	timer_t* const timer;
 	typename timer_t::value_t pulseWidth = 0;
+	typename timer_t::value_t nextPulseWidth = 0;
 	typename timer_t::value_t late = 0;
 	typename timer_t::value_t nextLate = 0;
 	bool lastHigh = false;
@@ -16,17 +17,18 @@ public:
 
 	void setPulseWidth(typename timer_t::value_t w) {
 		pulseWidth = w;
+		nextPulseWidth = w - late;
 	}
 
 	bool isHigh() {
 		const auto value = timer->getValue();
 		if (lastHigh) {
-			if (value < pulseWidth - late) {
+			if (value < nextPulseWidth) {
 				// still high
 				return true;
 			} else {
 				// transition to low
-				nextLate = value - (pulseWidth - late);
+				nextLate = value - nextPulseWidth;
 				if (nextLate >= pulseWidth) {
 					nextLate = pulseWidth - 1;
 				}
@@ -34,9 +36,10 @@ public:
 				return false;
 			}
 		} else {
-			if (value < pulseWidth - late) {
+			if (value < nextPulseWidth) {
 				// transition to high
 				late = nextLate;
+				nextPulseWidth = pulseWidth - late;
 				lastHigh = true;
 				return true;
 			} else {
