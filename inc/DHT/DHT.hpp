@@ -14,6 +14,7 @@ namespace DHT {
 using namespace Serial;
 using namespace Time;
 using namespace Streams;
+using namespace HAL::Atmel;
 using namespace HAL::Atmel::InterruptHandlers;
 
 enum class DHTState: uint8_t {

@@ -2,6 +2,7 @@
 
 #include "RuntimeUnits.hpp"
 #include "UnitLiterals.hpp"
+#include "Counting.hpp"
 
 namespace Time {
 
