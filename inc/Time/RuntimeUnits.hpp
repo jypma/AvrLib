@@ -163,6 +163,13 @@ constexpr Milliseconds Microseconds::toMillis() const {
 
 class Seconds: public RuntimeTimeUnit<Seconds> {
     using RuntimeTimeUnit<Seconds>::RuntimeTimeUnit;
+public:
+    template <typename prescaled_t>
+    constexpr Milliseconds toMillis() const {
+    	constexpr uint32_t max = 0xFFFFFFFF / 1000;
+
+    	return (getValue() >= max) ? 0xFFFFFFFF : getValue() * 1000;
+    }
 };
 
 class Minutes: public RuntimeTimeUnit<Minutes> {

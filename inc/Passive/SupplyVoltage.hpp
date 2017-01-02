@@ -45,7 +45,7 @@ public:
         uint16_t result = adc->awaitValue();
         //return result;
         auto bg = read(bandgapVoltage);
-        //log::debug(F("bg="), dec(bg), F(" result="), dec(result), F("R1="), dec(R1), F("R2="), dec(R2));
+        log::debug(F("bg="), dec(bg), F(" result="), dec(result), F("R1="), dec(R1), F("R2="), dec(R2));
         return uint32_t(bg) * result / 1024 * (R1 + R2) / R2;
     }
 
@@ -62,7 +62,8 @@ public:
         while (true) {
         	bool low = true;
 			for (uint8_t count = 4; count > 0; count--) {
-				if (get() >= threshold) {
+				auto value = get();
+				if (value >= threshold || value < 1500) {
 					low = false;
 					lowReadingsUntilStop = lowReadingsNeeded;
 					break;

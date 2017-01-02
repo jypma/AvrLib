@@ -39,12 +39,12 @@ class Button {
 
     bool getState() {
         AtomicScope _;
-        if (gotInterrupt) {
-            gotInterrupt = false;
-            return false;
-        } else {
-            return pin->isHigh();
+        bool state = pin->isHigh();
+        if (gotInterrupt && state == prevState) {
+        	state = !prevState;
         }
+		gotInterrupt = false;
+		return state;
     }
 public:
     typedef On<This, typename pin_t::INT, &This::onInterrupt> Handlers;

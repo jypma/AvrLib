@@ -3,9 +3,12 @@
 #include "HAL/Atmel/SleepMode.hpp"
 #include "Time/RealTimer.hpp"
 #include "Time/Units.hpp"
+#include "Time/UnitLiterals.hpp"
 #include "Option.hpp"
 
 namespace Impl {
+
+using namespace Time;
 
 template <typename time_t>
 class TaskState {
@@ -60,6 +63,14 @@ constexpr Impl::TaskState<Time::Counts> TaskState(Time::VariableDeadline<rt_t> t
 	} else {
 		return { none(), s };
 	}
+}
+
+/**
+ * Returns a TaskState indicating an interrupt-driven task, i.e. a task that is always
+ * allowing sleep of the given mode, for an indeterminate amount of time.
+ */
+constexpr Impl::TaskState<Time::Seconds> TaskState(HAL::Atmel::SleepMode mode) {
+	return { some(Time::Seconds(60)), mode };
 }
 
 /**

@@ -65,7 +65,7 @@ public:
 
 
 template <typename T>
-Option<T> some(const T t) {
+constexpr Option<T> some(const T t) {
 	return Option<T>(t);
 }
 

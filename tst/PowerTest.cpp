@@ -134,6 +134,33 @@ TEST(PowerTest, sleepUntilTasks_should_sleep_for_lowest_task_duration) {
     onSleep_cpu = nullptr;
 }
 
+TEST(PowerTest, should_ignore_idle_task) {
+    MockRealTimer rt;
+    auto power = Power<MockRealTimer>(rt);
+    onSleep_cpu = [&power] {
+        // simulate always waking up by watchdog
+        invoke<Int_WDT_>(power);
+    };
+
+    auto t1 = TaskStateBusyFor(1000_ms, SleepMode::POWER_DOWN);
+    auto t2 = TaskStateIdle<Milliseconds>();
+    auto t3 = TaskStateIdle<Milliseconds>();
+
+    power.sleepUntilTasks(t1, t2, t3);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    power.sleepUntilTasks(t2, t1, t3);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    power.sleepUntilTasks(t2, t3, t1);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    onSleep_cpu = nullptr;
+}
+
 TEST(PowerTest, should_not_sleep_on_delays_less_than_16ms) {
     MockRealTimer rt;
     auto power = Power<MockRealTimer>(rt);

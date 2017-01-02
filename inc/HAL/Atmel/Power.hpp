@@ -190,13 +190,19 @@ public:
     }
 
     bool sleepUntilTasks() {
+    	log::debug(F("Error: no non-idle tasks"));
+    	log::flush();
     	// all tasks are idle... programmer error. let's not sleep just to be safe.
     	return false;
     }
 
     template <typename time_t>
     bool sleepUntilTasks(::Impl::TaskState<time_t> task) {
-    	return sleepFor(task.timeLeft(), task.getMaxSleepMode(), SleepGranularity::_8000ms);
+    	if (task.isIdle()) {
+    		return sleepUntilTasks();
+    	} else {
+    		return sleepFor(task.timeLeft(), task.getMaxSleepMode(), SleepGranularity::_8000ms);
+    	}
     }
 
     template <typename time1_t, typename time2_t, typename... types>
@@ -205,7 +211,7 @@ public:
     		return sleepUntilTasks(task2, tail...);
     	} else {
     		if (task2.isIdle()) {
-    			return sleepUntilTasks(tail...);
+    			return sleepUntilTasks(task1, tail...);
     		} else {
     			// both tasks are non-idle, let's compare them.
     	    	auto mode = (task1.getMaxSleepMode() > task2.getMaxSleepMode()) ? task2.getMaxSleepMode() : task1.getMaxSleepMode();
@@ -235,7 +241,7 @@ public:
      */
     template <typename time_t>
     bool sleepFor(time_t time, SleepMode mode, SleepGranularity maxGranularity) {
-        return sleepFor(toMillisOn<rt_t>(time), mode, maxGranularity);
+        return doSleepFor(toMillisOn<rt_t>(time), mode, maxGranularity);
     }
 
     template <typename time_t>
