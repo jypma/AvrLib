@@ -1,0 +1,6 @@
+B  MultiButton
+D  Doorbell
+O  GardenSensor
+Q  RoomSensor
+R  MeterBoxSensor
+V  GardenValve
