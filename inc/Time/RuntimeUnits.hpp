@@ -33,6 +33,17 @@ public:
     constexpr bool operator<= (const This that) const { return value <= that.value; }
     constexpr bool operator> (const This that) const { return value > that.value; }
     constexpr bool operator>= (const This that) const { return value >= that.value; }
+    constexpr This operator* (const uint8_t i) const {
+    	if (i == 0) {
+    		return 0;
+    	} else {
+    		if (value > 0xFFFFFFFE / i) {
+    			return 0xFFFFFFFF;
+    		} else {
+    			return value * i;
+    		}
+    	}
+    }
 };
 
 class Counts;
@@ -87,7 +98,6 @@ public:
         return (v >= max) ? 0xFFFFFFFF : v * ticksPerUs;
     }
 
-    template <typename prescaled_t>
     constexpr Milliseconds toMillis() const;
 };
 
@@ -119,7 +129,6 @@ public:
         return (v >= max) ? 0xFFFFFFFF : v * ticksPerMs;
     }
 
-    template <typename prescaled_t>
     constexpr Milliseconds toMillis() const {
     	return *this;
     }
@@ -129,7 +138,10 @@ public:
     template <typename time_t, typename check=decltype(&time_t::toMillis)>
     constexpr bool operator< (const time_t that) const { return value < that.toMillis(); }
     template <typename time_t, typename check=decltype(&time_t::toMillis)>
-    constexpr bool operator== (const time_t that) const { return value == that.toMillis(); }
+    constexpr bool operator== (const time_t that) const {
+    	const uint32_t v = that.toMillis().getValue();
+    	return value == v;
+    }
     template <typename time_t, typename check=decltype(&time_t::toMillis)>
     constexpr bool operator>= (const time_t that) const { return value >= that.toMillis(); }
     template <typename time_t, typename check=decltype(&time_t::toMillis)>
@@ -156,7 +168,6 @@ constexpr Milliseconds Ticks::toMillis() const {
     return (v >= max) ? 0xFFFFFFFF : v / ticksPerMs;
 }
 
-template <typename prescaled_t>
 constexpr Milliseconds Microseconds::toMillis() const {
 	return getValue() / 1000;
 }
@@ -164,7 +175,6 @@ constexpr Milliseconds Microseconds::toMillis() const {
 class Seconds: public RuntimeTimeUnit<Seconds> {
     using RuntimeTimeUnit<Seconds>::RuntimeTimeUnit;
 public:
-    template <typename prescaled_t>
     constexpr Milliseconds toMillis() const {
     	constexpr uint32_t max = 0xFFFFFFFF / 1000;
 

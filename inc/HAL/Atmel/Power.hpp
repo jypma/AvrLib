@@ -196,8 +196,7 @@ public:
     	return false;
     }
 
-    template <typename time_t>
-    bool sleepUntilTasks(::Impl::TaskState<time_t> task) {
+    bool sleepUntilTasks(TaskState task) {
     	if (task.isIdle()) {
     		return sleepUntilTasks();
     	} else {
@@ -205,8 +204,8 @@ public:
     	}
     }
 
-    template <typename time1_t, typename time2_t, typename... types>
-    bool sleepUntilTasks(::Impl::TaskState<time1_t> task1, ::Impl::TaskState<time2_t> task2, types... tail) {
+    template <typename... types>
+    bool sleepUntilTasks(TaskState task1, TaskState task2, types... tail) {
     	if (task1.isIdle()) {
     		return sleepUntilTasks(task2, tail...);
     	} else {
@@ -215,10 +214,10 @@ public:
     		} else {
     			// both tasks are non-idle, let's compare them.
     	    	auto mode = (task1.getMaxSleepMode() > task2.getMaxSleepMode()) ? task2.getMaxSleepMode() : task1.getMaxSleepMode();
-    	    	Milliseconds time1 = toMillisOn<rt_t>(task1.timeLeft());
-    	    	Milliseconds time2 = toMillisOn<rt_t>(task2.timeLeft());
+    	    	Milliseconds time1 = task1.timeLeft();
+    	    	Milliseconds time2 = task2.timeLeft();
     	    	auto time = (time1 > time2) ? time2 : time1;
-    	    	return sleepUntilTasks(::TaskStateBusyFor(time, mode), tail...);
+    	    	return sleepUntilTasks(TaskState::busy(time, mode), tail...);
     		}
     	}
     }

@@ -233,9 +233,9 @@ public:
 
     auto getTaskState() const {
     	if (isIdle()) {
-    		return TaskStateIdle<Microseconds>();
+    		return TaskState::idle();
     	} else {
-    		return TaskStateBusyFor(timeLeft(), SleepMode::POWER_DOWN);
+    		return TaskState::busy(timeLeft(), SleepMode::POWER_DOWN);
     	}
     }
 

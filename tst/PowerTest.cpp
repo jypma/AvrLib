@@ -111,9 +111,9 @@ TEST(PowerTest, sleepUntilTasks_should_sleep_for_lowest_task_duration) {
         invoke<Int_WDT_>(power);
     };
 
-    auto t1 = TaskStateBusyFor(1000_ms, SleepMode::POWER_DOWN);
-    auto t2 = TaskStateBusyFor(8000_ms, SleepMode::POWER_DOWN);
-    auto t3 = TaskStateBusyFor(16000_ms, SleepMode::POWER_DOWN);
+    auto t1 = TaskState::busy(1000_ms, SleepMode::POWER_DOWN);
+    auto t2 = TaskState::busy(8000_ms, SleepMode::POWER_DOWN);
+    auto t3 = TaskState::busy(16000_ms, SleepMode::POWER_DOWN);
 
     power.sleepUntilTasks(t1, t2, t3);
     EXPECT_EQ(992, rt.slept);
@@ -142,9 +142,9 @@ TEST(PowerTest, should_ignore_idle_task) {
         invoke<Int_WDT_>(power);
     };
 
-    auto t1 = TaskStateBusyFor(1000_ms, SleepMode::POWER_DOWN);
-    auto t2 = TaskStateIdle<Milliseconds>();
-    auto t3 = TaskStateIdle<Milliseconds>();
+    auto t1 = TaskState::busy(1000_ms, SleepMode::POWER_DOWN);
+    auto t2 = TaskState::idle();
+    auto t3 = TaskState::idle();
 
     power.sleepUntilTasks(t1, t2, t3);
     EXPECT_EQ(992, rt.slept);

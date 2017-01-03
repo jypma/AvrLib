@@ -59,6 +59,9 @@ struct LiteralTimeUnit {
     template <uint64_t value2>
     constexpr bool operator> (const This<value2> that) const { return value > value2; }
 
+    template <typename int_t>
+    constexpr R operator* (const int_t factor) const { return (operator R()) * factor; }
+
     constexpr operator R () const {
     	return R((uint32_t) ut64_t<value>());
     }
@@ -170,10 +173,8 @@ struct Microseconds: public LiteralTimeUnit<value, ::Time::Microseconds, Microse
         return result;
     }
 
-    template <typename prescaled_t>
     static constexpr Microseconds<value> toMicros() { return {}; }
 
-    template <typename prescaled_t>
     static constexpr Milliseconds<value / 1000> toMillis() { return {}; }
 };
 
@@ -200,10 +201,8 @@ struct Milliseconds: public LiteralTimeUnit<value, ::Time::Milliseconds, Millise
         return result;
     }
 
-    template <typename prescaled_t>
     static constexpr Microseconds<value * 1000> toMicros() { return {}; }
 
-    template <typename prescaled_t>
     static constexpr Milliseconds<value> toMillis() { return {}; }
 };
 
@@ -230,10 +229,8 @@ struct Seconds: public LiteralTimeUnit<value, ::Time::Seconds, Seconds> {
         return result;
     }
 
-    template <typename prescaled_t>
     static constexpr Microseconds<value * 1000000> toMicros() { return {}; }
 
-    template <typename prescaled_t>
     static constexpr Milliseconds<value * 1000> toMillis() { return {}; }
 };
 

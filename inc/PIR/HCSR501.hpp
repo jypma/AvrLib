@@ -183,10 +183,10 @@ Impl::HCSR501<datapin_t, powerpin_t, rt_t, delay_t> HCSR501(datapin_t &data, pow
 }
 
 /**
- * Declares a HCSR501 with a 1-minute sleep delay
+ * Declares a HCSR501 with a 5-minute sleep delay
  */
 template <typename datapin_t, typename powerpin_t, typename rt_t>
-Impl::HCSR501<datapin_t, powerpin_t, rt_t, decltype(60_s)> HCSR501(datapin_t &data, powerpin_t &power, rt_t &rt) {
+Impl::HCSR501<datapin_t, powerpin_t, rt_t, decltype(5_min)> HCSR501(datapin_t &data, powerpin_t &power, rt_t &rt) {
     return { data, power, rt };
 }
 

@@ -66,7 +66,7 @@ struct RoomSensor {
     auto_var(timer1, Timer1::withPrescaler<1>::inNormalMode());
     auto_var(timer2, Timer2::withPrescaler<64>::inNormalMode());
     auto_var(rt, realTimer(timer0));
-    auto_var(nextMeasurement, deadline(rt, 30_s));
+    auto_var(nextMeasurement, deadline(rt, 60_s));
 
     auto_var(pinRFM12_INT, PinPD2());
     auto_var(pinRFM12_SS, PinPB2());
@@ -154,6 +154,10 @@ struct RoomSensor {
             for (int i = 0; i < 10; i++) supplyVoltage.get();
             m.supply = supplyVoltage.get();
             log::debug(F("Suppl: "), dec(m.supply));
+            if (m.supply > 4700U) {
+            	// Don't send supply if we're on AC
+            	m.supply = none();
+            }
 
             m.humidity = dht.getHumidity();
             log::debug(F("Hum  : "), dec(m.humidity));
