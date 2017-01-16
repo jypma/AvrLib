@@ -8,7 +8,7 @@
 namespace Streams {
 namespace Impl {
 
-static constexpr int8_t fromHex(uint8_t ch) {
+static int8_t fromHex(uint8_t ch) {
     return ((ch >= '0') && (ch <= '9')) ? (ch - '0') :
            ((ch >= 'a') && (ch <= 'f')) ? (ch + 10 - 'a') :
            ((ch >= 'A') && (ch <= 'F')) ? (ch + 10 - 'A') :

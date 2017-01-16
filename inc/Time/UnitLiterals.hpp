@@ -67,6 +67,14 @@ struct LiteralTimeUnit {
     }
 };
 
+template <uint64_t percentage>
+struct PercentApply {
+	template <typename value_t>
+	constexpr auto operator()(value_t v) -> decltype(value_t::template percent<percentage>()) {
+		return {};
+	}
+};
+
 template<uint64_t factor, typename prescaled_t>
 struct UnitsPerMillis {
 	static constexpr double value = double(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / factor;
@@ -109,11 +117,13 @@ struct Counts: public LiteralTimeUnit<value, ::Time::Counts, Counts> {
 	using Super::percent;
 	using Super::times;
 
-    template <typename prescaled_t>
     static constexpr Counts<value> toCounts() { return {}; }
 
     template <typename prescaled_t>
-    static constexpr auto toTicks() {
+    static constexpr Counts<value> toCountsOn() { return {}; }
+
+    template <typename prescaled_t>
+    static constexpr auto toTicksOn() {
         constexpr Ticks<value / (prescaled_t::maximum + 1)> result = {} ;
         static_assert(result.getValue() > 1,
                 "Number of ticks for counts is so low that it rounds to 0 or 1, you shouldn't use this counts value as ticks.");
@@ -121,10 +131,10 @@ struct Counts: public LiteralTimeUnit<value, ::Time::Counts, Counts> {
     }
 
     template <typename prescaled_t>
-    static constexpr auto toMillis() { return UnitsToMillis<value,1,prescaled_t>::value; }
+    static constexpr auto toMillisOn() { return UnitsToMillis<value,1,prescaled_t>::value; }
 
     template <typename prescaled_t>
-    static constexpr auto toMicros() { return UnitsToMicros<value,1,prescaled_t>::value; }
+    static constexpr auto toMicrosOn() { return UnitsToMicros<value,1,prescaled_t>::value; }
 };
 
 /**
@@ -138,16 +148,19 @@ struct Ticks: public LiteralTimeUnit<value, ::Time::Ticks, Ticks> {
 	using Super::times;
 
     template <typename prescaled_t>
-    static constexpr Counts<value * (prescaled_t::maximum + 1)> toCounts() { return {}; }
+    static constexpr Counts<value * (prescaled_t::maximum + 1)> toCountsOn() { return {}; }
 
     template <typename prescaled_t>
     static constexpr Ticks<value> toTicks() { return {}; }
 
     template <typename prescaled_t>
-    static constexpr auto toMillis() { return UnitsToMillis<value,(prescaled_t::maximum + 1),prescaled_t>::value; }
+    static constexpr Ticks<value> toTicksOn() { return {}; }
 
     template <typename prescaled_t>
-    static constexpr auto toMicros() { return UnitsToMicros<value,(prescaled_t::maximum + 1),prescaled_t>::value; }
+    static constexpr auto toMillisOn() { return UnitsToMillis<value,(prescaled_t::maximum + 1),prescaled_t>::value; }
+
+    template <typename prescaled_t>
+    static constexpr auto toMicrosOn() { return UnitsToMicros<value,(prescaled_t::maximum + 1),prescaled_t>::value; }
 };
 
 template <uint64_t value>
@@ -158,7 +171,7 @@ struct Microseconds: public LiteralTimeUnit<value, ::Time::Microseconds, Microse
 	using Super::times;
 
     template <typename prescaled_t>
-    static constexpr auto toCounts() {
+    static constexpr auto toCountsOn() {
         constexpr Counts<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 * value / 1000> result = {};
         static_assert(result.getValue() > 1,
                 "Number of counts for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
@@ -166,14 +179,20 @@ struct Microseconds: public LiteralTimeUnit<value, ::Time::Microseconds, Microse
     }
 
     template <typename prescaled_t>
-    static constexpr auto toTicks() {
+    static constexpr auto toTicksOn() {
         constexpr Ticks<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) / 1000 / (uint64_t(prescaled_t::maximum) + 1) * value / 1000> result = {};
         static_assert(result.getValue() > 1,
                 "Number of ticks for microseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
     }
 
+    template <typename prescaled_t>
+    static constexpr Microseconds<value> toMicrosOn() { return {}; }
+
     static constexpr Microseconds<value> toMicros() { return {}; }
+
+    template <typename prescaled_t>
+    static constexpr Milliseconds<value / 1000> toMillisOn() { return {}; }
 
     static constexpr Milliseconds<value / 1000> toMillis() { return {}; }
 };
@@ -186,7 +205,7 @@ struct Milliseconds: public LiteralTimeUnit<value, ::Time::Milliseconds, Millise
 	using Super::times;
 
     template <typename prescaled_t>
-    static constexpr auto toCounts() {
+    static constexpr auto toCountsOn() {
         constexpr Counts<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / 1000> result = {};
         static_assert(result.getValue() > 1,
                 "Number of counts for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
@@ -194,14 +213,20 @@ struct Milliseconds: public LiteralTimeUnit<value, ::Time::Milliseconds, Millise
     }
 
     template <typename prescaled_t>
-    static constexpr auto toTicks() {
+    static constexpr auto toTicksOn() {
         constexpr Ticks<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / 1000 / (uint64_t(prescaled_t::maximum) + 1)> result = {};
         static_assert(result.getValue() > 1,
                 "Number of ticks for milliseconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
     }
 
+    template <typename prescaled_t>
+    static constexpr Microseconds<value * 1000> toMicrosOn() { return {}; }
+
     static constexpr Microseconds<value * 1000> toMicros() { return {}; }
+
+    template <typename prescaled_t>
+    static constexpr Milliseconds<value> toMillisOn() { return {}; }
 
     static constexpr Milliseconds<value> toMillis() { return {}; }
 };
@@ -214,7 +239,7 @@ struct Seconds: public LiteralTimeUnit<value, ::Time::Seconds, Seconds> {
 	using Super::times;
 
     template <typename prescaled_t>
-    static constexpr auto toCounts() {
+    static constexpr auto toCountsOn() {
         constexpr Counts<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value> result = {};
         static_assert(result.getValue() > 1,
                 "Number of counts for seconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
@@ -222,14 +247,20 @@ struct Seconds: public LiteralTimeUnit<value, ::Time::Seconds, Seconds> {
     }
 
     template <typename prescaled_t>
-    static constexpr auto toTicks() {
+    static constexpr auto toTicksOn() {
         constexpr Ticks<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value / (uint64_t(prescaled_t::maximum) + 1)> result = {};
         static_assert(result.getValue() > 1,
                 "Number of ticks for seconds is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
         return result;
     }
 
+    template <typename prescaled_t>
+    static constexpr Microseconds<value * 1000000> toMicrosOn() { return {}; }
+
     static constexpr Microseconds<value * 1000000> toMicros() { return {}; }
+
+    template <typename prescaled_t>
+    static constexpr Milliseconds<value * 1000> toMillisOn() { return {}; }
 
     static constexpr Milliseconds<value * 1000> toMillis() { return {}; }
 };
@@ -242,7 +273,7 @@ struct Minutes: public LiteralTimeUnit<value, ::Time::Minutes, Minutes> {
 	using Super::times;
 
     template <typename prescaled_t>
-    static constexpr auto toCounts() {
+    static constexpr auto toCountsOn() {
         constexpr Counts<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value * 60> result = {};
         static_assert(result.getValue() > 1,
                 "Number of counts for minutes is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
@@ -250,7 +281,7 @@ struct Minutes: public LiteralTimeUnit<value, ::Time::Minutes, Minutes> {
     }
 
     template <typename prescaled_t>
-    static constexpr auto toTicks() {
+    static constexpr auto toTicksOn() {
         constexpr Ticks<(uint64_t(F_CPU) >> prescaled_t::prescalerPower2) * value * 60 / (uint64_t(prescaled_t::maximum) + 1)> result = {};
         static_assert(result.getValue() > 1,
                 "Number of ticks for minutes is so low that it rounds to 0 or 1, you might want to decrease the timer prescaler.");
@@ -258,9 +289,13 @@ struct Minutes: public LiteralTimeUnit<value, ::Time::Minutes, Minutes> {
     }
 
     template <typename prescaled_t>
+    static constexpr Microseconds<value * 60000000> toMicrosOn() { return {}; }
+
     static constexpr Microseconds<value * 60000000> toMicros() { return {}; }
 
     template <typename prescaled_t>
+    static constexpr Milliseconds<value * 60000> toMillisOn() { return {}; }
+
     static constexpr Milliseconds<value * 60000> toMillis() { return {}; }
 };
 
@@ -289,6 +324,9 @@ inline void delay(Lit::Microseconds<value> us) {
 }
 
 template <char ...cv>
+constexpr Lit::PercentApply<Lit::literal<cv...>::to_uint64> operator "" _percentOf() { return {}; }
+
+template <char ...cv>
 constexpr Lit::Counts<Lit::literal<cv...>::to_uint64> operator "" _counts() { return {}; }
 
 template <char ...cv>
@@ -315,7 +353,7 @@ constexpr Lit::Minutes<Lit::literal<cv...>::to_uint64> operator "" _min() { retu
  */
 template <typename prescaled_t, typename duration_t>
 constexpr auto toCountsOn(const prescaled_t &, const duration_t duration) {
-	return duration_t::template toCounts<prescaled_t>();
+	return duration_t::template toCountsOn<prescaled_t>();
 }
 
 /**
@@ -327,7 +365,7 @@ constexpr auto toCountsOn(const prescaled_t &, const duration_t duration) {
  */
 template <typename prescaled_t, typename duration_t>
 constexpr auto toCountsOn(const duration_t duration) {
-	return duration.template toCounts<prescaled_t>();
+	return duration.template toCountsOn<prescaled_t>();
 }
 
 /**
@@ -340,47 +378,47 @@ constexpr auto toCountsOn(const duration_t duration) {
  */
 template <typename prescaled_t, typename duration_t>
 constexpr auto toCountsOn() {
-    return duration_t::template toCounts<prescaled_t>();
+    return duration_t::template toCountsOn<prescaled_t>();
 }
 
 //---- see above for documentation
 template <typename prescaled_t, typename duration_t>
 constexpr auto toTicksOn(const prescaled_t &, const duration_t duration) {
-	return duration_t::template toTicks<prescaled_t>();
+	return duration_t::template toTicksOn<prescaled_t>();
 }
 template <typename prescaled_t, typename duration_t>
 constexpr auto toTicksOn(const duration_t duration) {
-	return duration.template toTicks<prescaled_t>();
+	return duration.template toTicksOn<prescaled_t>();
 }
 template <typename prescaled_t, typename duration_t>
 constexpr auto toTicksOn() {
-    return duration_t::template toTicks<prescaled_t>();
+    return duration_t::template toTicksOn<prescaled_t>();
 }
 
 template <typename prescaled_t, typename duration_t>
 constexpr auto toMillisOn(const prescaled_t &, const duration_t duration) {
-	return duration_t::template toMillis<prescaled_t>();
+	return duration_t::template toMillisOn<prescaled_t>();
 }
 template <typename prescaled_t, typename duration_t>
 constexpr auto toMillisOn(const duration_t duration) {
-	return duration.template toMillis<prescaled_t>();
+	return duration.template toMillisOn<prescaled_t>();
 }
 template <typename prescaled_t, typename duration_t>
 constexpr auto toMillisOn() {
-    return duration_t::template toMillis<prescaled_t>();
+    return duration_t::template toMillisOn<prescaled_t>();
 }
 
 template <typename prescaled_t, typename duration_t>
 constexpr auto toMicrosOn(const prescaled_t &, const duration_t duration) {
-	return duration_t::template toMicros<prescaled_t>();
+	return duration_t::template toMicrosOn<prescaled_t>();
 }
 template <typename prescaled_t, typename duration_t>
 constexpr auto toMicrosOn(const duration_t duration) {
-	return duration.template toMicros<prescaled_t>();
+	return duration.template toMicrosOn<prescaled_t>();
 }
 template <typename prescaled_t, typename duration_t>
 constexpr auto toMicrosOn() {
-    return duration_t::template toMicros<prescaled_t>();
+    return duration_t::template toMicrosOn<prescaled_t>();
 }
 
 }

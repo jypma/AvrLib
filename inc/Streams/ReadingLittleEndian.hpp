@@ -13,17 +13,41 @@
 namespace Streams {
 namespace Impl {
 
-template <uint8_t size, typename fifo_t>
-inline ReadResult __attribute__((optimize("unroll-loops"))) readLiteralBytes(fifo_t &fifo, void *value) {
+template <typename fifo_t>
+ReadResult readLiteralBytes(fifo_t &fifo, void *value, uint8_t size) {
     for (uint8_t i = 0; i < size; i++) {
         fifo.uncheckedRead( ((uint8_t*)value)[i] );
     }
     return ReadResult::Valid;
 }
 
+template <uint8_t size, typename fifo_t>
+struct fn_readLiteralBytes {
+	static inline ReadResult apply(fifo_t &fifo, void *value) {
+		return readLiteralBytes(fifo, value, size);
+	}
+};
+
+template <typename fifo_t>
+struct fn_readLiteralBytes<1,fifo_t> {
+	static inline ReadResult apply(fifo_t &fifo, void *value) {
+		fifo.uncheckedRead( ((uint8_t*)value)[0] );
+	    return ReadResult::Valid;
+	}
+};
+
+template <typename fifo_t>
+struct fn_readLiteralBytes<2,fifo_t> {
+	static inline ReadResult apply(fifo_t &fifo, void *value) {
+		fifo.uncheckedRead( ((uint8_t*)value)[0] );
+		fifo.uncheckedRead( ((uint8_t*)value)[1] );
+	    return ReadResult::Valid;
+	}
+};
+
 template <typename fifo_t, typename T>
 ReadResult readLiteral(fifo_t &fifo, T *value) {
-    return readLiteralBytes<sizeof(T)>(fifo, value);
+    return fn_readLiteralBytes<sizeof(T),fifo_t>::apply(fifo, value);
 }
 
 template <typename fifo_t, typename enum_t>
@@ -38,7 +62,7 @@ ReadResult read1unchecked(fifo_t &fifo, bool *v) {
 
 template <typename fifo_t, uint8_t count>
 ReadResult read1unchecked(fifo_t &fifo, uint8_t (*v) [count]) {
-    return readLiteralBytes<count>(fifo, *v);
+    return fn_readLiteralBytes<count,fifo_t>::apply(fifo, *v);
 }
 
 template <typename fifo_t>

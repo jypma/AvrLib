@@ -180,9 +180,9 @@ private:
         }
     }
 
-    static constexpr count_t us_200  = (200_us).template toCounts<comparator_t>().getValue();
-    static constexpr count_t us_600  = (600_us).template toCounts<comparator_t>().getValue();
-    static constexpr count_t us_1000  = (1000_us).template toCounts<comparator_t>().getValue();
+    static constexpr count_t us_200  = toCountsOn<comparator_t>(200_us).getValue();
+    static constexpr count_t us_600  = toCountsOn<comparator_t>(600_us).getValue();
+    static constexpr count_t us_1000  = toCountsOn<comparator_t>(1000_us).getValue();
 
 public:
     void apply(const Pulse &pulse) {

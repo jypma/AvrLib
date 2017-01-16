@@ -63,10 +63,10 @@ public:
     constexpr Counts toCounts() const { return *this; }
 
     template <typename prescaled_t>
-    constexpr Milliseconds toMillis() const;
+    constexpr Milliseconds toMillisOn() const;
 
     template <typename prescaled_t>
-    constexpr Microseconds toMicros() const;
+    constexpr Microseconds toMicrosOn() const;
 };
 
 /**
@@ -76,10 +76,10 @@ class Ticks: public RuntimeTimeUnit<Ticks> {
     using RuntimeTimeUnit<Ticks>::RuntimeTimeUnit;
 public:
     template <typename prescaled_t>
-    constexpr Milliseconds toMillis() const;
+    constexpr Milliseconds toMillisOn() const;
 
     template <typename prescaled_t>
-    constexpr Counts toCounts() const {
+    constexpr Counts toCountsOn() const {
     	return Counts(getValue() * (prescaled_t::maximum + 1));
     }
 };
@@ -89,7 +89,7 @@ class Microseconds: public RuntimeTimeUnit<Microseconds> {
     using RuntimeTimeUnit<Microseconds>::RuntimeTimeUnit;
 public:
     template <typename prescaled_t>
-    constexpr Ticks toTicks() const {
+    constexpr Ticks toTicksOn() const {
         constexpr float countsPerUs = (uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2) / 1000.0;
         constexpr float ticksPerUs = countsPerUs / float(prescaled_t::maximum + 1);
         constexpr float max = 0xFFFFFFFF / ticksPerUs;
@@ -98,11 +98,14 @@ public:
         return (v >= max) ? 0xFFFFFFFF : v * ticksPerUs;
     }
 
+    template <typename prescaled_t>
+    constexpr Milliseconds toMillisOn() const;
+
     constexpr Milliseconds toMillis() const;
 };
 
 template <typename prescaled_t>
-constexpr Microseconds Counts::toMicros() const {
+constexpr Microseconds Counts::toMicrosOn() const {
     constexpr float countsPerUs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / 1000;
     constexpr float max = 0xFFFFFFFF * countsPerUs;
 
@@ -120,13 +123,18 @@ public:
     using RuntimeTimeUnit::operator==;
 
     template <typename prescaled_t>
-    constexpr Ticks toTicks() const {
+    constexpr Ticks toTicksOn() const {
         constexpr float countsPerMs = uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2;
         constexpr float ticksPerMs = float(countsPerMs) / (uint64_t(prescaled_t::maximum) + 1);
         constexpr float max = 0xFFFFFFFF / ticksPerMs;
 
         const float v = getValue();
         return (v >= max) ? 0xFFFFFFFF : v * ticksPerMs;
+    }
+
+    template <typename prescaled_t>
+    constexpr Milliseconds toMillisOn() const {
+    	return *this;
     }
 
     constexpr Milliseconds toMillis() const {
@@ -151,7 +159,7 @@ public:
 };
 
 template <typename prescaled_t>
-constexpr Milliseconds Counts::toMillis() const {
+constexpr Milliseconds Counts::toMillisOn() const {
     constexpr float countsPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2);
     constexpr float max = 0xFFFFFFFF * countsPerMs;
 
@@ -160,7 +168,7 @@ constexpr Milliseconds Counts::toMillis() const {
 }
 
 template <typename prescaled_t>
-constexpr Milliseconds Ticks::toMillis() const {
+constexpr Milliseconds Ticks::toMillisOn() const {
     constexpr float ticksPerMs = float(uint64_t(F_CPU) / 1000) / (1 << prescaled_t::prescalerPower2) / (uint64_t(prescaled_t::maximum) + 1);
     constexpr float max = 0xFFFFFFFF * ticksPerMs;
 
@@ -172,6 +180,11 @@ constexpr Milliseconds Microseconds::toMillis() const {
 	return getValue() / 1000;
 }
 
+template <typename prescaled_t>
+constexpr Milliseconds Microseconds::toMillisOn() const {
+	return getValue() / 1000;
+}
+
 class Seconds: public RuntimeTimeUnit<Seconds> {
     using RuntimeTimeUnit<Seconds>::RuntimeTimeUnit;
 public:
@@ -179,6 +192,11 @@ public:
     	constexpr uint32_t max = 0xFFFFFFFF / 1000;
 
     	return (getValue() >= max) ? 0xFFFFFFFF : getValue() * 1000;
+    }
+
+    template <typename prescaled_t>
+    constexpr Milliseconds toMillisOn() const {
+    	return toMillis();
     }
 };
 
