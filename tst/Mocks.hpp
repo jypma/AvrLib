@@ -2,11 +2,13 @@
 #define MOCKS_HPP_
 
 #include "HAL/Atmel/InterruptHandlers.hpp"
+#include "HAL/Atmel/Timer.hpp"
 #include "Time/Units.hpp"
 #include "Time/TimerValue.hpp"
 #include <gtest/gtest.h>
 #include "Fifo.hpp"
 #include <limits.h>
+#include "invoke.hpp"
 
 namespace Mocks {
 
@@ -24,9 +26,20 @@ struct MockComparator {
     value_t value = 0;
     value_t target = 0;
     bool isInterruptOn = false;
+    NonPWMOutputMode mode = NonPWMOutputMode::disconnected;
 
     void advance() {
         value++;
+    }
+
+    void advanceToTarget() {
+    	value = target;
+    }
+
+    template <typename target_t>
+    void advanceToTargetAndInvoke(target_t &t) {
+    	advanceToTarget();
+    	invoke<INT>(t);
     }
 
     template<typename duration_t>
@@ -48,6 +61,22 @@ struct MockComparator {
 
     void setTarget(timervalue_t t) {
         target = t;
+    }
+
+    timervalue_t getTarget() {
+    	return target;
+    }
+
+    void setOutput(NonPWMOutputMode m) {
+    	mode = m;
+    }
+
+    void applyOutput() {
+    	EXPECT_TRUE(mode != NonPWMOutputMode::disconnected);
+    }
+
+    NonPWMOutputMode getOutput() {
+    	return mode;
     }
 };
 
@@ -80,6 +109,16 @@ struct MockPin {
         high = true;
     }
 
+    void setHigh(bool b) {
+        EXPECT_TRUE(isOutput);
+        high = b;
+    }
+
+    bool isOutputHigh() {
+    	EXPECT_TRUE(isOutput);
+    	return high;
+    }
+
     void configureAsOutputLow() {
         configureAsOutput();
         setLow();
@@ -105,6 +144,14 @@ struct MockPin {
     void interruptOff() {
         isInterruptOn = false;
     }
+};
+
+template <typename _value_t = uint8_t, uint8_t _prescalerPower2 = 3>
+struct MockPinOnComparator: public MockPin {
+	typedef MockComparator<_value_t, _prescalerPower2> comparator_t;
+	comparator_t comparator;
+
+	comparator_t &timerComparator() { return comparator; }
 };
 
 template <uint8_t p = 10>

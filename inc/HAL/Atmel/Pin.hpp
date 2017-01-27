@@ -49,6 +49,14 @@ public:
         *info::port &= ~info::bitmask;
     }
 
+    __attribute__((always_inline)) inline bool isOutputHigh() const {
+        return (*info::port & info::bitmask) != 0;
+    }
+
+    __attribute__((always_inline)) inline bool isOutputLow() const {
+        return (*info::port & info::bitmask) == 0;
+    }
+
     __attribute__((always_inline)) inline bool isHigh() const {
         return (*info::pin & info::bitmask) != 0;
     }

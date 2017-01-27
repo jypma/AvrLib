@@ -613,7 +613,11 @@ constexpr PinPD5_t<timer0_t> PinPD5(timer0_t &timer) {
 }
 
 template <typename timer0_t>
-class PinPD6_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPD6Info,timer0_t>,Info::PinPD6Info> {};
+class PinPD6_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPD6Info,timer0_t>,Info::PinPD6Info> {
+	typedef WithPinChangeOption<PinOnComparatorB<Info::PinPD6Info,timer0_t>,Info::PinPD6Info> Super;
+public:
+	using Super::Super;
+};
 
 /**
  * Declares pin PD6 / PCINT22 / OC0A / AIN0 (TODO) / Arduino Digital 6, without timer capability.
@@ -644,7 +648,11 @@ typedef PinWithPinChangeOption<Info::PinPD7Info> PinPD7;
 typedef PinWithPinChangeOption<Info::PinPB0Info> PinPB0;
 
 template <typename timer1_t>
-class PinPB1_t: public WithPinChangeOption<PinOnComparatorA<Info::PinPB1Info,timer1_t>,Info::PinPB1Info> {};
+class PinPB1_t: public WithPinChangeOption<PinOnComparatorA<Info::PinPB1Info,timer1_t>,Info::PinPB1Info> {
+	typedef WithPinChangeOption<PinOnComparatorA<Info::PinPB1Info,timer1_t>,Info::PinPB1Info> Super;
+public:
+	using Super::Super;
+};
 
 /**
  * Declares pin PB1 / PCINT1 / OC1A / Arduino Digital 9, without timer capability.
@@ -665,7 +673,11 @@ constexpr PinPB1_t<timer1_t> PinPB1(timer1_t &timer) {
 }
 
 template <typename timer1_t>
-class PinPB2_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPB2Info,timer1_t>,Info::PinPB2Info> {};
+class PinPB2_t: public WithPinChangeOption<PinOnComparatorB<Info::PinPB2Info,timer1_t>,Info::PinPB2Info> {
+	typedef WithPinChangeOption<PinOnComparatorB<Info::PinPB2Info,timer1_t>,Info::PinPB2Info> Super;
+public:
+	using Super::Super;
+};
 
 /**
  * Declares pin PB2 / PCINT2 / SS / OC1B / Arduino Digital 10, without timer capability.
@@ -686,7 +698,11 @@ constexpr PinPB2_t<timer1_t> PinPB2(timer1_t &timer) {
 }
 
 template <typename timer2_t>
-class PinPB3_t: public WithPinChangeOption<PinOnComparatorA<Info::PinPB3Info,timer2_t>,Info::PinPB3Info> {};
+class PinPB3_t: public WithPinChangeOption<PinOnComparatorA<Info::PinPB3Info,timer2_t>,Info::PinPB3Info> {
+	typedef WithPinChangeOption<PinOnComparatorA<Info::PinPB3Info,timer2_t>,Info::PinPB3Info> Super;
+public:
+	using Super::Super;
+};
 
 /**
  * Declares pin PB3 / PCINT3 / MOSI / OC2A / Arduino Digital 11, without timer capability.

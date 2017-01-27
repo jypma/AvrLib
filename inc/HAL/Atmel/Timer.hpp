@@ -64,12 +64,21 @@ public:
     static void setOutput(NonPWMOutputMode mode) {
         *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(mode) << info::output_mode_bitstart);
     }
+
+    static NonPWMOutputMode getOutput() {
+    	return static_cast<NonPWMOutputMode> ((*info::tccra & info::output_mode_bitmask) >> info::output_mode_bitstart);
+    }
+
     /**
      * Sets the target at which the next comparator match event is to take place.
      * Takes effect immediately.
      */
     static void setTarget(timervalue_t value) {
         *info::ocr = value;
+    }
+
+    static typename info::value_t getTarget() {
+        return *info::ocr;
     }
 
     /**

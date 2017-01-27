@@ -54,6 +54,9 @@ struct LiteralTimeUnit {
     template <uint64_t factor>
     static constexpr This<value * factor> times() { return {}; }
 
+    template <uint64_t divisor>
+    static constexpr This<value / divisor> dividedBy() { return {}; }
+
     constexpr bool operator== (const R that) const { return that.getValue() == value; }
 
     template <uint64_t value2>
@@ -343,6 +346,9 @@ constexpr Lit::Seconds<Lit::literal<cv...>::to_uint64> operator "" _s() { return
 
 template <char ...cv>
 constexpr Lit::Minutes<Lit::literal<cv...>::to_uint64> operator "" _min() { return {}; }
+
+template <uint64_t divisor, typename time_t>
+constexpr auto dividedBy(time_t t) -> decltype(time_t::template dividedBy<divisor>()) { return {}; }
 
 /**
  * Converts the given time unit duration to timer counts, when running on the given prescaled timer.

@@ -5,6 +5,7 @@ namespace Loggers {
     class Streams;
     class Scanner;
     class Serial;
+    class RS232Tx;
     class RFM12;
     class ESP8266;
     class DHT11;
@@ -33,14 +34,15 @@ namespace Logging {
      * or invoke the macro LOGGING_TO(var) with "var" being a USART TX pin, or fifo that is regularly emptied.
      */
 
-    //template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
+    template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("Main")> {};
     //template<> class Log<Loggers::PIR>: public MessagesEnabled<STR("PIR")> {};
     //template<> class Log<Loggers::Power>: public MessagesEnabled<STR("Power")> {};
     //template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};
     //template<> class Log<Loggers::Dallas>: public MessagesEnabled<STR("Dallas")> {};
     //template<> class Log<Loggers::Passive>: public MessagesEnabled<STR("Passive")> {};
-    //template<> class Log<Loggers::Serial>: public MessagesDisabled, public TimingEnabled {};
+    //template<> class Log<Loggers::RS232Tx>: public MessagesEnabled<STR("RS232Tx")>, public TimingEnabled {};
+    template<> class Log<Loggers::RS232Tx>: public MessagesDisabled, public TimingEnabled {};
     //template<> class Log<Loggers::PinChangeInterrupt>: public MessagesDisabled, public TimingEnabled {};
     //template<> class Log<Loggers::DHT11>: public MessagesEnabled<STR("DHT11")> {};
 #else
