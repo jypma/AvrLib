@@ -59,8 +59,9 @@ extern void onMessage(types... args);
 
 extern void onFlush();
 
+// Do NOT put an AtomicScope on the logging statement, it will royally screw up interrupt handling since logging is slow.
 #define LOGGING_TO(var) \
-	template <typename... types> void ::Logging::onMessage(types... args) { AtomicScope _; var.writeIfSpace(args...); } \
+	template <typename... types> void ::Logging::onMessage(types... args) { var.writeIfSpace(args...); } \
 	void ::Logging::onFlush() { var.flush(); }
 
 struct MessagesDisabled {

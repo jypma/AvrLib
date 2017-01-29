@@ -9,9 +9,8 @@ using namespace Mocks;
 using namespace Serial;
 
 TEST(RS232Tx, should_send_until_done) {
-	MockPinOnComparator<uint16_t> pin;
-	Fifo<32> data;
-	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint16_t>,57600>(pin, data);
+	MockPinOnComparator<uint8_t> pin;
+	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600,32>(pin);
 	rs.write(FB(0,1));
 
 	// 4 interrupts for bit 0
@@ -24,13 +23,12 @@ TEST(RS232Tx, should_send_until_done) {
 		pin.comparator.advanceToTargetAndInvoke(rs);
 	}
 
-	EXPECT_EQ(0, data.getSize());
+	EXPECT_EQ(0, rs.getSize());
 }
 
 TEST(RS232Tx, should_send_0x00_out) {
 	MockPinOnComparator<uint8_t> pin;
-	Fifo<32> data;
-	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600>(pin, data);
+	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600,32>(pin);
 	std::cout << int(rs.bitLength) << std::endl;
 	rs.write(FB(0)); 	// expected: 0 | 0 0 0 0 0 0 0 0 | 1
 
@@ -68,8 +66,7 @@ TEST(RS232Tx, should_send_0x00_out) {
 
 TEST(RS232Tx, should_send_0x01_out) {
 	MockPinOnComparator<uint8_t> pin;
-	Fifo<32> data;
-	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600>(pin, data);
+	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600,32>(pin);
 	std::cout << int(rs.bitLength) << std::endl;
 	rs.write(FB(1)); 	// expected: 0 | 1 0 0 0 0 0 0 0 | 1
 
@@ -114,8 +111,7 @@ TEST(RS232Tx, should_send_0x01_out) {
 
 TEST(RS232Tx, should_send_0x80_out) {
 	MockPinOnComparator<uint8_t> pin;
-	Fifo<32> data;
-	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600>(pin, data);
+	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600,32>(pin);
 	std::cout << int(rs.bitLength) << std::endl;
 	rs.write(FB(0x80)); 	// expected: 0 | 0 0 0 0 0 0 0 1 | 1
 
@@ -146,8 +142,7 @@ TEST(RS232Tx, should_send_0x80_out) {
 
 TEST(RS232Tx, should_send_0xFF_out) {
 	MockPinOnComparator<uint8_t> pin;
-	Fifo<32> data;
-	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600>(pin, data);
+	auto rs = Serial::Impl::RS232Tx<MockPinOnComparator<uint8_t>,57600,32>(pin);
 	std::cout << int(rs.bitLength) << std::endl;
 	rs.write(FB(0xFF)); 	// expected: 0 | 1 1 1 1 1 1 1 1 | 1
 

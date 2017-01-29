@@ -93,6 +93,17 @@ public:
     /**
      * Returns the number of bytes currently in the fifo, not counting any uncommitted reads or writes in progress.
      */
+    __attribute__((always_inline)) inline uint8_t _getSize() const {
+        const auto write_pos = markedOrWritePos();
+        const auto read_pos = markedOrReadPos();
+        return (write_pos > read_pos) ? write_pos - read_pos :
+               (write_pos < read_pos) ? bufferSize - read_pos + write_pos :
+               0;
+    }
+
+    /**
+     * Returns the number of bytes currently in the fifo, not counting any uncommitted reads or writes in progress.
+     */
     uint8_t getSize() const;
 
     uint8_t getReadAvailable() const;
@@ -133,6 +144,18 @@ public:
      * or no write mark was set.
      */
     bool reserve(volatile uint8_t * &ptr);
+
+    /**
+     * Reads a value from the fifo, assuming that previously a check to getSize() was made,
+     * and nothing else was read in the meantime.
+     */
+    __attribute__((always_inline)) inline void _uncheckedRead(uint8_t &b) {
+        b = buffer[readPos];
+        readPos++;
+        if (readPos >= bufferSize) {
+            readPos -= bufferSize;
+        }
+    }
 
     /**
      * Reads a value from the fifo, assuming that previously a check to getSize() was made,

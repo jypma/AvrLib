@@ -37,13 +37,11 @@ public:
 	uint8_t pos = 0;
 	count_t startValue = 0;
 
-	void nextByte() {
+	inline __attribute__((always_inline)) void nextByte(uint8_t byte) {
     	log::debug(F("next"));
 		// ? calculate initial lengths as int8_t, not count_t
 		// ? don't calculate lengths[], calculate targets[] instead
 
-		uint8_t byte;
-		fifo.read(&byte);
 		max = 0;
 		bool high = false;  // is the output currently high?
 		lengths[max] = 1;     // we're low during the start bit
@@ -118,25 +116,32 @@ public:
 
 		AtomicScope _;
 		startValue = pin->timerComparator().getValue();
+		//log::debug('s', dec(startValue), 'l', dec(lengths[pos]));
 		//std::cout << "start: " << int(startValue) << std::endl;
 		//std::cout << "length: " << int(lengths[pos]) << std::endl;
 		pin->timerComparator().setTarget(startValue + lengths[pos]);
+
+		// We make the timer do the transition. Assuming high right now.
+		pin->timerComparator().setOutput(NonPWMOutputMode::low_on_match);
+		pin->timerComparator().applyOutput();
 		pin->setLow(); // start bit
+
+
 		if ((max > pos) && (lengths[pos+1] == 0)) {
 			// first pulse is a long one
 			pin->timerComparator().setOutput(NonPWMOutputMode::disconnected);
 		} else {
-			pin->timerComparator().setOutput(NonPWMOutputMode::low_on_match);
-			pin->timerComparator().applyOutput();
+			//pin->timerComparator().setOutput(NonPWMOutputMode::low_on_match); // this causes a glitch when OC0A is still high
+			//pin->timerComparator().applyOutput();
 			pin->timerComparator().setOutput(NonPWMOutputMode::toggle_on_match);
 		}
 		pin->timerComparator().interruptOn();
 	}
 
-    void onComparator() {
+    inline __attribute__((always_inline)) void onComparator() {
     	//std::cout << "1. pos: " << int(pos) << " max: " << int(max) << std::endl;
     	log::timeStart();
-
+#ifdef SAFE
     	if (!transmitting) {
         	log::debug(F("X1"));
     		pin->timerComparator().interruptOff();
@@ -145,17 +150,19 @@ public:
     		log::timeEnd();
     		return;
     	}
+#endif
 
     	pos++;
     	if (pos > max) {
-    		if (fifo.isEmpty()) {
+    		uint8_t byte;
+    		if (fifo.fastread(byte)) {
+    			nextByte(byte);
+    		} else {
             	log::debug(F("done."));
         		transmitting = false;
         		pin->timerComparator().interruptOff();
     			pin->timerComparator().setOutput(NonPWMOutputMode::disconnected);
         		pin->setHigh();
-    		} else {
-    			nextByte();
     		}
     		log::timeEnd();
 			return;
@@ -164,6 +171,7 @@ public:
     	if (lengths[pos] == 0) {
     		// we're entering the second half of a long pulse. Simply toggle on the next one.
     		pos++;
+#ifdef SAFE
     		if (pos > max) {
     			// this shouldn't happen
         		transmitting = false;
@@ -173,6 +181,7 @@ public:
         		log::timeEnd();
         		return;
     		}
+#endif
     	} else {
     		// the timer has just toggled the real output, but we copy its state since we might disconnect later.
         	pin->setHigh(!pin->isOutputHigh());
@@ -181,12 +190,10 @@ public:
     	pin->timerComparator().setTarget(pin->timerComparator().getTarget() + lengths[pos]);
     	//std::cout << "2. pos: " << int(pos) << " max: " << int(max) << std::endl;
 		if (pos < max && lengths[pos+1] == 0) {
-        	log::debug(F("L:c"), dec(pos), 'm', dec(max));
 			// next pulse is a long one
 			pin->timerComparator().setOutput(NonPWMOutputMode::disconnected);
 		} else {
 			if (pos < max) {
-	        	log::debug(F("N:c"), dec(pos), 'm', dec(max));
 				// normal bit
 				if (pin->timerComparator().getOutput() == NonPWMOutputMode::disconnected) {
 					// copy current output state
@@ -195,8 +202,12 @@ public:
 				}
 				pin->timerComparator().setOutput(NonPWMOutputMode::toggle_on_match);
 			} else {
-	        	log::debug(F("SB"), dec(pos), 'm', dec(max));
+	        	// Attempt to force OC0A output high, so it latches high on the next byte.
+				pin->timerComparator().setOutput(NonPWMOutputMode::high_on_match);
+				pin->timerComparator().applyOutput();
+
 				// stop bit -> keep high after we're done. Pin state should be good to go.
+				pin->setHigh();
 				pin->timerComparator().setOutput(NonPWMOutputMode::disconnected);
 			}
 		}
@@ -212,7 +223,9 @@ public:
 		}
 
 		if (shouldStart) {
-			nextByte();
+			uint8_t b;
+			fifo.read(&b);
+			nextByte(b);
 		}
 	}
 public:
@@ -220,6 +233,8 @@ public:
 
 	RS232Tx(pin_t &p): pin(&p) {
 		pin->timerComparator().interruptOff();
+		pin->timerComparator().setOutput(NonPWMOutputMode::high_on_match);
+		pin->timerComparator().applyOutput();
 		pin->configureAsOutputHigh();
 		pin->timerComparator().setOutput(NonPWMOutputMode::disconnected);
 	}
@@ -231,6 +246,10 @@ public:
     		transmit();
     	}
     	return ok;
+    }
+
+    uint8_t getSize() {
+    	return fifo.getSize();
     }
 };
 

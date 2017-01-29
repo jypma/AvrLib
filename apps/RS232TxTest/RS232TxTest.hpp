@@ -36,7 +36,7 @@ struct RS232TxTest {
     	log::flush();
     	if (ping.isNow()) {
     		log::debug(F("Go! "), dec(debugTimingsCount));
-            logTX.write(F("Hello!"));
+            logTX.write(F("eeeee"));
     	}
     }
 

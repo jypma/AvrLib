@@ -2,11 +2,7 @@
 
 uint8_t AbstractFifo::getSize() const {
     AtomicScope _;
-    const auto write_pos = markedOrWritePos();
-    const auto read_pos = markedOrReadPos();
-    return (write_pos > read_pos) ? write_pos - read_pos :
-           (write_pos < read_pos) ? bufferSize - read_pos + write_pos :
-           0;
+    return _getSize();
 }
 
 uint8_t AbstractFifo::getReadAvailable() const {
@@ -42,11 +38,7 @@ bool AbstractFifo::reserve(volatile uint8_t * &ptr) {
 }
 
 void AbstractFifo::uncheckedRead(uint8_t &b) {
-    b = buffer[readPos];
-    readPos++;
-    if (readPos >= bufferSize) {
-        readPos -= bufferSize;
-    }
+	_uncheckedRead(b);
 }
 
 void AbstractFifo::clear() {

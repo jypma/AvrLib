@@ -164,42 +164,6 @@ public:
     inline timer_t &timer() const {
         return *t;
     }
-
-    void setHigh (bool on) const {
-        if (on) {
-            setHigh();
-        } else {
-            setLow();
-        }
-    }
-
-    void setHigh() const {
-        *pinInfo::port |= pinInfo::bitmask;
-        if (timerComparator().isOutputConnected()) {
-            // If one of the timer comparator modes is enabled, the pin's port bit actually doesnt do anything.
-            // Instead, we change output mode. This only works for non-PWM modes, but during PWM it doesn't make
-            // sense to call setHigh() anyways.
-
-            // TODO move this hack so it only is present on PinOnComparatorA/B that are linked to a NonPWMComparator
-            typedef typename comparator_t::comparator_info_t info;
-            *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(NonPWMOutputMode::high_on_match) << info::output_mode_bitstart);
-            *info::tccrb |= (1 << info::foc);
-        }
-    }
-
-    void setLow() const {
-        *pinInfo::port &= ~pinInfo::bitmask;
-        if (timerComparator().isOutputConnected()) {
-            // If one of the timer comparator modes is enabled, the pin's port bit actually doesnt do anything.
-            // Instead, we change output mode. This only works for non-PWM modes, but during PWM it doesn't make
-            // sense to call setHigh() anyways.
-
-            // TODO move this hack so it only is present on PinOnComparatorA/B that are linked to a NonPWMComparator
-            typedef typename comparator_t::comparator_info_t info;
-            *info::tccra = (*info::tccra & ~(info::output_mode_bitmask)) | (static_cast<uint8_t>(NonPWMOutputMode::low_on_match) << info::output_mode_bitstart);
-            *info::tccrb |= (1 << info::foc);
-        }
-    }
 };
 
 template <typename base, typename info>

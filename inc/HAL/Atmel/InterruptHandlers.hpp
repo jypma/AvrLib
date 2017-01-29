@@ -41,7 +41,7 @@ template <typename I, typename T, void (T::*f)(), typename P, typename V>
 struct On_Handler<I,T,f,P,V,typename std::enable_if<std::is_same<V, typename I::INT>::value>::type> {
     static __attribute__((always_inline)) inline void invoke(T &t) {
         T * const t_ptr = &t;
-        I::wrap([t_ptr] {
+        I::wrap([t_ptr] () __attribute__((always_inline)) {
             (t_ptr->*f)();
         });
         P::template Handler<V>::invoke(t);
