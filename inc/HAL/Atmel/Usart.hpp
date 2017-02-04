@@ -41,17 +41,14 @@ template <typename info, uint8_t writeFifoCapacity>
 class UsartTx {
     typedef UsartTx<info, writeFifoCapacity> This;
     Fifo<writeFifoCapacity>  writeFifo;
-    uint8_t available = 0;
+    uint8_t available;
 
-    void startWriting() {
+    static void startWriting() {
         if ((*info::ucsrb & _BV(UDRIE0)) == 0) {
             *info::ucsrb |= _BV(UDRIE0);
             // clear the TXC bit -- "can be cleared by writing a one to its bit location"
             *info::ucsra |= _BV(TXC0);
         }
-
-        AtomicScope _;
-        available = writeFifo.getSize();
     }
 
     __attribute__((always_inline)) inline void onSendComplete() {
@@ -88,6 +85,7 @@ public:
 
         AtomicScope _;
         if (writeFifo.hasContent()) {
+            available = writeFifo.getSize();
             startWriting();
         }
 

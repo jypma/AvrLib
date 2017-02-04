@@ -78,7 +78,7 @@ TEST(RS232Tx, should_send_0x01_out) {
 
 	// 1
 	pin.comparator.advanceToTargetAndInvoke(rs);
-	EXPECT_TRUE(pin.high);
+	//EXPECT_TRUE(pin.high); can't assert, since comparator mode was TOGGLE, the pin state doesn't matter
 	EXPECT_EQ(NonPWMOutputMode::toggle_on_match, pin.comparator.mode);
 	EXPECT_EQ(68, pin.comparator.target);
 	EXPECT_TRUE(pin.comparator.isInterruptOn);

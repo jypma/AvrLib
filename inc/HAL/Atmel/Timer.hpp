@@ -86,7 +86,7 @@ public:
      * nor will it affect timer operation.
      */
     static void applyOutput() {
-        *info::tccrb |= (1 << info::foc);
+        *info::tccr_foc |= (1 << info::foc);
     }
 };
 

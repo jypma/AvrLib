@@ -20,11 +20,11 @@ struct RS232TxTest {
     Usart0 usart0 = { 115200 };
     auto_var(pinTX, PinPD1<240>(usart0));
     auto_var(timer0, Timer0::withPrescaler<64>::inNormalMode());
-    auto_var(timer1, Timer1::withPrescaler<1>::inNormalMode());
+    auto_var(timer1, Timer1::withPrescaler<64>::inNormalMode());
     auto_var(rt, realTimer(timer0));
-    auto_var(pinLogTX, PinPD5(timer0));
-    auto_var(logTX, RS232Tx<>(pinLogTX));
-    auto_var(ping, periodic(rt, 1_s));
+    auto_var(pinLogTX, PinPB1(timer1));
+    auto_var(logTX, RS232Tx<1200>(pinLogTX));
+    auto_var(ping, periodic(rt, 5_s));
 
     typedef Delegate<This, decltype(pinTX), &This::pinTX,
             Delegate<This, decltype(rt), &This::rt,
@@ -32,11 +32,11 @@ struct RS232TxTest {
 
     void loop() {
     	log::flush();
-    	Logging::printTimings();
+    	//Logging::printTimings();
     	log::flush();
     	if (ping.isNow()) {
     		log::debug(F("Go! "), dec(debugTimingsCount));
-            logTX.write(F("eeeee"));
+            logTX.write(FB(1,1));
     	}
     }
 

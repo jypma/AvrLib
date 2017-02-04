@@ -200,6 +200,7 @@ struct Timer0Info {
         static constexpr sfr8_t *tifr = &TIFR0;
         static constexpr sfr8_t *tccra = &TCCR0A;
         static constexpr sfr8_t *tccrb = &TCCR0B;
+        static constexpr sfr8_t *tccr_foc = &TCCR0B;
     };
 
     struct ComparatorA: public Comparator {
@@ -260,6 +261,7 @@ struct Timer1Info {
         static constexpr sfr8_t *tifr = &TIFR1;
         static constexpr sfr8_t *tccra = &TCCR1A;
         static constexpr sfr8_t *tccrb = &TCCR1B;
+        static constexpr sfr8_t *tccr_foc = &TCCR1C;
     };
 
     struct ComparatorA: public Comparator {
@@ -294,6 +296,7 @@ struct Timer1LoInfo: public Timer1Info {
         static constexpr sfr8_t *tifr = &TIFR1;
         static constexpr sfr8_t *tccra = &TCCR1A;
         static constexpr sfr8_t *tccrb = &TCCR1B;
+        static constexpr sfr8_t *tccr_foc = &TCCR1C;
     };
 
     struct ComparatorA: public Timer1Info::ComparatorA {
@@ -345,6 +348,7 @@ struct Timer2Info {
         static constexpr sfr8_t *tifr = &TIFR2;
         static constexpr sfr8_t *tccra = &TCCR2A;
         static constexpr sfr8_t *tccrb = &TCCR2B;
+        static constexpr sfr8_t *tccr_foc = &TCCR2B;
     };
 
     struct ComparatorA: public Comparator {
