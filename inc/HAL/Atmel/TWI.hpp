@@ -33,6 +33,8 @@ class TWI {
     ChunkedFifo rxFifo;// = { rxFifoData };
     volatile uint8_t readExpected = 0;
 public:
+    static constexpr uint32_t frequency = twiFreq;
+
     volatile uint8_t ints = 0;
 
     static volatile bool transceiving;
@@ -293,8 +295,8 @@ public:
     }
 
     template <typename... types>
-    void write(uint8_t address, types... args) {
-        writeIfSpace(address, args...);
+    bool write(uint8_t address, types... args) {
+        return writeIfSpace(address, args...);
     }
 
     /* TODO re-enable this by switching away from ChunkedFifo, and having some other means of telling whether done.

@@ -52,14 +52,33 @@ public:
 		return (!present && !that.present) || (present && that.present && value == that.value);
 	}
 
+	template <typename T2>
+	constexpr operator Option<T2>() {
+		return (present) ? Option<T2>(value) : Option<T2>(NONE);
+	}
+
 	template <typename T2> void operator /= (const T2 t2) { if (present) value /= t2; }
 	template <typename T2> void operator += (const T2 t2) { if (present) value += t2; }
 	template <typename T2> void operator -= (const T2 t2) { if (present) value -= t2; }
 	template <typename T2> void operator *= (const T2 t2) { if (present) value *= t2; }
+
 	template <typename T2> constexpr bool operator < (const T2 t2) { return present && value < t2; }
 	template <typename T2> constexpr bool operator <= (const T2 t2) { return present && value <= t2; }
 	template <typename T2> constexpr bool operator > (const T2 t2) { return present && value > t2; }
 	template <typename T2> constexpr bool operator >= (const T2 t2) { return present && value >= t2; }
+
+	template <typename T2> constexpr auto operator + (const T2 t2) -> Option<decltype(value + t2)> {
+		if (present) return (value + t2); else return NONE;
+	}
+	template <typename T2> constexpr auto operator - (const T2 t2) -> Option<decltype(value - t2)> {
+		if (present) return (value - t2); else return NONE;
+	}
+	template <typename T2> constexpr auto operator * (const T2 t2) -> Option<decltype(value * t2)> {
+		if (present) return (value * t2); else return NONE;
+	}
+	template <typename T2> constexpr auto operator / (const T2 t2) -> Option<decltype(value / t2)> {
+		if (present) return (value / t2); else return NONE;
+	}
 };
 
 
