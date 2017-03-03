@@ -159,9 +159,9 @@ TEST(RFM12Test, rfm12_can_send_FSK_after_OOK) {
 
     EXPECT_EQ(RFM12Mode::LISTENING, rfm.getMode());
     EXPECT_TRUE(spi.tx.read(FB(0,0,0,130,13,130,221))); // Idle + turn on RX
-    EXPECT_TRUE(rfm.hasContent());
-    rfm.readStart();
-    EXPECT_EQ(1, rfm.getReadAvailable()); // header
+    EXPECT_TRUE(rfm.in().hasContent());
+    rfm.in().readStart();
+    EXPECT_EQ(1, rfm.in().getReadAvailable()); // header
 }
 
 TEST(RFM12Test, rfm12_sends_queued_ook_after_receiving_completes) {

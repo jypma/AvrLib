@@ -10,17 +10,19 @@ namespace HopeRF{
 enum class JeeLibState: uint8_t { length, data };
 
 template <int groupId = 5, int fifoSize = 32, bool checkCrc = true>
-class JeeLibRxFifo:
-    public Streams::ReadingDelegate<JeeLibRxFifo<groupId, fifoSize, checkCrc>, ChunkedFifo>
-{
-    Fifo<fifoSize> data;
+class JeeLibRxFifo {
+    Fifo<fifoSize> data = {};
     ChunkedFifo fifo = data;
-    CRC16 crc;
-    JeeLibState state;
-    uint8_t remaining;
+    CRC16 crc = {};
+    JeeLibState state = JeeLibState::length;
+    uint8_t remaining = 0;
 
 public:
-    JeeLibRxFifo(): Streams::ReadingDelegate<JeeLibRxFifo<groupId, fifoSize, checkCrc>, ChunkedFifo>(&fifo) {}
+    JeeLibRxFifo() {}
+
+    ChunkedFifo::In in() {
+        return fifo.in();
+    }
 
     static constexpr uint8_t MAX_LENGTH = 64;
 

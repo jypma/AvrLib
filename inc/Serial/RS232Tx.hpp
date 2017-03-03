@@ -268,6 +268,18 @@ public:
     	return ok;
     }
 
+    template <typename... types>
+    bool writeIfSpace(types... args) {
+        return write(args...);
+    }
+
+    void flush() {
+        if (SREG & SREG_I) {
+            uint16_t count = 65000;
+            while (transmitting) count--;
+        }
+    }
+
     uint8_t getSize() {
     	return fifo.getSize();
     }

@@ -15,12 +15,15 @@
 #include "Time/Units.hpp"
 #include "Espressif/EthernetMACAddress.hpp"
 #include "Streams/StreamingDecl.hpp"
+#include "auto_field.hpp"
+#include "HAL/Atmel/Device.hpp"
 #include "Logging.hpp"
 
 namespace Espressif {
 
 using namespace Time;
 using namespace Streams;
+using namespace HAL::Atmel;
 
 template<
     char (EEPROM::*accessPoint)[32],
@@ -34,23 +37,21 @@ template<
     uint8_t txFifoSize = 64,
     uint8_t rxFifoSize = 64
 >
-class ESP8266:
-    public Streams::ReadingDelegate<ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize>, ChunkedFifo>
-{
+class ESP8266 {
     typedef ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize> This;
     typedef Logging::Log<Loggers::ESP8266> log;
 
 public:
     enum class State: uint8_t { RESYNCING, RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, GETTING_MAC_ADDRESS, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
 private:
-    Fifo<txFifoSize> txFifoData;
+    Fifo<txFifoSize> txFifoData = {};
     ChunkedFifo txFifo = txFifoData;
-    Fifo<rxFifoSize> rxFifoData;
+    Fifo<rxFifoSize> rxFifoData = {};
     ChunkedFifo rxFifo = rxFifoData;
     State state = State::RESTARTING;
-    tx_pin_t *tx;
-    rx_pin_t *rx;
-    powerdown_pin_t *pd_pin;
+    tx_pin_t * const tx;
+    rx_pin_t * const rx;
+    powerdown_pin_t * const pd_pin;
     VariableDeadline<rt_t> watchdog;
     uint8_t watchdogCount = 0;
     EthernetMACAddress mac;
@@ -58,7 +59,7 @@ private:
 
     constexpr static auto COMMAND_TIMEOUT = 1_s;
     constexpr static auto CONNECT_TIMEOUT = 10_s;
-    constexpr static auto IDLE_TIMEOUT = 1_min;
+    constexpr static auto IDLE_TIMEOUT = 5_min;
 
     void disable_mux() {
         tx->write(F("AT+CIPMUX=0"), endl);
@@ -68,12 +69,14 @@ private:
 
 public:
     void resync() {
+        log::debug(F("resync"));
         tx->write(F("AT"), endl);
         state = State::RESYNCING;
         watchdog.schedule(COMMAND_TIMEOUT);
     }
 
     void restart() {
+        log::debug(F("restart"));
         tx->write(F("AT+RST"), endl);
         state = State::RESTARTING;
         watchdog.schedule(10_s);
@@ -85,6 +88,10 @@ public:
 
     bool isMACAddressKnown() {
         return macKnown;
+    }
+
+    bool isConnected() {
+        return state == State::CONNECTED || state == State::SENDING_LENGTH || state == State::SENDING_DATA;
     }
 private:
     void resyncing() {
@@ -98,6 +105,7 @@ private:
     void restarting() {
         scan(*rx, [this] (auto &read) {
             if (read(F("ready"))) {
+                log::debug(F("ready"));
                 tx->write(F("ATE0"), endl);
                 state = State::DISABLING_ECHO;
                 watchdog.schedule(COMMAND_TIMEOUT);
@@ -194,22 +202,22 @@ private:
     }
 
     void connected() {
-        log::debug("Scan while connected");
         scan(*rx, [this] (auto &read) {
             uint8_t length;
             rxFifo.writeStart();
             if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
-                log::debug("  Got some data, %d bytes", length);
+                log::debug(F("in "), dec(length));
+                log::flush();
                 rxFifo.writeEnd();
                 watchdog.schedule(IDLE_TIMEOUT);
             } else {
-                log::debug("  No data");
                 rxFifo.writeAbort();
             }
         });
 
         if (txFifo.hasContent()) {
-            log::debug("Transmitting");
+            log::debug(F("Tx"));
+            log::flush();
             txFifo.readStart();
             auto len = txFifo.getReadAvailable();
             txFifo.readAbort();
@@ -235,26 +243,24 @@ private:
     }
 
     void sending_data() {
-        log::debug("Scan while sending data");
         scan(*rx, [this] (auto &read) {
             uint8_t length;
             rxFifo.writeStart();
             if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
-                log::debug("  Got some data");
+                log::debug(F("send_in"));
                 rxFifo.writeEnd();
                 watchdog.schedule(COMMAND_TIMEOUT);
             } else if (read(F("SEND OK"))) {
-                log::debug("  Got confirm");
+                log::debug(F("send_ok"));
                 rxFifo.writeAbort();
                 state = State::CONNECTED;
                 watchdog.schedule(IDLE_TIMEOUT);
             } else if (read(F("ERROR"))) {
-                log::debug("  Got error");
+                log::debug(F("send_er"));
                 rxFifo.writeAbort();
                 state = State::CONNECTED;
                 watchdog.schedule(IDLE_TIMEOUT);
             } else {
-                log::debug("  Got nothing");
                 rxFifo.writeAbort();
             }
         });
@@ -263,12 +269,15 @@ private:
 
 public:
     ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, powerdown_pin_t &_pd, rt_t &rt):
-        Streams::ReadingDelegate<ESP8266<accessPoint, password, remoteIP, remotePort, tx_pin_t, rx_pin_t, powerdown_pin_t, rt_t, txFifoSize, rxFifoSize>, ChunkedFifo>(&rxFifo),
         tx(&_tx), rx(&_rx), pd_pin(&_pd), watchdog(rt) {
         pd_pin->configureAsOutput();
         pd_pin->setHigh();
         state = State::RESTARTING;
         watchdog.schedule(5_s);
+    }
+
+    auto in() {
+        return rxFifo.in();
     }
 
     State getState() const {
@@ -315,6 +324,10 @@ public:
     template <typename... types>
     Streams::ReadResult read(types... args) {
         return rxFifo.read(args...);
+    }
+
+    uint8_t getSpace() const {
+        return txFifo.getSpace();
     }
 };
 

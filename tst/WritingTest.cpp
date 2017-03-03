@@ -394,6 +394,20 @@ TEST(WritingTest, can_write_chunk_from_chunked_fifo_that_is_open_for_reading) {
     EXPECT_TRUE(fifo.isEmpty());
 }
 
+TEST(WritingTest, can_write_enum_and_chunk) {
+    Fifo<24> inputData;
+    ChunkedFifo input(inputData);
+    input.write(F("1234567890123456789"));
+
+    Fifo<64> outputData;
+    ChunkedFifo output(outputData);
+    input.readStart();
+    uint8_t value = 'H';
+    EXPECT_TRUE(output.write(value, input));
+    EXPECT_TRUE(output.read(F("H1234567890123456789")));
+    EXPECT_TRUE(output.isEmpty());
+}
+
 TEST(WritingTest, write_from_empty_chunked_fifo_is_ignored) {
     Fifo<200> inputData;
     ChunkedFifo input(inputData);
@@ -446,17 +460,13 @@ TEST(WritingTest, can_write_uint8_t_array) {
     EXPECT_TRUE(fifo.read(FB(1,2,3,4,5)));
 }
 
-struct MockDelegateFifo: public ReadingDelegate<MockDelegateFifo, AbstractFifo> {
-    Fifo<16> delegate;
-    MockDelegateFifo(): ReadingDelegate<MockDelegateFifo, AbstractFifo>(&delegate) {}
-};
-
 TEST(WritingTest, can_write_decimal_delegate_fifo) {
     Fifo<16> fifo;
-    MockDelegateFifo input;
-    input.delegate.write(FB(1,2,3));
-    input.readStart();
-    EXPECT_TRUE(fifo.write(dec(&input)));
+    Fifo<16> input;
+    input.write(FB(1,2,3));
+    auto in = input.in();
+    in.readStart();
+    EXPECT_TRUE(fifo.write(dec(&in)));
     EXPECT_TRUE(fifo.read(F("1,2,3")));
     EXPECT_TRUE(fifo.isEmpty());
 }
@@ -464,12 +474,13 @@ TEST(WritingTest, can_write_decimal_delegate_fifo) {
 
 TEST(WritingTest, doe_not_write_decimal_delegate_fifo_if_no_space) {
     Fifo<4> fifo;
-    MockDelegateFifo input;
-    input.delegate.write(FB(1,2,3));
-    input.readStart();
-    EXPECT_FALSE(fifo.write(dec(&input)));
+    Fifo<16> input;
+    input.write(FB(1,2,3));
+    auto in = input.in();
+    in.readStart();
+    EXPECT_FALSE(fifo.write(dec(&in)));
     EXPECT_TRUE(fifo.isEmpty());
-    EXPECT_TRUE(input.isReading());
+    EXPECT_TRUE(in.isReading());
     input.readAbort();
 
     EXPECT_TRUE(fifo.write('a')); // write 1 byte, to align failure with "2" instead of ",".
@@ -480,9 +491,10 @@ TEST(WritingTest, doe_not_write_decimal_delegate_fifo_if_no_space) {
 
 TEST(WritingTest, does_not_write_decimal_delegate_fifo_that_isnt_reading) {
     Fifo<16> fifo;
-    MockDelegateFifo input;
-    input.delegate.write(FB(1,2,3));
-    EXPECT_TRUE(fifo.write(dec(&input)));
+    Fifo<16> input;
+    input.write(FB(1,2,3));
+    auto in = input.in();
+    EXPECT_TRUE(fifo.write(dec(&in)));
     EXPECT_TRUE(fifo.isEmpty());
 }
 

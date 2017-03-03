@@ -10,7 +10,7 @@ namespace Streams {
 namespace Impl {
 
 template <typename sem, typename fifo_t, typename src_fifo_t>
-inline bool write1fifo(fifo_t &fifo, src_fifo_t &src) {
+bool write1fifo(fifo_t &fifo, src_fifo_t &src) {
     if (!src.isReading()) {
         return false;
     }
@@ -56,9 +56,9 @@ bool write1(fifo_t &fifo, AbstractFifo &src) {
  *
  * Committing the fifo read has to be handled externally and in sync with the write itself succeeding.
  */
-template <typename sem, typename fifo_t, typename src_T, typename src_fifo_t>
-bool write1(fifo_t &fifo, ReadingDelegate<src_T, src_fifo_t> &src) {
-	return write1fifo<sem>(fifo, src);
+template <typename sem, typename fifo_t, typename src_fifo_t>
+bool write1(fifo_t &fifo, ReadingDelegate<src_fifo_t> src) {
+	return write1fifo<sem>(fifo, *src.delegate);
 }
 
 /**

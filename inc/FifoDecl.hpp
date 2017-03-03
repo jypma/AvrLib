@@ -211,6 +211,11 @@ public:
         }
     }
 
+    typedef Streams::Impl::ReadingDelegate<AbstractFifo> In;
+
+    inline In in() {
+        return In(this);
+    }
 };
 
 /**

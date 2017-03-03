@@ -9,6 +9,9 @@ constexpr auto endl = F("\r\n");
 
 namespace Impl {
 
+template <typename fifo_t>
+class ReadingDelegate;
+
 template <typename T>
 class Reading {
     T *t() {
@@ -86,24 +89,37 @@ template <typename T>
 class StreamingDefaultWriteIfSpace: public Reading<T>, public WritingDefaultIfSpace<T> {
 };
 
-} // namespace Impl
+template <typename sem, typename fifo_t, typename src_fifo_t>
+bool write1(fifo_t &fifo, ReadingDelegate<src_fifo_t> src);
 
-template <typename T, typename fifo_t>
-class ReadingDelegate: public ::Streams::Impl::Reading<T> {
-    fifo_t *delegate;
+template <typename fifo_t>
+class ReadingDelegate {
+    fifo_t * const delegate;
 public:
-    ReadingDelegate(fifo_t *d): delegate(d) {}
+    constexpr ReadingDelegate(fifo_t *d): delegate(d) {}
+    constexpr ReadingDelegate(const ReadingDelegate &r): delegate(r.delegate) {}
 
-    void readStart() { delegate->readStart(); }
-    void readEnd() { delegate->readEnd(); }
-    void readAbort() { delegate -> readAbort(); }
-    void uncheckedRead(uint8_t &b) { delegate->uncheckedRead(b); }
-    uint8_t getReadAvailable() const { return delegate->getReadAvailable(); }
-    bool isReading() const { return delegate->isReading(); }
-    bool hasContent() const { return delegate->hasContent(); }
-    uint8_t peek() const { return delegate->peek(); }
+    template <typename... types>
+    Streams::ReadResult read(types... args) {
+        return delegate->read(args...);
+    }
+
+    template <typename sem, typename f_t, typename src_fifo_t>
+    friend bool ::Streams::Impl::write1(f_t &fifo, ReadingDelegate<src_fifo_t> src);
+
+    inline uint8_t getSize() const { return delegate->getSize(); }
+    inline bool isEmpty() const { return delegate->isEmpty(); }
+    inline void readStart() { delegate->readStart(); }
+    inline void readEnd() { delegate->readEnd(); }
+    inline void readAbort() { delegate -> readAbort(); }
+    inline void uncheckedRead(uint8_t &b) { delegate->uncheckedRead(b); }
+    inline uint8_t getReadAvailable() const { return delegate->getReadAvailable(); }
+    inline bool isReading() const { return delegate->isReading(); }
+    inline bool hasContent() const { return delegate->hasContent(); }
+    inline uint8_t peek() const { return delegate->peek(); }
 };
 
+} // namespace Impl
 
 }
 

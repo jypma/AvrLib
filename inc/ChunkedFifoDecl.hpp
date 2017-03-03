@@ -90,6 +90,12 @@ public:
     void readEnd();
 
     void readAbort();
+
+    typedef Streams::Impl::ReadingDelegate<AbstractChunkedFifo> In;
+
+    inline In in() {
+        return In(this);
+    }
 };
 
 

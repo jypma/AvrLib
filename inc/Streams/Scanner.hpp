@@ -21,7 +21,7 @@ template <typename fifo_t>
 class Scanner {
     typedef Logging::Log<Loggers::Scanner> log;
 
-    fifo_t *fifo;
+    fifo_t * const fifo;
     ReadResult state = ReadResult::Invalid;
 
 public:
@@ -33,7 +33,7 @@ public:
         if (state == ReadResult::Invalid && fifo->getReadAvailable() > 0) {
             uint8_t dropped;
             fifo->uncheckedRead(dropped);
-            log::debug("  state invalid, dropped %d", dropped);
+            log::debug(F("drp "), dec(dropped));
             return true;
         } else {
             return false;
@@ -48,7 +48,7 @@ public:
         }
 
         ReadResult result = fifo->read(args...);
-        log::debug ("  got result %d in state %d", result, state);
+        log::debug ('r', dec(uint8_t(result)), 's', dec(uint8_t(state)));
         if (result != ReadResult::Invalid) {
             state = result;
             return state == ReadResult::Valid;
@@ -64,12 +64,19 @@ public:
 template<typename fifo_t, typename Body>
 void scan(fifo_t &fifo, Body body) {
     typedef Logging::Log<Loggers::Scanner> log;
-    log::debug("Starting a scan");
+    if (fifo.isEmpty()) {
+        return;
+    }
 
+    log::debug(F("S"));
+
+    uint8_t count = 0;
     Impl::Scanner<fifo_t> s(fifo);
     do {
         body(s);
-    } while (s.again());
+    } while (s.again() && (count++ < 250));
+
+    log::debug(dec(count));
 }
 
 }

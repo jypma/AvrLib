@@ -40,8 +40,8 @@ public:
 template <typename info, uint8_t writeFifoCapacity>
 class UsartTx {
     typedef UsartTx<info, writeFifoCapacity> This;
-    Fifo<writeFifoCapacity>  writeFifo;
-    uint8_t available;
+    Fifo<writeFifoCapacity>  writeFifo = {};
+    uint8_t available = 0;
 
     static void startWriting() {
         if ((*info::ucsrb & _BV(UDRIE0)) == 0) {
@@ -121,11 +121,11 @@ public:
 
 template <typename info, uint8_t readFifoCapacity>
 class UsartRx:
-    public Streams::ReadingDelegate<UsartRx<info, readFifoCapacity>, AbstractFifo>
+    public Streams::Impl::ReadingDelegate<AbstractFifo>
 {
     typedef UsartRx<info, readFifoCapacity> This;
 
-    Fifo<readFifoCapacity> readFifo;
+    Fifo<readFifoCapacity> readFifo = {};
 
     inline void onReceive() {
         uint8_t ch = *info::udr;
@@ -135,7 +135,7 @@ class UsartRx:
 public:
     typedef On<This, Int_USART_RX_, &This::onReceive> Handlers;
 
-    UsartRx(): Streams::ReadingDelegate<UsartRx<info, readFifoCapacity>, AbstractFifo>(&readFifo) {
+    UsartRx(): Streams::Impl::ReadingDelegate<AbstractFifo>(&readFifo) {
         AtomicScope::SEI _;
     }
 };
