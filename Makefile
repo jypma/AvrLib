@@ -23,7 +23,7 @@ SOURCES=$(wildcard $(SOURCEDIR)/*.cpp)
 OBJECTS=$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDDIR)/%.o,$(SOURCES))
 
 ## Compilation options, type man avr-gcc if you're curious.
-CPPFLAGS = -DF_CPU=$(F_CPU) -Iinc
+CPPFLAGS = -DF_CPU=$(F_CPU) -Iinc -std=gnu++14
 CFLAGS = -Os -g -Wall
 ## Use short (8-bit) data types 
 CFLAGS += -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums 
@@ -51,7 +51,7 @@ $(BUILDDIR):
 
 ##  To make .o files from .cpp files 
 $(OBJECTS): $(BUILDDIR)/%.o: $(SOURCEDIR)/%.cpp Makefile
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -MMD -c $< -o $@
+	$(CXX) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -MMD -c -o "$@" "$<"
 
 $(TARGET): $(OBJECTS)
 	$(AR) rcs $@ $^
