@@ -23,7 +23,7 @@ SOURCES=$(wildcard $(SOURCEDIR)/*.cpp)
 OBJECTS=$(patsubst $(SOURCEDIR)/%.cpp,$(BUILDDIR)/%.o,$(SOURCES))
 
 ## Compilation options, type man avr-gcc if you're curious.
-CPPFLAGS = -DF_CPU=$(F_CPU) -Iinc -std=gnu++14
+CPPFLAGS = -DF_CPU=$(F_CPU) -Iinc -std=gnu++14 -fno-use-cxa-atexit 
 CFLAGS = -Os -g -Wall
 ## Use short (8-bit) data types 
 CFLAGS += -funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums 
