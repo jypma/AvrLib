@@ -1,3 +1,7 @@
 Release/
 target/
 /Test
+target
+.cproject
+.project
+.settings
