@@ -39,12 +39,23 @@ LDFLAGS += -Wl,--gc-sections
 ## LDFLAGS += -Wl,-u,vfprintf -lprintf_min      ## for smaller printf
 TARGET_ARCH = -mmcu=$(MCU)
 
-all: directories $(TARGET)
+TEST_SOURCEDIR=tst
+TEST_BUILDDIR=target/test
+TEST_SOURCES=$(wildcard $(TEST_SOURCEDIR)/*.cpp)
+TEST_OBJECTS=$(patsubst $(TEST_SOURCEDIR)/%.cpp,$(TEST_BUILDDIR)/%.o,$(TEST_SOURCES))
+TEST_MAIN_OBJECTS=$(patsubst $(SOURCEDIR)/%.cpp,$(TEST_BUILDDIR)/%.o,$(SOURCES))
+TEST_CPPFLAGS = -Iinc -Itst -Iapps -std=gnu++14 
+TEST_TARGET=target/test/AvrLib
+TEST_LDFLAGS=
+TEST_LDLIBS=-lgtest -lgtest_main -lpthread
+
+## Which tests to run
+TESTS=* 
+
+all: $(BUILDDIR) $(TARGET)
 
 ## These targets don't have files named after them
-.PHONY: all directories disassemble disasm eeprom size flash fuses
-
-directories: $(BUILDDIR)
+.PHONY: all disassemble disasm eeprom size flash fuses test
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
@@ -58,3 +69,19 @@ $(TARGET): $(OBJECTS)
 	
 -include $(BUILDDIR)/*.d
 
+$(TEST_BUILDDIR):
+	mkdir -p $(TEST_BUILDDIR)
+
+$(TEST_OBJECTS): $(TEST_BUILDDIR)/%.o: $(TEST_SOURCEDIR)/%.cpp Makefile
+	g++ $(TEST_CPPFLAGS) -MMD -c -o "$@" "$<"
+
+$(TEST_MAIN_OBJECTS): $(TEST_BUILDDIR)/%.o: $(SOURCEDIR)/%.cpp Makefile
+	g++ $(TEST_CPPFLAGS) -MMD -c -o "$@" "$<"
+
+$(TEST_TARGET): $(TEST_OBJECTS) $(TEST_MAIN_OBJECTS)
+	g++ $(TEST_LDFLAGS) $^ $(TEST_LDLIBS) -o $@
+
+-include $(TEST_BUILDDIR)/*.d
+
+test: $(TEST_BUILDDIR) $(TEST_TARGET) 
+	$(TEST_TARGET) --gtest_filter=$(TESTS)
