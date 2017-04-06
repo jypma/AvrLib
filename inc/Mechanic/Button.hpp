@@ -12,8 +12,18 @@ using namespace Time;
 using namespace HAL::Atmel;
 using namespace InterruptHandlers;
 
+/**
+ * Indicates events that can happen to the button.
+ */
 enum class ButtonEvent: uint8_t {
-    DOWN, UP, PRESSED, RELEASED
+    /** The button is currently being held down (and was so on the last call to nextEvent()) */
+    DOWN,
+    /** The button is currently up (and was so on the last call to nextEvent()) */
+    UP,
+    /** The button was pressed since the last call to nextEvent() */
+    PRESSED,
+    /** The button was released since the last call to nextEvent() */
+    RELEASED
 };
 
 
@@ -55,6 +65,7 @@ public:
         prevState = pin->isHigh();
     }
 
+    /** Returns a ButtonEvent indicating any event that happened since this method was last called. */
     ButtonEvent nextEvent() {
         if (stopDebouncing.isNow()) {
             debouncing = false;
@@ -71,6 +82,16 @@ public:
             stopDebouncing.schedule();
             return state ? ButtonEvent::RELEASED : ButtonEvent::PRESSED;
         }
+    }
+
+    /** Returns whether the button is up (not being pressed). */
+    bool isUp() {
+        return prevState;
+    }
+
+    /** Returns whether the button is currently being held down. */
+    bool isDown() {
+        return !isUp();
     }
 };
 
