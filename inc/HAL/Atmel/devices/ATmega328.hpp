@@ -514,7 +514,7 @@ constexpr PinPD0_t<NoUsart,32> PinPD0() {
  *
  *     auto pinPD0 = PinPD0<32>(usart0);
  */
-template <uint8_t readFifoCapacity = 32, typename usart_t>
+template <uint8_t readFifoCapacity = 64, typename usart_t>
 constexpr PinPD0_t<usart_t, readFifoCapacity> PinPD0(usart_t &usart) {
     return PinPD0_t<usart_t, readFifoCapacity>();
 }
@@ -539,7 +539,7 @@ constexpr PinPD1_t<NoUsart,16> PinPD1() {
  *
  *     auto pinPD1 = PinPD1<32>(usart0);
  */
-template <uint8_t writeFifoCapacity = 16, typename usart_t>
+template <uint8_t writeFifoCapacity = 64, typename usart_t>
 constexpr PinPD1_t<usart_t, writeFifoCapacity> PinPD1(usart_t &usart) {
     return PinPD1_t<usart_t, writeFifoCapacity>();
 }
