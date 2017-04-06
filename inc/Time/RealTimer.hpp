@@ -182,6 +182,11 @@ public:
     Counts timeLeft() const {
         return Counts(getTimeLeft(rt->counts()));
     }
+
+    /** Reschedule this Periodic starting from now */
+    void reschedule() {
+        calculateNextCounts(rt->counts(), delay);
+    }
 };
 
 template <typename rt_t, typename value>
@@ -201,6 +206,11 @@ public:
 
     Ticks timeLeft() const {
         return Ticks(getTimeLeft(rt->ticks()));
+    }
+
+    /** Reschedule this Periodic starting from now */
+    void reschedule() {
+        calculateNextCounts(rt->ticks(), delay);
     }
 };
 
