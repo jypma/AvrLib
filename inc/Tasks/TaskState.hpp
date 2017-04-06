@@ -12,6 +12,11 @@ class TaskState {
 	Option<Milliseconds> tLeft;
 	HAL::Atmel::SleepMode maxSleepMode;
 
+    template <typename rt_t, typename value>
+    static constexpr Milliseconds periodicMillis(Time::Periodic<rt_t, value> d) {
+        return toMillisOn<rt_t>(d.timeLeft());
+    }
+
 	template <typename rt_t, typename value>
 	static constexpr Option<Milliseconds> deadlineMillis(Time::Deadline<rt_t, value> d) {
 		if (d.isScheduled()) {
@@ -52,6 +57,13 @@ public:
 	 */
 	template <typename rt_t>
 	constexpr TaskState(Time::VariableDeadline<rt_t> d, HAL::Atmel::SleepMode s): tLeft(deadlineMillis(d)), maxSleepMode(s) {}
+
+    /**
+     * Returns a TaskState which allows to sleep in the given mode until the next occurrence of [p].
+     */
+    template <typename rt_t, typename value_t>
+    constexpr TaskState(Time::Periodic<rt_t, value_t> d, HAL::Atmel::SleepMode s): tLeft(periodicMillis(d)), maxSleepMode(s) {}
+
 
 	/**
 	 * Returns a TaskState indicating a non-idle task, which will run for [time] allowing sleep mode [s].
