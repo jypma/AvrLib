@@ -165,7 +165,7 @@ public:
         return temp;
     }
 
-    auto getTaskState() {
+    TaskState getTaskState() {
     	update();
     	return TaskState(measureDone, HAL::Atmel::SleepMode::POWER_DOWN);
     }
