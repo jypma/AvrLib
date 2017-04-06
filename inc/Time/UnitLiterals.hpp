@@ -345,6 +345,9 @@ template <char ...cv>
 constexpr Lit::Seconds<Lit::literal<cv...>::to_uint64> operator "" _s() { return {}; }
 
 template <char ...cv>
+constexpr Lit::Seconds<Lit::literal<cv...>::to_uint64> operator "" _sec() { return {}; }
+
+template <char ...cv>
 constexpr Lit::Minutes<Lit::literal<cv...>::to_uint64> operator "" _min() { return {}; }
 
 template <uint64_t divisor, typename time_t>
