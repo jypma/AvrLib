@@ -97,9 +97,15 @@ struct Protocol {
 		static constexpr uint8_t maxFieldIdx = 0;
 
 		static ReadResult assignField(This *t, uint8_t field, uint32_t result) {
-			// no more fields remaining, i.e. ignore this field
+			// no more fields remaining, i.e. ignore this field, since we don't know about it or it's in the wrong format
 			return ReadResult::Valid;
 		}
+
+        template <typename fifo_t>
+        static ReadResult readNestedField(fifo_t &fifo, This *t, uint8_t field, uint32_t length) {
+            // no more fields remaining, i.e. ignore this field, since we don't know about it or it's in the wrong format
+            return ReadResult::Valid;
+        }
 
 		static void initPresence(This *t, uint8_t *p) {}
 	};
@@ -122,32 +128,13 @@ struct Protocol {
 				? head::assign(t, result)
 				: Fields<tail...>::assignField(t, fieldIdx, result);
 		}
-	};
 
-	/**
-	 * Marks field F, itself probably a Varint<...>, as optional, storing in [present]
-	 * whether the field is/was present or not.
-	 */
-	template <bool This::*present, typename F>
-	struct Optional {
-		static constexpr uint8_t fieldIdx = F::fieldIdx;
-		static constexpr uint8_t initialPresence = 0;
-
-		static void initialize(This *t) {
-			(t->*present) = false;
-		}
-
-		static ReadResult assign(This *t, uint32_t value) {
-			auto result = F::assign(t, value);
-			(t->*present) = (result == ReadResult::Valid);
-			return result;
-		}
-
-		static auto forWriting(const This *t) {
-            return ::Streams::Nested([t] (auto write) {
-                return (t->*present) ? write(F::forWriting(t)) : true;
-            });
-		}
+        template <typename fifo_t>
+        static ReadResult readNestedField(fifo_t &fifo, This *t, uint8_t fieldIdx, uint32_t length) {
+            return (fieldIdx == head::fieldIdx)
+                ? head::readNested(fifo, t, length)
+                : Fields<tail...>::readNestedField(fifo, t, fieldIdx, length);
+        }
 	};
 
 	/**
@@ -176,6 +163,12 @@ struct Protocol {
 			}
 		}
 
+        template <typename fifo_t>
+        static ReadResult readNested(fifo_t &fifo, This *t, const uint32_t count) {
+            // this field should've been a varint, not a nested other message
+            return ReadResult::Invalid;
+        }
+
 		static Impl::Protobuf::Varint<T,_fieldIdx> forWriting(const This *t) {
 			return t->*field;
 		}
@@ -199,6 +192,12 @@ struct Protocol {
 				return ReadResult::Valid;
 			}
 		}
+
+        template <typename fifo_t>
+        static ReadResult readNested(fifo_t &fifo, This *t, const uint32_t count) {
+            // this field should've been a varint, not a nested other message
+            return ReadResult::Invalid;
+        }
 
 		static auto forWriting(const This *t) {
             return ::Streams::Nested([t] (auto write) {
@@ -248,6 +247,12 @@ struct Protocol {
 			}
 		}
 
+        template <typename fifo_t>
+        static ReadResult readNested(fifo_t &fifo, This *t, const uint32_t count) {
+            // this field should've been a varint, not a nested other message
+            return ReadResult::Invalid;
+        }
+
 		static Impl::Protobuf::Varint<T,_fieldIdx> forWriting(const This *t) {
 			return t->*field;
 		}
@@ -272,6 +277,12 @@ struct Protocol {
 				return ReadResult::Valid;
 			}
 		}
+
+        template <typename fifo_t>
+        static ReadResult readNested(fifo_t &fifo, This *t, const uint32_t count) {
+            // this field should've been a varint, not a nested other message
+            return ReadResult::Invalid;
+        }
 
 		static auto forWriting(const This *t) {
             return ::Streams::Nested([t] (auto write) {
@@ -303,13 +314,33 @@ struct Protocol {
 	template <uint8_t _fieldIdx, Option<int32_t> This::*field>
 	struct Varint<_fieldIdx, Option<int32_t>, field>: public OptionSignedVarint<_fieldIdx, int32_t, field> {};
 
+	template <uint8_t _fieldIdx, typename U, U This::*field, typename protocol = typename U::DefaultProtocol>
+	struct SubMessage {
+        static constexpr uint8_t fieldIdx = _fieldIdx;
+        static constexpr uint8_t initialPresence = 1;
+
+        template <typename fifo_t>
+        static ReadResult readNested(fifo_t &fifo, This *t, uint32_t length) {
+            return protocol::readNested(fifo, &(t->*field), length);
+        }
+
+        static ReadResult assign(This *t, uint32_t value) {
+            // This field index should've been a sub-message, not a varint value
+            return ReadResult::Invalid;
+        }
+
+        static void initialize(This *t) {}
+	};
+
 	/**
-	 * A protocol that represents an undelimited protobuf message. When reading,
-	 * read will continue until the end of the fifo or chunk.
+	 * A protocol that represents an undelimited or delimited protobuf message.
+	 * When reading an initial protobug message, read will continue until the end of the fifo or chunk.
+	 * This type is also used to indicate nested protobuf messages, which ARE prefixed with their length.
 	 */
 	//FIXME merge Fields into this as private
 	template <typename... fields>
 	struct Message {
+
         template <typename fifo_t>
         static ReadResult read1(fifo_t &fifo, This *t) {
         	typename Fields<fields...>::presence_t presence = {};
@@ -332,6 +363,21 @@ struct Protocol {
         					presence[fieldIdx] = 0;
         				}
         			}
+        		} else if ((field_and_type & 0x07) == 2 /* Length delimited */) {
+                    uint32_t length;
+                    ReadResult result = ::Streams::Impl::Protobuf::readVarint(fifo, length);
+                    if (result != ReadResult::Valid) {
+                        return result;
+                    }
+                    const uint8_t fieldIdx = field_and_type >> 3;
+                    result = Fields<fields...>::readNestedField(fifo, t, fieldIdx, length);
+                    if (result != ReadResult::Valid) {
+                        return result;
+                    } else {
+                        if (fieldIdx <= Fields<fields...>::maxFieldIdx) {
+                            presence[fieldIdx] = 0;
+                        }
+                    }
         		} else {
         			return ReadResult::Invalid;
         		}
@@ -350,6 +396,76 @@ struct Protocol {
         	} else {
         		return ReadResult::Valid;
         	}
+        }
+
+        template <typename fifo_t>
+        static ReadResult readNested(fifo_t &fifo, This *t, const uint32_t count) {
+            typename Fields<fields...>::presence_t presence = {};
+            Fields<fields...>::initPresence(t, presence);
+            if (fifo.getReadAvailable() < count) {
+                return ReadResult::Partial;
+            }
+            if (count > 0x7FFF) {
+                return ReadResult::Invalid;
+            }
+            int16_t remaining = count;
+            while (remaining > 0) {
+                uint8_t field_and_type;
+                fifo.uncheckedRead(field_and_type);
+                remaining--;
+                if ((field_and_type & 0x07) == 0 /* VARINT */) {
+                    uint32_t value;
+                    uint8_t before = fifo.getReadAvailable();
+                    ReadResult result = ::Streams::Impl::Protobuf::readVarint(fifo, value);
+                    remaining -= (before - fifo.getReadAvailable());
+                    if (result != ReadResult::Valid) {
+                        return result;
+                    }
+                    const uint8_t fieldIdx = field_and_type >> 3;
+                    result = Fields<fields...>::assignField(t, fieldIdx, value);
+                    if (result != ReadResult::Valid) {
+                        return result;
+                    } else {
+                        if (fieldIdx <= Fields<fields...>::maxFieldIdx) {
+                            presence[fieldIdx] = 0;
+                        }
+                    }
+                } else if ((field_and_type & 0x07) == 2 /* Length delimited */) {
+                    uint32_t length;
+                    uint8_t before = fifo.getReadAvailable();
+                    ReadResult result = ::Streams::Impl::Protobuf::readVarint(fifo, length);
+                    if (result != ReadResult::Valid) {
+                        return result;
+                    }
+                    const uint8_t fieldIdx = field_and_type >> 3;
+                    result = Fields<fields...>::readNestedField(fifo, t, fieldIdx, length);
+                    remaining -= (before - fifo.getReadAvailable());
+                    if (result != ReadResult::Valid) {
+                        return result;
+                    } else {
+                        if (fieldIdx <= Fields<fields...>::maxFieldIdx) {
+                            presence[fieldIdx] = 0;
+                        }
+                    }
+                } else {
+                    return ReadResult::Invalid;
+                }
+            }
+            if (remaining < 0) { // we got more bytes than the initial length indicated
+                return ReadResult::Invalid;
+            }
+            bool complete = true;
+            for (uint8_t i = 0; i <= Fields<fields...>::maxFieldIdx; i++) {
+                if (presence[i] == 1) {
+                    complete = false;
+                    break;
+                }
+            }
+            if (!complete) {
+                return ReadResult::Incomplete;
+            } else {
+                return ReadResult::Valid;
+            }
         }
 
         template <typename sem, typename fifo_t>

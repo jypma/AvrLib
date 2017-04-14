@@ -513,9 +513,7 @@ struct MyPBStruct {
     uint16_t uint16;
     uint32_t uint32;
 
-    uint8_t optA;
-    bool hasA;
-
+    Option<uint8_t> optA;
     Option<uint16_t> optB;
 
     typedef Protobuf::Protocol<MyPBStruct> P;
@@ -524,7 +522,7 @@ struct MyPBStruct {
 		P::Varint<1, uint8_t, &MyPBStruct::uint8>,
 		P::Varint<2, uint16_t, &MyPBStruct::uint16>,
 		P::Varint<3, uint32_t, &MyPBStruct::uint32>,
-		P::Optional<&MyPBStruct::hasA, P::Varint<4, uint8_t, &MyPBStruct::optA>>,
+		P::Varint<4, Option<uint8_t>, &MyPBStruct::optA>,
 		P::Varint<5, Option<uint16_t>, &MyPBStruct::optB>
 	> DefaultProtocol;
 };
@@ -532,7 +530,7 @@ struct MyPBStruct {
 TEST(ReadingTest, can_read_struct_with_protobuf_DefaultMessage_out_of_order) {
 	Fifo<16> fifo;
 	MyPBStruct s;
-	s.hasA = true; // to verify it gets set to false on reading
+	s.optA = some(17); // to verify it gets set to none() on reading
 
 	//For non-delimited message, missing fields means "Incomplete",
 	//since more data coming in may complete the message.
@@ -548,7 +546,7 @@ TEST(ReadingTest, can_read_struct_with_protobuf_DefaultMessage_out_of_order) {
 	EXPECT_EQ(0b111111111111111, s.uint16);
 	EXPECT_EQ(0xFFFFFFFF, s.uint32);
 	EXPECT_EQ(0, fifo.getSize());
-	EXPECT_FALSE(s.hasA);
+	EXPECT_FALSE(s.optA.isDefined());
 }
 
 TEST(ReadingTest, can_read_struct_with_optional_field) {
@@ -556,8 +554,49 @@ TEST(ReadingTest, can_read_struct_with_optional_field) {
 	MyPBStruct s;
 	fifo.write(FB(1 << 3, 255, 1, 3 << 3, 255,255,255,255,15, 2 << 3, 255,255,1, 4 << 3, 42, 5 << 3, 42));
 	EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
-	EXPECT_TRUE(s.hasA);
-	EXPECT_EQ(42, s.optA);
+	EXPECT_EQ(some(42), s.optA);
 	EXPECT_EQ(some(42), s.optB);
 }
+
+
+struct MyNestedPBStruct {
+    uint8_t uint8;
+    MyPBStruct nested;
+
+    typedef Protobuf::Protocol<MyNestedPBStruct> P;
+
+    typedef P::Message<
+        P::Varint<1, uint8_t, &MyNestedPBStruct::uint8>,
+        P::SubMessage<2, MyPBStruct, &MyNestedPBStruct::nested>
+    > DefaultProtocol;
+};
+
+TEST(ReadingTest, can_read_nested_protobuf) {
+    Fifo<24> fifo;
+    MyNestedPBStruct s;
+    fifo.write(FB(1 << 3, 1, 2 << 3 | 2, 7, 1 << 3, 255, 1, 2 << 3, 2, 3 << 3, 3));
+    EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
+    EXPECT_EQ(1, s.uint8);
+    EXPECT_EQ(255, s.nested.uint8);
+}
+
+TEST(ReadingTest, incomplete_nested_protobuf_yields_partial) {
+    Fifo<24> fifo;
+    MyNestedPBStruct s;
+    fifo.write(FB(1 << 3, 1, 2 << 3 | 2));
+    EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
+    fifo.write(FB(7));
+    EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
+    fifo.write(FB(1 << 3));
+    EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
+    fifo.write(FB(255));
+    EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
+    fifo.write(FB(1));
+    EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
+    fifo.write(FB(2 << 3));
+    EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
+    fifo.write(FB(2, 3 << 3, 3));
+    EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
+}
+
 }
