@@ -1,6 +1,7 @@
 #pragma once
 
 #include "gcc_limits.h"
+#include "Varint.hpp"
 #include "WritingProtobuf.hpp"
 #include "Option.hpp"
 
@@ -25,6 +26,14 @@ public:
 
 	constexpr Varint(int_t v): value(v) {}
 	constexpr operator int_t() const { return value; }
+};
+
+template <typename int_t>
+class BareVarint {
+    int_t value;
+public:
+    constexpr BareVarint(int_t v): value(v) {}
+    constexpr operator int_t() const { return value; }
 };
 
 static inline int32_t
@@ -108,6 +117,8 @@ struct Protocol {
         }
 
 		static void initPresence(This *t, uint8_t *p) {}
+
+		static constexpr uint16_t length(const This *t) { return 0; }
 	};
 
 	template <typename head, typename... tail>
@@ -134,6 +145,10 @@ struct Protocol {
             return (fieldIdx == head::fieldIdx)
                 ? head::readNested(fifo, t, length)
                 : Fields<tail...>::readNestedField(fifo, t, fieldIdx, length);
+        }
+
+        static constexpr uint16_t length(const This *t) {
+            return head::length(t) + Fields<tail...>::length(t);
         }
 	};
 
@@ -172,6 +187,10 @@ struct Protocol {
 		static Impl::Protobuf::Varint<T,_fieldIdx> forWriting(const This *t) {
 			return t->*field;
 		}
+
+		static uint8_t length(const This *t) {
+		    return Impl::Protobuf::varint_size(t->*field) + 1;
+		}
 	};
 
 	template <uint8_t _fieldIdx, typename T, Option<T> This::*field>
@@ -209,6 +228,10 @@ struct Protocol {
             	}
             });
 		}
+
+        static uint8_t length(const This *t) {
+            return ((t->*field).isDefined()) ? Impl::Protobuf::varint_size((t->*field).get()) + 1 : 0;
+        }
 	};
 
 	template <uint8_t _fieldIdx, uint8_t This::*field>
@@ -256,6 +279,10 @@ struct Protocol {
 		static Impl::Protobuf::Varint<T,_fieldIdx> forWriting(const This *t) {
 			return t->*field;
 		}
+
+        static uint8_t length(const This *t) {
+            return Impl::Protobuf::varint_size(zigzag(t->*field)) + 1;
+        }
 	};
 
 	template <uint8_t _fieldIdx, typename T, Option<T> This::*field>
@@ -294,6 +321,10 @@ struct Protocol {
             	}
             });
 		}
+
+        static uint8_t length(const This *t) {
+            return ((t->*field).isDefined()) ? Impl::Protobuf::varint_size(zigzag((t->*field).get())) + 1 : 0;
+        }
 	};
 
 	template <uint8_t _fieldIdx, int8_t This::*field>
@@ -330,6 +361,14 @@ struct Protocol {
         }
 
         static void initialize(This *t) {}
+
+        static auto forWriting(const This *t) {
+            return protocol::template forWriting<_fieldIdx>(&(t->*field));
+        };
+
+        static uint8_t length(const This *t) {
+            return protocol::length(&(t->*field));
+        }
 	};
 
 	/**
@@ -471,6 +510,23 @@ struct Protocol {
         template <typename sem, typename fifo_t>
         static bool write1(fifo_t &fifo, const This *t) {
             return ::Streams::Impl::writeN<sem>(fifo, fields::forWriting(t)...);
+        }
+
+        template <uint8_t fieldIdx>
+        static auto forWriting(const This *t) {
+            return ::Streams::Nested([t] (auto write) {
+                uint16_t l = Fields<fields...>::length(t);
+                return write(
+                    uint8_t(fieldIdx << 3 | Impl::Protobuf::WireTypes::LENGTH_DELIMITED),
+                    Impl::Protobuf::BareVarint<uint16_t>(l),
+                    fields::forWriting(t)...
+                );
+            });
+        }
+
+        static uint16_t length(const This *t) {
+            uint16_t l = Fields<fields...>::length(t);
+            return Impl::Protobuf::varint_size(l) + l + 1;
         }
 
 	};

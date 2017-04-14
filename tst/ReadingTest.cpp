@@ -580,6 +580,13 @@ TEST(ReadingTest, can_read_nested_protobuf) {
     EXPECT_EQ(255, s.nested.uint8);
 }
 
+TEST(ReadingTest, wrong_field_type_in_protobuf_yields_error) {
+    Fifo<24> fifo;
+    MyNestedPBStruct s;
+    fifo.write(FB(1 << 3 | 2, 1, 2 << 3 | 2, 7, 1 << 3, 255, 1, 2 << 3, 2, 3 << 3, 3));
+    EXPECT_EQ(ReadResult::Invalid, fifo.read(&s));
+}
+
 TEST(ReadingTest, incomplete_nested_protobuf_yields_partial) {
     Fifo<24> fifo;
     MyNestedPBStruct s;
@@ -597,6 +604,27 @@ TEST(ReadingTest, incomplete_nested_protobuf_yields_partial) {
     EXPECT_EQ(ReadResult::Partial, fifo.read(&s));
     fifo.write(FB(2, 3 << 3, 3));
     EXPECT_EQ(ReadResult::Valid, fifo.read(&s));
+}
+
+struct MyDoubleNestedPBStruct {
+    MyNestedPBStruct nested;
+
+    typedef Protobuf::Protocol<MyDoubleNestedPBStruct> P;
+
+    typedef P::Message<
+        P::SubMessage<1, MyNestedPBStruct, &MyDoubleNestedPBStruct::nested>
+    > DefaultProtocol;
+};
+
+TEST(ReadingTest, can_read_double_nested_protobuf) {
+    Fifo<24> fifo;
+    MyDoubleNestedPBStruct s;
+    fifo.write(FB(1 << 3 | 2, 10, 1 << 3, 1, 2 << 3 | 2, 6, 1 << 3, 1, 2 << 3, 2, 3 << 3, 3));
+    EXPECT_TRUE(fifo.read(&s));
+    EXPECT_EQ(1, s.nested.uint8);
+    EXPECT_EQ(1, s.nested.nested.uint8);
+    EXPECT_EQ(2, s.nested.nested.uint16);
+    EXPECT_EQ(3, s.nested.nested.uint32);
 }
 
 }

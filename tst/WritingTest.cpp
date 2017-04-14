@@ -691,4 +691,49 @@ TEST(WritingTest, can_read_back_signed_ints) {
 	EXPECT_EQ(-1024, s2.sint);
 }
 
+struct MyNestedPBStruct {
+    uint8_t uint8;
+    MyPBStruct nested;
+
+    typedef Protobuf::Protocol<MyNestedPBStruct> P;
+
+    typedef P::Message<
+        P::Varint<1, uint8_t, &MyNestedPBStruct::uint8>,
+        P::SubMessage<2, MyPBStruct, &MyNestedPBStruct::nested>
+    > DefaultProtocol;
+};
+
+TEST(WritingTest, can_write_nested_protobuf) {
+    Fifo<24> fifo;
+    MyNestedPBStruct s;
+    s.uint8 = 1;
+    s.nested.uint8 = 1;
+    s.nested.uint16 = 2;
+    s.nested.uint32 = 3;
+    fifo.write(&s);
+    EXPECT_TRUE(fifo.read(FB(1 << 3, 1, 2 << 3 | 2, 6, 1 << 3, 1, 2 << 3, 2, 3 << 3, 3)));
+}
+
+struct MyDoubleNestedPBStruct {
+    MyNestedPBStruct nested;
+
+    typedef Protobuf::Protocol<MyDoubleNestedPBStruct> P;
+
+    typedef P::Message<
+        P::SubMessage<1, MyNestedPBStruct, &MyDoubleNestedPBStruct::nested>
+    > DefaultProtocol;
+};
+
+TEST(WritingTest, can_write_double_nested_protobuf) {
+    Fifo<24> fifo;
+    MyDoubleNestedPBStruct s;
+    s.nested.uint8 = 1;
+    s.nested.nested.uint8 = 1;
+    s.nested.nested.uint16 = 2;
+    s.nested.nested.uint32 = 3;
+    fifo.write(&s);
+    EXPECT_TRUE(fifo.read(FB(1 << 3 | 2, 10, 1 << 3, 1, 2 << 3 | 2, 6, 1 << 3, 1, 2 << 3, 2, 3 << 3, 3)));
+
+}
+
 }
