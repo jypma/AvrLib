@@ -201,4 +201,18 @@ struct MockTWI {
     }
 };
 
+struct MockRFM12 {
+    Fifo<250> recvStorage;
+    ChunkedFifo recv = { recvStorage };
+    Fifo<250> sendFskStorage;
+    ChunkedFifo sendFsk = { sendFskStorage };
+
+    ChunkedFifo::In in() { return recv.in(); }
+
+    template <typename... types>
+    void write_fsk(uint8_t header, types... args) {
+        sendFsk.write(header, args...);
+    }
+};
+
 #endif /* MOCKS_HPP_ */

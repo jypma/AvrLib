@@ -133,6 +133,15 @@ public:
     }
 
     template <typename prescaled_t>
+    constexpr Counts toCountsOn() const {
+        constexpr float countsPerMs = uint64_t(F_CPU / 1000) >> prescaled_t::prescalerPower2;
+        constexpr float max = 0xFFFFFFFF / countsPerMs;
+
+        const float v = getValue();
+        return (v >= max) ? 0xFFFFFFFF : v * countsPerMs;
+    }
+
+    template <typename prescaled_t>
     constexpr Milliseconds toMillisOn() const {
     	return *this;
     }

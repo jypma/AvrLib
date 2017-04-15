@@ -311,6 +311,12 @@ public:
 template <typename rt_t>
 class VariableDeadline: public AbstractDeadline {
     rt_t *rt;
+
+    void doSchedule(const uint32_t delay) {
+        AtomicScope _;
+        calculateNext(rt->counts(), delay);
+        elapsed = false;
+    }
 protected:
     uint32_t getNow() {
         return rt->counts();
@@ -326,15 +332,12 @@ public:
     void schedule() {
         static constexpr uint32_t delay = toCountsOn<rt_t, value>().getValue();
         static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
-
-        AtomicScope _;
-        calculateNext(rt->counts(), delay);
-        elapsed = false;
+        doSchedule(delay);
     }
 
     template <typename value>
     void schedule(value v) {
-        schedule<value>();
+        doSchedule(toCountsOn<rt_t>(v).getValue());
     }
 
     Counts timeLeft() const {
