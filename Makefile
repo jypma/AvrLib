@@ -39,15 +39,18 @@ LDFLAGS += -Wl,--gc-sections
 ## LDFLAGS += -Wl,-u,vfprintf -lprintf_min      ## for smaller printf
 TARGET_ARCH = -mmcu=$(MCU)
 
+GOOGLETEST_ROOT=external/googletest/googletest
+
 TEST_SOURCEDIR=tst
 TEST_BUILDDIR=target/test
 TEST_SOURCES=$(wildcard $(TEST_SOURCEDIR)/*.cpp)
-TEST_OBJECTS=$(patsubst $(TEST_SOURCEDIR)/%.cpp,$(TEST_BUILDDIR)/%.o,$(TEST_SOURCES))
+TEST_OBJECTS=$(patsubst $(TEST_SOURCEDIR)/%.cpp,$(TEST_BUILDDIR)/%.o,$(TEST_SOURCES)) 
+GOOGLETEST_OBJECTS=$(TEST_BUILDDIR)/gtest-all.o $(TEST_BUILDDIR)/gtest_main.o
 TEST_MAIN_OBJECTS=$(patsubst $(SOURCEDIR)/%.cpp,$(TEST_BUILDDIR)/%.o,$(SOURCES))
-TEST_CPPFLAGS = -Iinc -Itst -Iapps -std=gnu++14 
+TEST_CPPFLAGS = -Iinc -Itst -Iapps -I$(GOOGLETEST_ROOT)/include -std=gnu++14 
 TEST_TARGET=target/test/AvrLib
 TEST_LDFLAGS=
-TEST_LDLIBS=-lgtest -lgtest_main -lpthread
+TEST_LDLIBS=-lpthread
 
 ## Which tests to run
 TESTS=* 
@@ -75,10 +78,13 @@ $(TEST_BUILDDIR):
 $(TEST_OBJECTS): $(TEST_BUILDDIR)/%.o: $(TEST_SOURCEDIR)/%.cpp Makefile
 	g++ $(TEST_CPPFLAGS) -MMD -c -o "$@" "$<"
 
+$(GOOGLETEST_OBJECTS): $(TEST_BUILDDIR)/%.o: $(GOOGLETEST_ROOT)/src/%.cc Makefile
+	g++ -I$(GOOGLETEST_ROOT) $(TEST_CPPFLAGS) -MMD -c -o "$@" "$<"
+
 $(TEST_MAIN_OBJECTS): $(TEST_BUILDDIR)/%.o: $(SOURCEDIR)/%.cpp Makefile
 	g++ $(TEST_CPPFLAGS) -MMD -c -o "$@" "$<"
 
-$(TEST_TARGET): $(TEST_OBJECTS) $(TEST_MAIN_OBJECTS)
+$(TEST_TARGET): $(TEST_OBJECTS) $(TEST_MAIN_OBJECTS) $(GOOGLETEST_OBJECTS)
 	g++ $(TEST_LDFLAGS) $^ $(TEST_LDLIBS) -o $@
 
 -include $(TEST_BUILDDIR)/*.d
