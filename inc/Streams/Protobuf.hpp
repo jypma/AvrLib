@@ -4,6 +4,7 @@
 #include "Varint.hpp"
 #include "WritingProtobuf.hpp"
 #include "Option.hpp"
+#include "Streams/WritingN.hpp"
 
 /**
  * Protobuf implementation that doesn't rely on protoc. Limitiations:
@@ -16,25 +17,6 @@
 namespace Streams {
 namespace Impl {
 namespace Protobuf {
-
-template <typename int_t, uint8_t _fieldIdx>
-class Varint {
-	static_assert(_fieldIdx < (0xFF >> 3), "field numbers must fit in 5 bits");
-	int_t value;
-public:
-	static constexpr uint8_t fieldIdx = _fieldIdx;
-
-	constexpr Varint(int_t v): value(v) {}
-	constexpr operator int_t() const { return value; }
-};
-
-template <typename int_t>
-class BareVarint {
-    int_t value;
-public:
-    constexpr BareVarint(int_t v): value(v) {}
-    constexpr operator int_t() const { return value; }
-};
 
 static inline int32_t
 unzigzag32(uint32_t v)

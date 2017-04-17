@@ -35,6 +35,13 @@ enum class RFM12Band: uint8_t {
 
 enum class RFM12Mode: uint8_t { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK, SLEEP };
 
+struct Headers {
+    static constexpr uint8_t ACK = 1;
+    static constexpr uint8_t RXSTATE = 2;
+    static constexpr uint8_t TXSTATE = 3;
+    static constexpr uint8_t APP = 42;
+};
+
 template <typename spi_t,
           typename ss_pin_t,
           typename int_pin_t,
