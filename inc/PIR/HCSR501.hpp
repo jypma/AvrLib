@@ -115,7 +115,7 @@ public:
         power(&_power),
         timeout(_rt) {
         power->configureAsOutputLow();
-        pin->configureAsInputWithPullup();
+        pin->configureAsInputWithoutPullup(); // the 10K pullup will consume 100uA of current, since the module is idle low.
         pin->interruptOff();
         turnPowerOn();
     }
