@@ -62,7 +62,7 @@ TEST(TxStateTest, should_retransmit_when_unacked_and_timer_fires) {
 
     TxState<MockRFM12, MockRealTimer, State> txState = { rfm, rt, state, 123 };
     rfm.sendFsk.clear();
-    rt.advance(10_ms);
+    rt.advance(130_ms); // resend offset is 12*10ms, plus extra 10ms for first delay.
 
     txState.loop();
     EXPECT_TRUE(rfm.sendFsk.read(FB(
@@ -88,7 +88,7 @@ TEST(TxStateTest, should_not_retransmit_if_acked_when_timer_fires) {
     txState.loop();
     EXPECT_TRUE(rfm.sendFsk.isEmpty());
 
-    rt.advance(10_ms);
+    rt.advance(130_ms);
     EXPECT_TRUE(rfm.sendFsk.isEmpty());
 }
 
@@ -104,7 +104,7 @@ TEST(TxStateTest, should_retransmit_when_acked_on_wrong_sequence_number) {
         1 << 3, 123,   // field 1 (nodeId)
         2 << 3, 1));   // field 2 (seq, doesn't match what was transmitted (=0))
     txState.loop();
-    rt.advance(10_ms);
+    rt.advance(130_ms);
     txState.loop();
 
     EXPECT_TRUE(rfm.sendFsk.read(FB(
@@ -128,7 +128,7 @@ TEST(TxStateTest, should_retransmit_when_acked_on_wrong_node_id) {
         1 << 3, 124,   // field 1 (nodeId, wrong)
         2 << 3, 0));   // field 2 (seq)
     txState.loop();
-    rt.advance(10_ms);
+    rt.advance(130_ms);
     txState.loop();
 
     EXPECT_TRUE(rfm.sendFsk.read(FB(
