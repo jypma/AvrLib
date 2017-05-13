@@ -60,7 +60,7 @@ public:
                 }
             }
         } else if (tx && resend.isNow()) {
-            if (resendCount < ResendDelays::size()) {
+            if (resendCount < ResendDelays::size() - 1) {
                 resendCount++;
             }
             send();
