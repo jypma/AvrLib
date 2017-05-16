@@ -140,4 +140,28 @@ TEST(TxStateTest, should_retransmit_when_acked_on_wrong_node_id) {
         )));
 }
 
+TEST(TxStateTest, should_increase_retransmit_delay_until_maximum) {
+    MockRFM12 rfm;
+    MockRealTimer rt;
+    State state = { 42 };
+
+    TxState<MockRFM12, MockRealTimer, State> txState = { rfm, rt, state, 123 };
+
+    auto maxDelay = 1560_ms;  // (12+144) * 10ms
+    for (int i = 0; i < 20; i++) {
+        rfm.sendFsk.clear();
+        rt.advance(maxDelay);
+        txState.loop();
+    }
+
+    rfm.sendFsk.clear();
+    rt.advance(130_ms);  // not yet, by now we should have reached max delay.
+    txState.loop();
+    EXPECT_TRUE(rfm.sendFsk.isEmpty());
+
+    rt.advance(maxDelay);
+    txState.loop();
+    EXPECT_FALSE(rfm.sendFsk.isEmpty());
+}
+
 }
