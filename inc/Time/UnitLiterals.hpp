@@ -48,6 +48,10 @@ struct LiteralTimeUnit {
 		return {};
 	}
 
+	static constexpr uint64_t getAmount() {
+	    return value;
+	}
+
     template <uint64_t percentage>
     static constexpr This<value * percentage / 100> percent() { return {}; }
 

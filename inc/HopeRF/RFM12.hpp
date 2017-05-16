@@ -37,8 +37,8 @@ enum class RFM12Mode: uint8_t { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING
 
 struct Headers {
     static constexpr uint8_t ACK = 1;
-    static constexpr uint8_t RXSTATE = 2;
-    static constexpr uint8_t TXSTATE = 3;
+    static constexpr uint8_t RXSTATE = 2; // State from spark to node
+    static constexpr uint8_t TXSTATE = 3; // State from node to spark
     static constexpr uint8_t APP = 42;
 };
 
@@ -377,7 +377,7 @@ public:
         return pulses;
     }
 
-    auto getTaskState() const {
+    TaskState getTaskState() const {
     	AtomicScope _;
     	if (isIdle()) {
     		return TaskState::idle();

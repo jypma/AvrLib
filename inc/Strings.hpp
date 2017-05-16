@@ -33,6 +33,6 @@ using ByteString = irqus::typestring<bytes...>;
  * Returns the given bytes as a compile-time type-safe string, to be used as a type (e.g. template argument),
  * e.g. MyTemplate<STRB(1,2,3)>.
  */
-#define STRB(...) (ByteString< __VA_ARGS >)
+#define STRB(...) ByteString<__VA_ARGS__>
 
 #endif
