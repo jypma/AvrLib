@@ -1,9 +1,9 @@
 [![Build Status](https://travis-ci.org/jypma/AvrLib.svg?branch=master)](https://travis-ci.org/jypma/AvrLib)
 
-ABOUT
-=====
+AvrLib
+======
 
-This is a C++14 library for embedded development on low-memory 8-bit AVR microcontrollers. It attempts to offer the highest amount of compile-time safety possible with modern C++, without sacrificing performance. This generally results in nicely readable code, and inherint unit testability. 
+This is a C++14 library for embedded development on low-memory 8-bit AVR microcontrollers. It currently focuses on ATMega328, but other hardware definitions can be added fairly easily. It attempts to offer the highest amount of compile-time safety possible with modern C++, without sacrificing performance. This generally results in nicely readable code, and inherint unit testability. 
 
 Specifically, we follow the following patterns:
 
@@ -12,6 +12,7 @@ Specifically, we follow the following patterns:
 - Compile-time time constants like `10_sec`, which will hit static assertions if they cause overflows or underflows when
   used on hardware timers with known prescalers.
 - No heap. All allocations are statically known on compile time, and FIFOs are used to communicate e.g. radio packets.
+- Arduino and JeeLib compatible pin numbers, but compile-time safe capabilities. E.g. it's only possible to invoke PWM settings on pins that actually have hardware PWM, and only if a timer has been set up to do so.
 
 TODO
 ====
