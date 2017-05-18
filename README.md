@@ -1,4 +1,19 @@
-BUGS
+[![Build Status](https://travis-ci.org/jypma/AvrLib.svg?branch=master)](https://travis-ci.org/jypma/AvrLib)
+
+ABOUT
+=====
+
+This is a C++14 library for embedded development on low-memory 8-bit AVR microcontrollers. It attempts to offer the highest amount of compile-time safety possible with modern C++, without sacrificing performance. This generally results in nicely readable code, and inherint unit testability. 
+
+Specifically, we follow the following patterns:
+
+- Use templates for dependency injection - This allows the logic of most non-hardware code to be fully unit tested, while 
+  pusing down real hardware stuff to a HAL layer
+- Compile-time time constants like `10_sec`, which will hit static assertions if they cause overflows or underflows when
+  used on hardware timers with known prescalers.
+- No heap. All allocations are statically known on compile time, and FIFOs are used to communicate e.g. radio packets.
+
+TODO
 ====
  - reading DS18B20 hangs if debug logging is blocked on a full output FIFO..... and shouldn't.
  - Do what [yalla](https://github.com/chrism333/yalla/blob/master/include/yalla/device/atmega8/avr/io.hpp) does,
@@ -18,9 +33,7 @@ BUGS
  - Create a TypedFifo, templated on sizeof(T), without the generic write and read methods; 
     * only one T at a time
     * maybe on(T, lambda)
- - find out why pulseCounter.minimumLength is somehow applied x2
--  Add JSON (or protobuf?) types for easier packet output.
-     
+ - find out why pulseCounter.minimumLength is somehow applied x2     
  - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at
    runtime. That'll create much faster software serial, and removes the need to juggle pointers in the fifo.
   
@@ -33,14 +46,3 @@ BUGS
   fastread() and fastwrite() don't have to invoke complex calculations.
 - create template variants of the PinChange handlers that don't allow runtime setting of onRising / onFalling
   but rather do it in template, to save cycles.
-  
-PROTOCOL
-========
-"Status update" protocol
-
-   - Only send current state from A to B
-      - Don't enqueue if the same as last enqueued / transmitted
-      - Only buffer 1 packet, plus 1 packet being sent
-   - Only receive desired state from B to A
-      - Only keep last received, plus currently being received
-      
