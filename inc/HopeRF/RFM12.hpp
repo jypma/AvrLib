@@ -380,10 +380,13 @@ public:
     TaskState getTaskState() const {
     	AtomicScope _;
     	if (isIdle()) {
+            if (listenOnIdle) {
+    		return TaskState::busy(SleepMode::STANDBY);
+            } else {
     		return TaskState::idle();
+            }
     	} else {
-    		// FIXME allow TaskState to lower sleep granularity, so we can do STANDBY here instead of IDLE
-    		return TaskState::busy(160_us * txFifo.getSize(), SleepMode::IDLE);
+    		return TaskState::busy(SleepMode::IDLE);
     	}
     }
 
