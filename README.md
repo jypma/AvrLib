@@ -14,36 +14,65 @@ Specifically, we follow the following patterns:
 - No heap. All allocations are statically known on compile time, and FIFOs are used to communicate e.g. radio packets.
 - Arduino and JeeLib compatible pin numbers, but compile-time safe capabilities. E.g. it's only possible to invoke PWM settings on pins that actually have hardware PWM, and only if a timer has been set up to do so.
 
-TODO
-====
- - reading DS18B20 hangs if debug logging is blocked on a full output FIFO..... and shouldn't.
- - Do what [yalla](https://github.com/chrism333/yalla/blob/master/include/yalla/device/atmega8/avr/io.hpp) does,
-   in order to remain compilable on avr-gcc 6+, which no longer accepts avr-libc's "reinterpret_cast_ inside
-   constexpr (see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=63715).
- - make a timeout on the RFM12 failing to initialize (INT pin not going high)
- - re-investigate if we can have write(myStruct) instead of write(&myStruct) when decltype(struct)::Protocol exists 
- - Have ChunkedFifo maintain its own Fifo of fixed size internally, to workaround the -Os "bug"
-   (or maybe data is a temp that's copied and gone??)
- - log::debug should always invoke toString(T), which defaults to dec() for decimals,
-   but also defines Microsecond<> as "...ms", etc.
- - Make RFM12 OOK support optional, so you can create the RFM12 driver without 
-   using a comparator with suitable timer prescaler
- - Scan for chunked-fifo like API, drop whole chunk if not matched. 
-      Or, if scan can work within a chunk, make up a different name, e.g. match()
-      
- - Create a TypedFifo, templated on sizeof(T), without the generic write and read methods; 
-    * only one T at a time
-    * maybe on(T, lambda)
- - find out why pulseCounter.minimumLength is somehow applied x2     
- - Rewrite SerialConfig to be a static template class, and remove (for now) ability to change serial configs at
-   runtime. That'll create much faster software serial, and removes the need to juggle pointers in the fifo.
-  
- - maintain "last sent" pin value in pulse counter, comparing with pin->isHigh() after each change, inserting dummies on mismatch
-   . That way we don't need the double memory anymore after all.
- - consider pin factory methods to imply default state as input / output
- - make namespace HAL::Atmel consistent (everything public goes there, everything private in sub-namespaces)
+Getting started
+===============
 
-- Change fifo.abortedWrites into a flag "overflow", and add two other flags "full" and "hasData", so
-  fastread() and fastwrite() don't have to invoke complex calculations.
-- create template variants of the PinChange handlers that don't allow runtime setting of onRising / onFalling
-  but rather do it in template, to save cycles.
+In order to write a program against AvrLib, you'll want to pull it as a sub-module into your own git repository. That will ensure you working against a stable version, while also having full source-code access.
+
+Usage
+=====
+
+We'll explain a few of the patterns used in this library in further detail here
+
+Templates for dependency injection
+----------------------------------
+
+Say that you're encapsulating some behaviour into a class, which needs to toggle a pin. Since on AVR and other microcontrollers, different pins have different features, we like to express that with actual types. However, we don't want the runtime overhead of dynamic dispatch, so `virtual` methods are out of the question. Now, we can achieve something similar by declaring our actual class a template, and having the pin's concrete type be a type argument:
+
+```C++
+class PinPD2 {
+  inline bool isHigh() { ... }
+};
+
+template <typename pin_t>
+class Button {
+  pin_t * const pin;
+  
+  bool isPressed() { return pin->isLow(); }
+};
+
+PinPD2 pinPD2;
+Button<PinPD2> plusButton = { pinPD2 };
+```
+
+This way, our `Button` class is decoupled from its actual pin. Yet, when we instantiate
+the button, the compiler can drop in the methods, and even inline them if so desired.
+
+Also, we can write a mock implementation of the pin class, which we can use in unit tests.
+
+Compile-time prescalers and time constants
+------------------------------------------
+
+The compiler knows about the clock speed of the microcontroller, and about the prescaler
+used for timers. Combined with C++ user-defined literals, we can now make fairly smart constants:
+
+```C++
+Timer0::withPrescaler<1024>::inNormalMode timer0 = {};
+RealTimer<decltype(timer0)> rt = { timer0 };
+VariableDeadline<decltype(rt)> deadline = { rt };
+
+deadline.schedule(1_ms);     // OK, becomes a static number of timer ticks during compilation
+deadline.schedule(1_us);     // Compile error -> delay is too short for this timer
+deadline.schedule(1000_min); // Compile error -> delay is too long for this timer
+```
+
+There are `static_assert` messages in place that will inform the user to lower or raise
+the timer prescaler, when trying to use it for delays that round to 0 or 1 timer tick,
+or would overflow the target integer used (typically `uint16_t` or `uint32_t`).
+
+Examples
+========
+
+The [AvrLibDemo](https://github.com/jypma/AvrLibDemo/) project gathers a lot of example code for actual hardware projects that use this library. It also comes with a generic [Makefile](https://github.com/jypma/AvrLibDemo/blob/master/tools/common.mk) that's shared between all projects.
+
+
