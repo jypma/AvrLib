@@ -4,10 +4,12 @@
 #include "ChunkedFifo.hpp"
 #include "EEPROMTest.hpp"
 #include "Streams/WritingTypes.hpp"
+#include "Espressif/EthernetMACAddress.hpp"
 
 namespace WritingTest {
 
 using namespace Streams;
+using namespace Espressif;
 
 struct MockFifo {
     uint8_t fullCount = 0;
@@ -525,26 +527,24 @@ TEST(WritingTest, can_write_subclass_of_struct_with_specific_proto_in_parent) {
 TEST(WritingTest, can_write_protobuf) {
 	using namespace Protobuf;
 	Fifo<16> fifo;
-	uint32_t i32 = 1;
-	fifo.write(Varint<1>(i32));
+	fifo.write(Varint<uint32_t, 1>(1));
 	EXPECT_EQ(2, fifo.getSize());
 	EXPECT_TRUE(fifo.read(FB(8,1)));
 
 	fifo.clear();
-	i32 = 0xFFFFFFFF;
-	fifo.write(Varint<1>(i32));
+	fifo.write(Varint<uint32_t,1>(0xFFFFFFFF));
 	EXPECT_EQ(6, fifo.getSize());
 	EXPECT_TRUE(fifo.read(FB(8,255,255,255,255,15)));
 
 	fifo.clear();
 	int8_t i8 = -1;
-	fifo.write(Varint<1>(i8));
+	fifo.write(Varint<int8_t, 1>(i8));
 	EXPECT_EQ(2, fifo.getSize());
 	EXPECT_TRUE(fifo.read(FB(8,1)));
 
 	fifo.clear();
 	i8 = 1;
-	fifo.write(Varint<1>(i8));
+	fifo.write(Varint<int8_t, 1>(i8));
 	EXPECT_EQ(2, fifo.getSize());
 	EXPECT_TRUE(fifo.read(FB(8,2)));
 }
@@ -669,7 +669,7 @@ TEST(WritingTest, can_write_opt_protobuf_to_chunked_fifo) {
 TEST(WritingTest, can_zigzag_signed_ints) {
     Fifo<64> fifo;
     int16_t i = -1024;
-	fifo.write(Protobuf::Varint<1>(i));
+	fifo.write(Protobuf::Varint<int16_t, 1>(i));
 	EXPECT_TRUE(fifo.read(FB(8,255,15)));
 }
 
@@ -733,7 +733,22 @@ TEST(WritingTest, can_write_double_nested_protobuf) {
     s.nested.nested.uint32 = 3;
     fifo.write(&s);
     EXPECT_TRUE(fifo.read(FB(1 << 3 | 2, 10, 1 << 3, 1, 2 << 3 | 2, 6, 1 << 3, 1, 2 << 3, 2, 3 << 3, 3)));
-
 }
+
+/* TODO uncomment and enable this
+struct StructWithMac {
+    EthernetMACAddress mac;
+    typedef Protobuf::Protocol<StructWithMac> P;
+    typedef P::Message<
+        P::SubMessage<1, EthernetMACAddress, &StructWithMac::mac>
+    > DefaultProtocol;
+};
+
+TEST(WritingTest, can_write_protobuf_field_with_Seq_as_DefaultProtocol) {
+    Fifo<24> fifo;
+    StructWithMac s = { };
+    fifo.write(&s);
+}
+*/
 
 }
