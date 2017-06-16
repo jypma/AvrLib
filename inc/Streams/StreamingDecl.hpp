@@ -107,6 +107,7 @@ public:
     template <typename sem, typename f_t, typename src_fifo_t>
     friend bool ::Streams::Impl::write1(f_t &fifo, ReadingDelegate<src_fifo_t> src);
 
+    inline void clear() { delegate->clear(); }
     inline uint8_t getSize() const { return delegate->getSize(); }
     inline bool isEmpty() const { return delegate->isEmpty(); }
     inline void readStart() { delegate->readStart(); }

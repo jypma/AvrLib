@@ -29,7 +29,7 @@ using namespace Streams;
 template <uint16_t R1, uint16_t R2, uint16_t EEPROM::*bandgapVoltage, typename adc_t, typename pin_t>
 class SupplyVoltage {
     typedef Logging::Log<Loggers::Passive> log;
-    adc_t *adc;
+    adc_t * const adc;
     static constexpr uint8_t lowReadingsNeeded = 100; // number of low readings before stop
     uint8_t lowReadingsUntilStop = lowReadingsNeeded;
 public:

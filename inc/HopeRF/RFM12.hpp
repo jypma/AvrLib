@@ -380,13 +380,13 @@ public:
     TaskState getTaskState() const {
     	AtomicScope _;
     	if (isIdle()) {
-            if (listenOnIdle) {
-    		return TaskState::busy(SleepMode::STANDBY);
-            } else {
-    		return TaskState::idle();
-            }
+    	    if (listenOnIdle) {
+    	        return TaskState::busy(SleepMode::STANDBY); // need quick resume in int handler
+    	    } else {
+    	        return TaskState::idle();
+    	    }
     	} else {
-    		return TaskState::busy(SleepMode::IDLE);
+    		return TaskState::busy(160_us * txFifo.getSize(), SleepMode::IDLE);
     	}
     }
 

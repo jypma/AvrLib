@@ -1,29 +1,13 @@
 #include "Espressif/ESP8266.hpp"
 #include "EEPROMTest.hpp"
+#include "Mocks.hpp"
 #include <gtest/gtest.h>
 
 namespace ESP8266Test {
 
 using namespace Espressif;
 using namespace Streams;
-
-struct MockPin {
-    bool high = false;
-    void configureAsOutput() {}
-    void setLow() { high = false; }
-    void setHigh() { high = true; }
-};
-
-struct MockRealTimer {
-    typedef uint32_t value_t;
-    static constexpr uint8_t prescalerPower2 = 8;
-    static constexpr uint8_t maximum = 255;
-
-    uint32_t count = 0;
-    uint32_t counts() {
-        return count;
-    }
-};
+using namespace Mocks;
 
 TEST(ESP8266Test, ESP_retries_reset_when_watchdog_fires) {
     eeprom_set(&EEPROM::apn, "apn");
@@ -34,15 +18,18 @@ TEST(ESP8266Test, ESP_retries_reset_when_watchdog_fires) {
     Fifo<200> rx;
     Fifo<200> tx;
 
-    MockPin reset;
-    MockRealTimer rt;
+    MockPin powerDown;
+    MockRealTimerPrescaled<8> rt;
 
-    reset.high = false;
-    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset, rt);
+    powerDown.high = false;
+    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, powerDown, rt);
 
     tx.clear();
-    rt.count = uint32_t(toCountsOn<MockRealTimer>(20000_ms).getValue()) + 1000; // after timeout
+    rt.advance(30_sec);
     esp.loop();
+    rt.advance(30_sec);
+    esp.loop();
+
     EXPECT_TRUE(tx.read(F("AT+RST\r\n")));
 
     rx.write(F("garbage#####\r\nready\r\n"));
@@ -60,12 +47,17 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     Fifo<200> rx;
     Fifo<200> tx;
 
-    MockPin reset;
-    MockRealTimer rt;
+    MockPin powerDown;
+    MockRealTimerPrescaled<8> rt;
 
-    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, reset, rt);
-
-    EXPECT_TRUE(reset.high);
+    powerDown.high = true;
+    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, powerDown, rt);
+    EXPECT_FALSE(powerDown.high);
+    rt.advance(30_sec);
+    esp.loop();
+    EXPECT_TRUE(powerDown.high);
+    rt.advance(30_sec);
+    esp.loop();
 
     tx.clear();
     rx.write(F("garbage#####\r\nready\r\n"));

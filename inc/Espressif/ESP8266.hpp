@@ -25,6 +25,13 @@ using namespace Time;
 using namespace Streams;
 using namespace HAL::Atmel;
 
+/**
+ * ESP8266
+ *
+ * @param tx_pin_t Microcontroller pin to send to the ESP8266 (connected to RX on the ESP8266)
+ * @param rx_pin_t Microcontroller pin to receive from the ESP8266 (connected to TX on the ESP8266)
+ * @param powerdown_pin_t Microcontroller pin connected to PD on the ESP8266 (will power it down when low)
+ */
 template<
     char (EEPROM::*accessPoint)[32],
     char (EEPROM::*password)[64],
@@ -42,7 +49,23 @@ class ESP8266 {
     typedef Logging::Log<Loggers::ESP8266> log;
 
 public:
-    enum class State: uint8_t { RESYNCING, RESTARTING, DISABLING_ECHO, SETTING_STATION_MODE, GETTING_MAC_ADDRESS, LISTING_ACCESS_POINTS, CONNECTING_APN, DISABLING_MUX, CLOSING_OLD_CONNECTION, CONNECTING_UDP, CONNECTED, SENDING_LENGTH, SENDING_DATA };
+    enum class State: uint8_t {
+        OFF_WAITING,
+        ON_WAITING,
+        RESYNCING,
+        RESTARTING,
+        DISABLING_ECHO,
+        SETTING_STATION_MODE,
+        GETTING_MAC_ADDRESS,
+        LISTING_ACCESS_POINTS,
+        CONNECTING_APN,
+        DISABLING_MUX,
+        CLOSING_OLD_CONNECTION,
+        CONNECTING_UDP,
+        CONNECTED,
+        CONNECTED_DELAY,
+        SENDING_LENGTH,
+        SENDING_DATA };
 private:
     Fifo<txFifoSize> txFifoData = {};
     ChunkedFifo txFifo = txFifoData;
@@ -60,6 +83,9 @@ private:
     constexpr static auto COMMAND_TIMEOUT = 1_s;
     constexpr static auto CONNECT_TIMEOUT = 10_s;
     constexpr static auto IDLE_TIMEOUT = 5_min;
+    constexpr static auto SEND_DELAY = 50_ms;
+    constexpr static auto OFF_DELAY = 1_s;
+    constexpr static auto ON_DELAY = 2_s;
 
     void disable_mux() {
         tx->write(F("AT+CIPMUX=0"), endl);
@@ -75,8 +101,19 @@ public:
         watchdog.schedule(COMMAND_TIMEOUT);
     }
 
+    void recycle() {
+        log::debug(F("recycle"));
+        pd_pin->setLow();
+        tx->clear();
+        rx->clear();
+        state = State::OFF_WAITING;
+        watchdog.schedule(OFF_DELAY);
+    }
+
     void restart() {
         log::debug(F("restart"));
+        tx->clear();
+        rx->clear();
         tx->write(F("AT+RST"), endl);
         state = State::RESTARTING;
         watchdog.schedule(10_s);
@@ -90,8 +127,27 @@ public:
         return macKnown;
     }
 
-    bool isConnected() {
-        return state == State::CONNECTED || state == State::SENDING_LENGTH || state == State::SENDING_DATA;
+    bool isConnected() const {
+        return state == State::CONNECTED ||
+               state == State::CONNECTED_DELAY ||
+               state == State::SENDING_LENGTH ||
+               state == State::SENDING_DATA;
+    }
+
+    bool isConnecting() const {
+        return state == State::LISTING_ACCESS_POINTS ||
+               state == State::CONNECTING_APN ||
+               state == State::DISABLING_MUX ||
+               state == State::CLOSING_OLD_CONNECTION ||
+               state == State::CONNECTING_UDP;
+    }
+
+    bool isSending() const {
+        return txFifo.hasContent() || state == State::SENDING_LENGTH || state == State::SENDING_DATA;
+    }
+
+    bool isReceiving() const {
+        return rxFifo.hasContent();
     }
 private:
     void resyncing() {
@@ -135,7 +191,9 @@ private:
 
     void getting_mac_address() {
         scan(*rx, [this] (auto &read) {
-            if (read(&mac)) {
+            EthernetMACAddress m;
+            if (read(&m)) {
+                mac = m;
                 macKnown = true;
             } else if (read(F("OK\r\n"))) {
                 tx->write(F("AT+CWLAP"), endl);
@@ -201,7 +259,7 @@ private:
         });
     }
 
-    void connected() {
+    void connected(bool allowSend) {
         scan(*rx, [this] (auto &read) {
             uint8_t length;
             rxFifo.writeStart();
@@ -233,10 +291,10 @@ private:
                 if (tx->write(txFifo)) {
                     txFifo.readEnd();
                     state = State::SENDING_DATA;
-                    watchdog.schedule(COMMAND_TIMEOUT);
+                    watchdog.schedule(CONNECT_TIMEOUT);
                 } else {
                     txFifo.readEnd(); // couldn't write, let's drop this chunk. But we're out of sync now.
-                    this->restart();
+                    this->recycle();
                 }
             }
         });
@@ -249,12 +307,12 @@ private:
             if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
                 log::debug(F("send_in"));
                 rxFifo.writeEnd();
-                watchdog.schedule(COMMAND_TIMEOUT);
+                watchdog.schedule(CONNECT_TIMEOUT);
             } else if (read(F("SEND OK"))) {
                 log::debug(F("send_ok"));
                 rxFifo.writeAbort();
-                state = State::CONNECTED;
-                watchdog.schedule(IDLE_TIMEOUT);
+                state = State::CONNECTED_DELAY; // "we need to wait 20ms between packets..."
+                watchdog.schedule(SEND_DELAY);
             } else if (read(F("ERROR"))) {
                 log::debug(F("send_er"));
                 rxFifo.writeAbort();
@@ -266,14 +324,55 @@ private:
         });
     }
 
+    void doLoop() {
+        if (watchdog.isNow()) {
+            if (state == State::CONNECTED_DELAY) {
+                state = State::CONNECTED;
+                watchdog.schedule(IDLE_TIMEOUT);
+            } else if (state == State::OFF_WAITING) {
+                state = State::ON_WAITING;
+                pd_pin->setHigh();
+                watchdog.schedule(ON_DELAY);
+            } else if (state == State::ON_WAITING) {
+                restart();
+            } else {
+                watchdogCount++;
+                if (state == State::CONNECTED ||
+                    state == State::SENDING_LENGTH ||
+                    state == State::SENDING_DATA) {
+                    resync();
+                } else if (state == State::RESTARTING) {
+                    recycle();
+                } else {
+                    restart();
+                }
+            }
+        } else
+        switch (state) {
+        case State::OFF_WAITING: return;
+        case State::ON_WAITING: return;
+        case State::RESYNCING: resyncing(); return;
+        case State::RESTARTING: restarting(); return;
+        case State::DISABLING_ECHO: disabling_echo(); return;
+        case State::SETTING_STATION_MODE: setting_station_mode(); return;
+        case State::GETTING_MAC_ADDRESS: getting_mac_address(); return;
+        case State::LISTING_ACCESS_POINTS: listing_access_points(); return;
+        case State::CONNECTING_APN: connecting_apn(); return;
+        case State::DISABLING_MUX: disabling_mux(); return;
+        case State::CLOSING_OLD_CONNECTION: closing_old_connection(); return;
+        case State::CONNECTING_UDP: connecting_udp(); return;
+        case State::CONNECTED: connected(true); return;
+        case State::CONNECTED_DELAY: connected(false); return;
+        case State::SENDING_LENGTH: sending_length(); return;
+        case State::SENDING_DATA: sending_data(); return;
+        }
+    }
 
 public:
     ESP8266(tx_pin_t &_tx, rx_pin_t &_rx, powerdown_pin_t &_pd, rt_t &rt):
         tx(&_tx), rx(&_rx), pd_pin(&_pd), watchdog(rt) {
-        pd_pin->configureAsOutput();
-        pd_pin->setHigh();
-        state = State::RESTARTING;
-        watchdog.schedule(5_s);
+        pd_pin->configureAsOutputLow();
+        recycle();
     }
 
     auto in() {
@@ -289,30 +388,10 @@ public:
     }
 
     void loop() {
-        if (watchdog.isNow()) {
-            watchdogCount++;
-            if (state == State::CONNECTED ||
-                state == State::SENDING_LENGTH ||
-                state == State::SENDING_DATA) {
-                resync();
-            } else {
-                restart();
-            }
-        } else
-        switch (state) {
-        case State::RESYNCING: resyncing(); return;
-        case State::RESTARTING: restarting(); return;
-        case State::DISABLING_ECHO: disabling_echo(); return;
-        case State::SETTING_STATION_MODE: setting_station_mode(); return;
-        case State::GETTING_MAC_ADDRESS: getting_mac_address(); return;
-        case State::LISTING_ACCESS_POINTS: listing_access_points(); return;
-        case State::CONNECTING_APN: connecting_apn(); return;
-        case State::DISABLING_MUX: disabling_mux(); return;
-        case State::CLOSING_OLD_CONNECTION: closing_old_connection(); return;
-        case State::CONNECTING_UDP: connecting_udp(); return;
-        case State::CONNECTED: connected(); return;
-        case State::SENDING_LENGTH: sending_length(); return;
-        case State::SENDING_DATA: sending_data(); return;
+        const auto s = state;
+        doLoop();
+        if (s != state) {
+            log::debug('s', dec(static_cast<uint8_t>(state)));
         }
     }
 

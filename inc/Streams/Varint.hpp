@@ -3,7 +3,6 @@
 #include <stdint.h>
 
 namespace Streams {
-namespace Impl {
 namespace Protobuf {
 
 template <typename int_t, uint8_t _fieldIdx>
@@ -24,6 +23,10 @@ public:
     constexpr BareVarint(int_t v): value(v) {}
     constexpr operator int_t() const { return value; }
 };
+
+}
+
+namespace Impl {
 
 enum WireTypes: uint8_t {
     VARINT = 0,
@@ -95,7 +98,6 @@ zigzag(int8_t v)
         return (uint8_t)(v) * 2;
 }
 
-}
 }
 }
 
