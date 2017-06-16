@@ -104,6 +104,10 @@ public:
         return result;
     }
 
+    void clear() {
+        writeFifo.clear();
+    }
+
     void flush() {
         if ((SREG & (1 << SREG_I)) == 0) {
         	// interrupts disabled, so can't flush.
