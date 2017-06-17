@@ -111,6 +111,117 @@ template<typename _Tp>
     remove_const<typename remove_volatile<_Tp>::type>::type     type;
   };
 
+template<typename>
+  struct __is_integral_helper
+  : public false_type { };
+
+template<>
+  struct __is_integral_helper<bool>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<char>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<signed char>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned char>
+  : public true_type { };
+
+#ifdef _GLIBCXX_USE_WCHAR_T
+template<>
+  struct __is_integral_helper<wchar_t>
+  : public true_type { };
+#endif
+
+template<>
+  struct __is_integral_helper<char16_t>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<char32_t>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<short>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned short>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<int>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned int>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<long>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned long>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<long long>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned long long>
+  : public true_type { };
+
+// Conditionalizing on __STRICT_ANSI__ here will break any port that
+// uses one of these types for size_t.
+#if defined(__GLIBCXX_TYPE_INT_N_0)
+template<>
+  struct __is_integral_helper<__GLIBCXX_TYPE_INT_N_0>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned __GLIBCXX_TYPE_INT_N_0>
+  : public true_type { };
+#endif
+#if defined(__GLIBCXX_TYPE_INT_N_1)
+template<>
+  struct __is_integral_helper<__GLIBCXX_TYPE_INT_N_1>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned __GLIBCXX_TYPE_INT_N_1>
+  : public true_type { };
+#endif
+#if defined(__GLIBCXX_TYPE_INT_N_2)
+template<>
+  struct __is_integral_helper<__GLIBCXX_TYPE_INT_N_2>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned __GLIBCXX_TYPE_INT_N_2>
+  : public true_type { };
+#endif
+#if defined(__GLIBCXX_TYPE_INT_N_3)
+template<>
+  struct __is_integral_helper<__GLIBCXX_TYPE_INT_N_3>
+  : public true_type { };
+
+template<>
+  struct __is_integral_helper<unsigned __GLIBCXX_TYPE_INT_N_3>
+  : public true_type { };
+#endif
+
+/// is_integral
+template<typename _Tp>
+  struct is_integral
+  : public __is_integral_helper<typename remove_cv<_Tp>::type>::type
+  { };
+
 
 template<typename>
     struct __is_pointer_helper

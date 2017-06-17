@@ -45,125 +45,7 @@ bool write1(fifo_t &fifo, WithProtocolConst<T, P> wrapper) {
 namespace Streams {
 
 template <typename This>
-struct Protocol {
-
-    /** Indicates a sequence of protocol elements that should be written/read one after the other */
-    template <typename... types>
-    struct Seq {
-        typedef This T;
-
-        template <typename fifo_t>
-        static ReadResult read1(fifo_t &fifo, This *t) {
-            return Impl::readN(fifo, ReadResult::Valid, types::forReading(t)...);
-        }
-
-        template <typename sem, typename fifo_t>
-        static bool write1(fifo_t &fifo, const This *t) {
-            return Impl::writeN<sem>(fifo, types::forWriting(t)...);
-        }
-    };
-
-    template <typename... types>
-    struct Seq<Seq<types...>>: public Seq<types...> {};
-
-    template <typename T>
-    using Single = Seq<T>;
-
-    /** Serializes a field as binary, little endian */
-    template <typename int_t, int_t This::*field>
-    struct Binary: public Single<Binary<int_t, field>> {
-        static int_t* forReading(This *t) {
-            return &(t->*field);
-        }
-
-        static int_t forWriting(const This *t) {
-            return t->*field;
-        }
-    };
-
-    /** Serializes a field as decimal */
-    template <typename int_t, int_t This::*field>
-    struct Decimal: public Single<Decimal<int_t, field>> {
-        static ::Streams::Impl::Decimal<int_t*> forReading(This *t) {
-            return ::Streams::Decimal(&(t->*field));
-        }
-
-        static ::Streams::Impl::Decimal<int_t> forWriting(const This *t) {
-            return ::Streams::Decimal(t->*field);
-        }
-    };
-
-    /** Serializes a field as hexadecimal */
-    template <typename int_t, int_t This::*field>
-    struct Hexadecimal: public Single<Hexadecimal<int_t, field>> {
-        static ::Streams::Impl::Hexadecimal<int_t*> forReading(This *t) {
-            return ::Streams::Hexadecimal(&(t->*field));
-        }
-
-        static ::Streams::Impl::Hexadecimal<int_t> forWriting(const This *t) {
-            return ::Streams::Hexadecimal(t->*field);
-        }
-    };
-
-
-    /** Serializes padding of indicated length bytes, written as 0, ignored during read */
-    template <uint8_t length>
-    struct Padding: public Single<Padding<length>> {
-        static Streams::Padding forReading(This *t) {
-            return Streams::Padding(length);
-        }
-
-        static Streams::Padding forWriting(const This *t) {
-            return Streams::Padding(length);
-        }
-    };
-
-    // In addition, you can also include a fixed String or ByteString token in a Protocol by saying
-    // STR("foo") or BSTR(1,2,3). During writing the string will be written, during reading the string
-    // will be verified.
-
-    template <typename F, F This::*field, typename P = typename F::DefaultProtocol>
-    struct Object: public Single<Object<F, field, P>> {
-        static Impl::WithProtocol<F, P> forReading(This *t) {
-            return &(t->*field);
-        }
-        static const Impl::WithProtocolConst<F, P> forWriting(const This *t) {
-            return &(t->*field);
-        }
-    };
-
-    template <bool (This::*condition)() const, typename... elements>
-    struct Conditional: public Single<Conditional<condition, elements...>> {
-        static auto forReading(This *t) {
-            return ::Streams::Nested([t] (auto read) {
-                return ((t->*condition)()) ? read(elements::forReading(t)...) : ReadResult::Valid;
-            });
-        }
-
-        static auto forWriting(const This *t) {
-            return ::Streams::Nested([t] (auto write) {
-                return ((t->*condition)()) ? write(elements::forWriting(t)...) : true;
-            });
-        }
-    };
-
-    template <bool (This::*condition)() const, typename... elements>
-    struct Conditional<condition, Seq<elements...>>: public Conditional<condition, elements...> {
-
-    };
-
-    template<typename ElementType, uint8_t count, ElementType (This::*field)[count]>
-    struct Array: public Single<Array<ElementType, count, field>> {
-        static ElementType (*forReading(This *t)) [count] {
-            return &(t->*field);
-        }
-
-        static const ElementType (*forWriting(const This *t)) [count] {
-            return &(t->*field);
-        }
-
-    };
-};
+struct Protocol;
 
 template <typename tp, typename = void>
 struct has_T: std::false_type {};
@@ -213,6 +95,188 @@ Impl::WithProtocolConst<typename find_T<types...>::type,
                         as (const typename find_T<types...>::type *t) {
     return t;
 }
+
+template <typename This, typename... types>
+struct total_length {
+    constexpr static uint8_t apply(const This *t) {
+        uint8_t result = 0;
+        using expand_variadic_pack  = int[]; // dirty trick, see below
+          (void)expand_variadic_pack{0, ((result += types::length(t)), void(), 0)... };
+        //auto a = {(result += types::length(t))... }; (void)a;
+        return result;
+    }
+};
+
+template <typename This>
+struct Protocol {
+
+    /** Indicates a sequence of protocol elements that should be written/read one after the other */
+    template <typename... types>
+    struct Seq {
+        typedef This T;
+
+        template <typename fifo_t>
+        static ReadResult read1(fifo_t &fifo, This *t) {
+            return Impl::readN(fifo, ReadResult::Valid, types::forReading(t)...);
+        }
+
+        template <typename sem, typename fifo_t>
+        static bool write1(fifo_t &fifo, const This *t) {
+            return Impl::writeN<sem>(fifo, types::forWriting(t)...);
+        }
+
+        static uint8_t length(const This *t) {
+            return total_length<This,types...>::apply(t);
+        }
+
+        /** write this Seq's binary representation as a protobuf message field */
+        template <uint8_t fieldIdx>
+        static auto forWriting(const This *t) {
+            return ::Streams::Nested([t] (auto write) {
+                uint16_t l = Seq<types...>::length(t);
+                return write(
+                    uint8_t(fieldIdx << 3 | Streams::Impl::LENGTH_DELIMITED),
+                    Streams::Protobuf::BareVarint<uint16_t>(l),
+                    types::forWriting(t)...
+                );
+            });
+        }
+    };
+
+    template <typename... types>
+    struct Seq<Seq<types...>>: public Seq<types...> {};
+
+    template <typename T>
+    using Single = Seq<T>;
+
+    /** Serializes a field as binary, little endian */
+    template <typename int_t, int_t This::*field>
+    struct Binary: public Single<Binary<int_t, field>> {
+        static int_t* forReading(This *t) {
+            return &(t->*field);
+        }
+
+        static int_t forWriting(const This *t) {
+            return t->*field;
+        }
+
+        static constexpr uint8_t length(const This *t) {
+            return sizeof(int_t);
+        }
+    };
+
+    /** Serializes a field as decimal */
+    template <typename int_t, int_t This::*field>
+    struct Decimal: public Single<Decimal<int_t, field>> {
+        static ::Streams::Impl::Decimal<int_t*> forReading(This *t) {
+            return ::Streams::Decimal(&(t->*field));
+        }
+
+        static ::Streams::Impl::Decimal<int_t> forWriting(const This *t) {
+            return ::Streams::Decimal(t->*field);
+        }
+
+        static uint8_t length(const This *t) {
+            int_t i = t->*field;
+            uint8_t l = 1;
+            while (i > 9) {
+                l++;
+                i = i / 10;
+            }
+            return l;
+        }
+    };
+
+    /** Serializes a field as hexadecimal, with fixed length (padded with zeroes) */
+    template <typename int_t, int_t This::*field>
+    struct Hexadecimal: public Single<Hexadecimal<int_t, field>> {
+        static ::Streams::Impl::Hexadecimal<int_t*> forReading(This *t) {
+            return ::Streams::Hexadecimal(&(t->*field));
+        }
+
+        static ::Streams::Impl::Hexadecimal<int_t> forWriting(const This *t) {
+            return ::Streams::Hexadecimal(t->*field);
+        }
+
+        static constexpr uint8_t length(const This *t) {
+            return sizeof(int_t) * 2;
+        }
+    };
+
+
+    /** Serializes padding of indicated length bytes, written as 0, ignored during read */
+    template <uint8_t _length>
+    struct Padding: public Single<Padding<_length>> {
+        static Streams::Padding forReading(This *t) {
+            return Streams::Padding(_length);
+        }
+
+        static Streams::Padding forWriting(const This *t) {
+            return Streams::Padding(_length);
+        }
+
+        static constexpr uint8_t length(const This *t) {
+            return _length;
+        }
+    };
+
+    // In addition, you can also include a fixed String or ByteString token in a Protocol by saying
+    // STR("foo") or BSTR(1,2,3). During writing the string will be written, during reading the string
+    // will be verified.
+
+    template <typename F, F This::*field, typename P = typename F::DefaultProtocol>
+    struct Object: public Single<Object<F, field, P>> {
+        static Impl::WithProtocol<F, P> forReading(This *t) {
+            return &(t->*field);
+        }
+        static const Impl::WithProtocolConst<F, P> forWriting(const This *t) {
+            return &(t->*field);
+        }
+        static uint8_t length(const This *t) {
+            return P::template length(&(t->*field));
+        }
+    };
+
+    template <bool (This::*condition)() const, typename... elements>
+    struct Conditional: public Single<Conditional<condition, elements...>> {
+        static auto forReading(This *t) {
+            return ::Streams::Nested([t] (auto read) {
+                return ((t->*condition)()) ? read(elements::forReading(t)...) : ReadResult::Valid;
+            });
+        }
+
+        static auto forWriting(const This *t) {
+            return ::Streams::Nested([t] (auto write) {
+                return ((t->*condition)()) ? write(elements::forWriting(t)...) : true;
+            });
+        }
+
+        static uint8_t length(const This *t) {
+            return ((t->*condition)()) ? total_length<This, elements...>::apply(t) : 0;
+        }
+    };
+
+    template <bool (This::*condition)() const, typename... elements>
+    struct Conditional<condition, Seq<elements...>>: public Conditional<condition, elements...> {
+
+    };
+
+    template<typename ElementType, uint8_t count, ElementType (This::*field)[count]>
+    struct Array: public Single<Array<ElementType, count, field>> {
+        static ElementType (*forReading(This *t)) [count] {
+            return &(t->*field);
+        }
+
+        static const ElementType (*forWriting(const This *t)) [count] {
+            return &(t->*field);
+        }
+
+        static uint8_t length(const This *t) {
+            static_assert(std::is_integral<ElementType>::value, "Element type must be an integral type.");
+            return sizeof(ElementType);
+        }
+    };
+};
 
 }
 

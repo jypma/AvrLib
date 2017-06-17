@@ -46,6 +46,15 @@ public:
         STR(":"),
         P::Hexadecimal<uint8_t, &EthernetMACAddress::data6>
     > DefaultProtocol;
+
+    typedef P::Seq<
+        P::Binary<uint8_t, &EthernetMACAddress::data1>,
+        P::Binary<uint8_t, &EthernetMACAddress::data2>,
+        P::Binary<uint8_t, &EthernetMACAddress::data3>,
+        P::Binary<uint8_t, &EthernetMACAddress::data4>,
+        P::Binary<uint8_t, &EthernetMACAddress::data5>,
+        P::Binary<uint8_t, &EthernetMACAddress::data6>
+    > BinaryProtocol;
 };
 
 }
