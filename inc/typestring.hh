@@ -67,6 +67,10 @@ public:
     static constexpr StringInProgmem<size()> * forWriting(const T *t) noexcept {
         return (StringInProgmem<size()> *) data();
     }
+    template <typename T>
+    static constexpr uint8_t length(const T *t) noexcept {
+        return size();
+    }
 
     static char charAt(uint8_t i) noexcept {
         return pgm_read_byte(&(vals[i]));

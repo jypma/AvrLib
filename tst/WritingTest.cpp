@@ -735,7 +735,6 @@ TEST(WritingTest, can_write_double_nested_protobuf) {
     EXPECT_TRUE(fifo.read(FB(1 << 3 | 2, 10, 1 << 3, 1, 2 << 3 | 2, 6, 1 << 3, 1, 2 << 3, 2, 3 << 3, 3)));
 }
 
-/* TODO uncomment and enable this
 struct StructWithMac {
     EthernetMACAddress mac;
     typedef Protobuf::Protocol<StructWithMac> P;
@@ -744,11 +743,26 @@ struct StructWithMac {
     > DefaultProtocol;
 };
 
-TEST(WritingTest, can_write_protobuf_field_with_Seq_as_DefaultProtocol) {
+TEST(WritingTest, can_write_protobuf_field_with_EthernetMACAddress_as_DefaultProtocol) {
     Fifo<24> fifo;
     StructWithMac s = { };
     fifo.write(&s);
+    EXPECT_TRUE(fifo.read(FB(1 << 3 | 2, 17), F("00:00:00:00:00:00")));
 }
-*/
+
+struct StructWithMacBin {
+    EthernetMACAddress mac;
+    typedef Protobuf::Protocol<StructWithMacBin> P;
+    typedef P::Message<
+        P::SubMessage<1, EthernetMACAddress, &StructWithMacBin::mac, EthernetMACAddress::BinaryProtocol>
+    > DefaultProtocol;
+};
+
+TEST(WritingTest, can_write_protobuf_field_with_EthernetMACAddress_as_BinaryProtocol) {
+    Fifo<24> fifo;
+    StructWithMacBin s = { };
+    fifo.write(&s);
+    EXPECT_TRUE(fifo.read(FB(1 << 3 | 2, 6, 0, 0, 0, 0, 0, 0)));
+}
 
 }
