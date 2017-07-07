@@ -64,6 +64,11 @@ extern void onFlush();
 	template <typename... types> void ::Logging::onMessage(types... args) { var.writeIfSpace(args...); } \
 	void ::Logging::onFlush() { var.flush(); }
 
+#define LOGGING_DISABLED() \
+    template <typename... types> void ::Logging::onMessage(types... args) { } \
+    void ::Logging::onFlush() { }
+
+
 struct MessagesDisabled {
     template <typename... types>
     inline static void debug(types... args) {}
