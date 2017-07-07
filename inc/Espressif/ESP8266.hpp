@@ -84,6 +84,12 @@ private:
     constexpr static auto CONNECT_TIMEOUT = 10_s;
     constexpr static auto IDLE_TIMEOUT = 5_min;
     constexpr static auto SEND_DELAY = 50_ms;
+    // 1_s: no sync loss.
+    // 500ms: some sync loss, not a lot. (only one in the middle)
+    // 200ms: some sync loss, not a lot. (4 restarts during the night)
+    // 100ms: (2 esp restarts, 2 rfm)
+    // 50ms:
+
     constexpr static auto OFF_DELAY = 1_s;
     constexpr static auto ON_DELAY = 2_s;
 
@@ -93,7 +99,6 @@ private:
         watchdog.schedule(COMMAND_TIMEOUT);
     }
 
-public:
     void resync() {
         log::debug(F("resync"));
         tx->write(F("AT"), endl);
@@ -108,6 +113,7 @@ public:
         rx->clear();
         state = State::OFF_WAITING;
         watchdog.schedule(OFF_DELAY);
+        txFifo.clear(); // power cycle is going to be too slow for these packets to matter.
     }
 
     void restart() {
@@ -119,6 +125,7 @@ public:
         watchdog.schedule(10_s);
     }
 
+public:
     EthernetMACAddress getMACAddress() {
         return mac;
     }
@@ -143,7 +150,7 @@ public:
     }
 
     bool isSending() const {
-        return txFifo.hasContent() || state == State::SENDING_LENGTH || state == State::SENDING_DATA;
+        return txFifo.hasContent() || state == State::SENDING_LENGTH || state == State::SENDING_DATA || state == State::CONNECTED_DELAY;
     }
 
     bool isReceiving() const {
@@ -264,23 +271,32 @@ private:
             uint8_t length;
             rxFifo.writeStart();
             if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
-                log::debug(F("in "), dec(length));
-                log::flush();
+                //log::debug(F("in "), dec(length));
+                //log::flush();
                 rxFifo.writeEnd();
+                /* this is not necessary.
+                if (state == State::CONNECTED_DELAY) {
+                    // still delaying after the previous send
+                    watchdog.schedule(SEND_DELAY);
+                } else {
+                    watchdog.schedule(IDLE_TIMEOUT);
+                }*/
+                state = State::CONNECTED; // cancel any CONNECTED_DELAY, since a packet has come in, so we're good.
                 watchdog.schedule(IDLE_TIMEOUT);
             } else {
                 rxFifo.writeAbort();
             }
         });
 
-        if (txFifo.hasContent()) {
-            log::debug(F("Tx"));
-            log::flush();
+        if (allowSend && txFifo.hasContent()) {
+            //log::debug(F("Tx"));
+            //log::flush();
             txFifo.readStart();
             auto len = txFifo.getReadAvailable();
             txFifo.readAbort();
             tx->write(F("AT+CIPSEND="), dec(len), endl);
             state = State::SENDING_LENGTH;
+            watchdog.schedule(CONNECT_TIMEOUT);
         }
     }
 
@@ -305,19 +321,21 @@ private:
             uint8_t length;
             rxFifo.writeStart();
             if (read(F("+IPD,"), Decimal(&length), F(":"), ChunkWithLength(&length, rxFifo))) {
-                log::debug(F("send_in"));
+                //log::debug(F("send_in"));
                 rxFifo.writeEnd();
                 watchdog.schedule(CONNECT_TIMEOUT);
             } else if (read(F("SEND OK"))) {
-                log::debug(F("send_ok"));
+                //log::debug(F("send_ok"));
                 rxFifo.writeAbort();
                 state = State::CONNECTED_DELAY; // "we need to wait 20ms between packets..."
                 watchdog.schedule(SEND_DELAY);
             } else if (read(F("ERROR"))) {
-                log::debug(F("send_er"));
+                //log::debug(F("send_er"));
                 rxFifo.writeAbort();
                 state = State::CONNECTED;
                 watchdog.schedule(IDLE_TIMEOUT);
+            } else if (read(F("busy"))) { // the infamous "busy s..." out-of-sync error
+                this->recycle();
             } else {
                 rxFifo.writeAbort();
             }
@@ -335,10 +353,12 @@ private:
                 watchdog.schedule(ON_DELAY);
             } else if (state == State::ON_WAITING) {
                 restart();
+            } else if (state == State::CONNECTED) {
+                // Just idle, normal situation.
+                resync();
             } else {
                 watchdogCount++;
-                if (state == State::CONNECTED ||
-                    state == State::SENDING_LENGTH ||
+                if (state == State::SENDING_LENGTH ||
                     state == State::SENDING_DATA) {
                     resync();
                 } else if (state == State::RESTARTING) {
@@ -375,10 +395,6 @@ public:
         recycle();
     }
 
-    auto in() {
-        return rxFifo.in();
-    }
-
     State getState() const {
         return state;
     }
@@ -386,6 +402,14 @@ public:
     uint8_t getWatchdogCount() const {
         return watchdogCount;
     }
+
+    uint8_t getWatchdogCountAndReset() {
+        AtomicScope _;
+        const uint8_t r = watchdogCount;
+        watchdogCount = 0;
+        return r;
+    }
+
 
     void loop() {
         const auto s = state;
@@ -400,13 +424,12 @@ public:
         return txFifo.write(args...);
     }
 
-    template <typename... types>
-    Streams::ReadResult read(types... args) {
-        return rxFifo.read(args...);
-    }
-
     uint8_t getSpace() const {
         return txFifo.getSpace();
+    }
+
+    inline ChunkedFifo::In in() {
+        return rxFifo.in();
     }
 };
 

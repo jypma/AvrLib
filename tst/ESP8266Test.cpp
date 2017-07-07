@@ -188,7 +188,7 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     // Receive some data
     rx.write(F("\r\n+IPD,5:world\r\nOK"));
     esp.loop();
-    EXPECT_TRUE(esp.read(F("world")));
+    EXPECT_TRUE(esp.in().read(F("world")));
 
     // Send some more data
     esp.write(F("cool"));
@@ -202,7 +202,7 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
     // Pretend more received data _while_ we're still waiting on the SEND OK
     rx.write(F("\r\n+IPD,5:stuff\r\nOK"));
     esp.loop();
-    EXPECT_TRUE(esp.read(F("stuff")));
+    EXPECT_TRUE(esp.in().read(F("stuff")));
 
     rx.write(F("\r\nSEND OK\r\n"));
     esp.loop();
