@@ -210,6 +210,178 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
 
 }
 
+TEST(ESP8266Test, ESP_skips_invalid_received_packets) {
+    eeprom_set(&EEPROM::apn, "apn");
+    eeprom_set(&EEPROM::password, "pss");
+    eeprom_set(&EEPROM::remoteIP, "host");
+    eeprom_set(&EEPROM::remotePort, 123);
+
+    Fifo<200> rx;
+    Fifo<200> tx;
+
+    MockPin powerDown;
+    MockRealTimerPrescaled<8> rt;
+
+    powerDown.high = true;
+    auto esp = esp8266<&EEPROM::apn, &EEPROM::password, &EEPROM::remoteIP, &EEPROM::remotePort>(tx, rx, powerDown, rt);
+    EXPECT_FALSE(powerDown.high);
+    rt.advance(30_sec);
+    esp.loop();
+    EXPECT_TRUE(powerDown.high);
+    rt.advance(30_sec);
+    esp.loop();
+
+    tx.clear();
+    rx.write(F("garbage#####\r\nready\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("ATE0\r\n")));
+
+    rx.write(F("garbage###OK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CWMODE_CUR=1\r\n")));
+
+    rx.write(F("garbage##OK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CIPSTAMAC_CUR?\r\n")));
+    EXPECT_FALSE(esp.isMACAddressKnown());
+
+    esp.loop();
+    rx.write(F("+"));
+    esp.loop();
+    rx.write(F("C"));
+    esp.loop();
+    rx.write(F("I"));
+    esp.loop();
+    rx.write(F("P"));
+    esp.loop();
+    rx.write(F("S"));
+    esp.loop();
+    rx.write(F("T"));
+    esp.loop();
+    rx.write(F("A"));
+    esp.loop();
+    rx.write(F("M"));
+    esp.loop();
+    rx.write(F("A"));
+    esp.loop();
+    rx.write(F("C"));
+    esp.loop();
+    rx.write(F("_"));
+    esp.loop();
+    rx.write(F("C"));
+    esp.loop();
+    rx.write(F("U"));
+    esp.loop();
+    rx.write(F("R"));
+    esp.loop();
+    rx.write(F(":"));
+    esp.loop();
+    rx.write(F("\""));
+    esp.loop();
+    EXPECT_FALSE(esp.isMACAddressKnown());
+    rx.write(F("18:"));
+    esp.loop();
+    //rx.write(F("8"));
+    //esp.loop();
+    //rx.write(F(":"));
+    esp.loop();
+    rx.write(F("f"));
+    esp.loop();
+    rx.write(F("e"));
+    esp.loop();
+    rx.write(F(":"));
+    esp.loop();
+    rx.write(F("3"));
+    esp.loop();
+    rx.write(F("4"));
+    esp.loop();
+    rx.write(F(":"));
+    esp.loop();
+    rx.write(F("9"));
+    esp.loop();
+    rx.write(F("f"));
+    esp.loop();
+    rx.write(F(":"));
+    esp.loop();
+    rx.write(F("5"));
+    esp.loop();
+    rx.write(F("0"));
+    esp.loop();
+    rx.write(F(":"));
+    esp.loop();
+    rx.write(F("9"));
+    esp.loop();
+    rx.write(F("2"));
+    esp.loop();
+    rx.write(F("\""));
+    esp.loop();
+    rx.write(F("\r\n\r\nOK\r\n"));
+    esp.loop();
+
+
+
+    EXPECT_TRUE(esp.isMACAddressKnown());
+    EXPECT_EQ(EthernetMACAddress(0x18, 0xFE, 0x34, 0x9F, 0x50, 0x92), esp.getMACAddress());
+    EXPECT_TRUE(tx.read(F("AT+CWLAP\r\n")));
+
+    rx.write(F("aplist\r\n##OK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CWJAP_CUR=\"apn\",\"pss\"\r\n")));
+
+    rx.write(F("\r\n##OK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CIPMUX=0\r\n")));
+
+    rx.write(F("\r\nOK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CIPCLOSE\r\n")));
+
+    rx.write(F("\r\nOK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CIPSTART=\"UDP\",\"host\",123,4123,0\r\n")));
+
+    rx.write(F("\r\nOK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.isEmpty());
+
+    // Send some data
+    esp.write(F("hello"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CIPSEND=5\r\n")));
+
+    rx.write(F("\r\nOK\r\n> "));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("hello")));
+
+    rx.write(F("\r\nSEND OK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.isEmpty());
+
+    // Receive some data
+    rx.write(F("\r\n+IPD,5:world\r\nOK"));
+    esp.loop();
+    EXPECT_TRUE(esp.in().read(F("world")));
+
+    // Send some more data
+    esp.write(F("cool"));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("AT+CIPSEND=4\r\n")));
+
+    rx.write(F("\r\nOK\r\n> "));
+    esp.loop();
+    EXPECT_TRUE(tx.read(F("cool")));
+
+    // Pretend more received data _while_ we're still waiting on the SEND OK
+    rx.write(F("\r\n+IPD,5:stuff\r\nOK"));
+    esp.loop();
+    EXPECT_TRUE(esp.in().read(F("stuff")));
+
+    rx.write(F("\r\nSEND OK\r\n"));
+    esp.loop();
+    EXPECT_TRUE(tx.isEmpty());
+
+}
+
 TEST(ESP8266Test, can_parse_mac_address) {
     auto fifo = Fifo<24>();
     fifo.write(F("06:0f:A0:de:21:4f"));
