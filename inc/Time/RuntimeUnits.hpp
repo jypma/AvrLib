@@ -29,6 +29,7 @@ public:
     constexpr uint32_t getValue() const { return value; }
     constexpr operator uint32_t() const { return value; }
     constexpr bool operator== (const This that) const { return that.value == value; }
+    constexpr bool operator== (const uint32_t that) const { return that == value; }
     constexpr bool operator< (const This that) const { return value < that.value; }
     constexpr bool operator<= (const This that) const { return value <= that.value; }
     constexpr bool operator> (const This that) const { return value > that.value; }
@@ -44,6 +45,8 @@ public:
     		}
     	}
     }
+
+    void operator += (const This that) { value += that.value; }
 };
 
 class Counts;

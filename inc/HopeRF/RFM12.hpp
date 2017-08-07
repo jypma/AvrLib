@@ -329,6 +329,14 @@ public:
         return mode == Mode::SLEEP;
     }
 
+    bool isSending() const {
+        return mode == Mode::SENDING_FSK || mode == Mode::SENDING_FSK;
+    }
+
+    bool isReceiving() const {
+        return mode == Mode::RECEIVING;
+    }
+
     void reset(RFM12Band band) {
         enable(band);
     }
