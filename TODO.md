@@ -3,6 +3,7 @@ TODO
 
 This is just a random scratchpad of things that could possibly be improved, in no particular order.
 
+ - Align realtimer getValue() with comparator getValue() so PulseCounter and FrequencyCounter can use either.
  - reading DS18B20 hangs if debug logging is blocked on a full output FIFO..... and shouldn't.
  - Do what [yalla](https://github.com/chrism333/yalla/blob/master/include/yalla/device/atmega8/avr/io.hpp) does,
    in order to remain compilable on avr-gcc 6+, which no longer accepts avr-libc's "reinterpret_cast_ inside
