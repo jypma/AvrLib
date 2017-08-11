@@ -3,8 +3,18 @@
 
 #include "FifoDecl.hpp"
 #include "Streams/StreamingDecl.hpp"
+#ifndef AVR
+#include <iostream>
+#endif
 
 class AbstractChunkedFifo: public Streams::Impl::Reading<AbstractChunkedFifo> {
+public:
+    typedef Streams::Impl::ReadingDelegate<AbstractChunkedFifo> In;
+#ifndef AVR
+    friend inline ::std::ostream& operator<<(::std::ostream& os, AbstractChunkedFifo &that);
+#endif
+
+private:
     AbstractFifo * const data;
 
     volatile uint8_t *writeLengthPtr = nullptr;
@@ -91,13 +101,37 @@ public:
 
     void readAbort();
 
-    typedef Streams::Impl::ReadingDelegate<AbstractChunkedFifo> In;
-
     inline In in() {
         return In(this);
     }
 };
 
+
+#ifndef AVR
+inline ::std::ostream& operator<<(::std::ostream& os, AbstractChunkedFifo &that) {
+    if (that.isEmpty()) {
+        os << "{}";
+        return os;
+    }
+    that.data->readStart();
+    uint8_t length;
+    const char *separator = "";
+    while (that.data->getReadAvailable()) {
+        that.data->read(&length);
+        os << separator << int(length) << ": [";
+        while (length && that.data->getReadAvailable()) {
+            uint8_t b;
+            that.data->read(&b);
+            os << " " << int(b);
+            length--;
+        }
+        os << "]";
+        separator = ", ";
+    }
+    that.data->readAbort();
+    return os;
+}
+#endif
 
 class ChunkedFifo: public AbstractChunkedFifo, public Streams::Impl::WritingDefaultIfSpace<ChunkedFifo> {
 public:
