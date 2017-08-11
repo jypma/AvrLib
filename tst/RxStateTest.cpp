@@ -18,7 +18,7 @@ struct State {
         P::Varint<1, uint8_t, &State::value>
     > DefaultProtocol;
 
-    bool operator!= (const State &b) { return value != b.value; }
+    bool operator!= (const State &b) const { return value != b.value; }
 };
 
 TEST(RxStateTest, should_update_state_and_send_ack_when_receiving_valid_packet) {

@@ -54,6 +54,7 @@ namespace Logging {
     //template<> class Log<Loggers::VisonicDecoder>: public TimingEnabled, public MessagesEnabled<STR("Vison")> {};
     //template<> class Log<Loggers::Streams>: public MessagesEnabled<STR("Streams")> {};
     //template<> class Log<Loggers::Serial>: public MessagesEnabled<STR("Serial")> {};
+    template<> class Log<Loggers::RxState>: public MessagesEnabled<STR("RxState")> {};
     template<> class Log<Loggers::FrequencyCounter>: public MessagesEnabled<STR("FrequencyCounter")> {};
     template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};
     template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};

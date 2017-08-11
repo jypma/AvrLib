@@ -15,3 +15,24 @@ TEST(OptionTest, can_map) {
 	EXPECT_EQ(42, n.getOrElse(42));
 	EXPECT_EQ(42, o.getOrElse(0));
 }
+
+TEST(OptionTest, can_use_Option_in_range_for_loop) {
+    Option<int> o = 42;
+
+    bool invoked = false;
+    for (int i: o) {
+        invoked = true;
+        EXPECT_EQ(42, i);
+    }
+    EXPECT_TRUE(invoked);
+}
+
+TEST(OptionTest, can_use_None_in_range_for_loop) {
+    Option<int> o = none();
+
+    bool invoked = false;
+    for (int i: o) {
+        invoked = true;
+    }
+    EXPECT_FALSE(invoked);
+}
