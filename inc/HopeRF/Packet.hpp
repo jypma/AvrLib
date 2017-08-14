@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Streams/Protobuf.hpp"
+#include "Option.hpp"
+#include "RFM12.hpp"
 
 namespace HopeRF {
 
@@ -12,6 +14,10 @@ struct Packet {
     uint16_t nodeId;
     T body;
 
+    constexpr bool operator!=(const Packet<T> &that) const {
+        return seq != that.seq || nodeId != that.nodeId || body != that.body;
+    }
+
     typedef typename Protobuf::Protocol<Packet> P;
 
     typedef typename P::template Message<
@@ -20,6 +26,23 @@ struct Packet {
         typename P::template SubMessage<3, T, &Packet::body>
     > DefaultProtocol;
 };
+
+template <typename T, typename in_t>
+Option<Packet<T>> readPacket(in_t in, const uint16_t nodeId) {
+    if (!in.hasContent()) {
+        return none();
+    }
+    in.readStart();
+    Packet<T> packet;
+    if (in.read(FB(Headers::RXSTATE), &packet)) {
+        if (packet.nodeId == nodeId) {
+            in.readEnd();
+            return packet;
+        }
+    }
+    in.readAbort();
+    return none();
+}
 
 }
 

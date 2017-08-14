@@ -30,29 +30,17 @@ public:
         rfm(&_rfm), nodeId(_nodeId), state(initial) {}
 
     bool isStateChanged() {
-        if (rfm->in().hasContent()) {
-            log::debug(F("Data"));
-            uint8_t header;
-            Packet<T> message;
-            rfm->in().readStart();
-            if (rfm->in().read(&header, &message)) {
-                log::debug(F("Fit"));
-                if (header == Headers::RXSTATE && message.nodeId == nodeId) {
-                    log::debug(F("Match"));
-                    rfm->in().readEnd();
-                    const Ack ack = { message.seq, message.nodeId };
-                    rfm->write_fsk(Headers::ACK, &ack);
-                    rfm->write_fsk(Headers::ACK, &ack);
+        for (auto packet: readPacket<T>(rfm->in(), nodeId)) {
+            const Ack ack = { packet.seq, nodeId };
+            rfm->write_fsk(Headers::ACK, &ack);
+            rfm->write_fsk(Headers::ACK, &ack);
 
-                    if (message.body != state) {
-                        state = message.body;
-                        return true;
-                    } else {
-                        return false;
-                    }
-                }
+            if (packet.body != state) {
+                state = packet.body;
+                return true;
+            } else {
+                return false;
             }
-            rfm->in().readAbort();
         }
         return false;
     }

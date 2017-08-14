@@ -49,16 +49,10 @@ public:
     }
 
     void loop() {
-        if (rfm->in().hasContent()) {
-            uint8_t header;
-            Ack message;
-            if (rfm->in().read(&header, &message)) {
-                if (header == Headers::ACK && message.nodeId == nodeId && message.seq == seq) {
-                    tx = false;
-                    resend.cancel();
-                    resendCount = 0;
-                }
-            }
+        if (readAck(rfm->in(), seq, nodeId)) {
+            tx = false;
+            resend.cancel();
+            resendCount = 0;
         } else if (tx && resend.isNow()) {
             if (resendCount < ResendDelays::size() - 1) {
                 resendCount++;
