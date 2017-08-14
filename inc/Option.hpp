@@ -26,7 +26,7 @@ public:
     constexpr OptionIter(): present(false) {}
     constexpr T operator*() const { return value; }
 
-    constexpr bool operator!= (const OptionIter<T> that) const {
+    constexpr bool operator!= (const OptionIter<T> &that) const {
         return (!present && that.present) || (present && (!that.present || value != that.value));
     }
 
