@@ -335,6 +335,7 @@ private:
                 state = State::CONNECTED;
                 watchdog.schedule(IDLE_TIMEOUT);
             } else if (read(F("busy"))) { // the infamous "busy s..." out-of-sync error
+                //log::debug(F("busy"));
                 this->recycle();
             } else {
                 rxFifo.writeAbort();

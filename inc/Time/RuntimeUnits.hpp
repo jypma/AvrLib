@@ -30,6 +30,7 @@ public:
     constexpr operator uint32_t() const { return value; }
     constexpr bool operator== (const This that) const { return that.value == value; }
     constexpr bool operator== (const uint32_t that) const { return that == value; }
+    constexpr bool operator== (const int that) const { return that == (int) value; }
     constexpr bool operator< (const This that) const { return value < that.value; }
     constexpr bool operator<= (const This that) const { return value <= that.value; }
     constexpr bool operator> (const This that) const { return value > that.value; }

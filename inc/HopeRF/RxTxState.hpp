@@ -38,8 +38,9 @@ class RxTxState {
     }
 public:
     RxTxState(rfm_t &r, rt_t &t, T initial, uint16_t _nodeId):
-        rfm(&r), rt(&t), state(initial), nodeId(_nodeId),
-        resendOffset(((_nodeId) ^ (_nodeId >> 4) ^ (_nodeId >> 8) ^ (_nodeId >> 12)) & 0x000F) {
+        rfm(&r), rt(&t), nodeId(_nodeId),
+        resendOffset(((_nodeId) ^ (_nodeId >> 4) ^ (_nodeId >> 8) ^ (_nodeId >> 12)) & 0x000F),
+        state(initial) {
         send();
     }
 
@@ -86,6 +87,7 @@ public:
                 return false;
             }
         }
+        return false;
     }
 };
 
