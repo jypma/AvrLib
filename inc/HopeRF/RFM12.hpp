@@ -39,6 +39,7 @@ struct Headers {
     static constexpr uint8_t ACK = 1;
     static constexpr uint8_t RXSTATE = 2; // State from spark to node
     static constexpr uint8_t TXSTATE = 3; // State from node to spark
+    static constexpr uint8_t REQ = 4;     // Request re-send of latest state
     static constexpr uint8_t APP = 42;
 };
 
@@ -105,7 +106,7 @@ private:
     volatile uint16_t pulses = 0;
 
     void idle() {
-        log::debug("idle()");
+        log::debug(F("idle()"));
         command(0x820D);  // RF_IDLE_MODE
         mode = Mode::IDLE;
     }
@@ -120,12 +121,12 @@ private:
             rxFifo.writeAbort();
             if (txFifo.hasContent()) {
                 if (txFifo.readStart()) {
-                    log::debug("sendOrListen(): send FSK");
+                    log::debug(F("sendOrListen(): send FSK"));
                     mode = Mode::SENDING_FSK;
                     command(0x823D); // RF_XMITTER_ON
                     int_pin->interruptOnLow();
                 } else {
-                    log::debug("sendOrListen(): send OOK");
+                    log::debug(F("sendOrListen(): send OOK"));
                     mode = Mode::SENDING_OOK;
                     int_pin->interruptOff();
                     command(0x820D);  // RF_IDLE_MODE
@@ -133,12 +134,13 @@ private:
                 }
             } else {
                 if (listenOnIdle) {
-                    log::debug("sendOrListen(): listen");
+                    log::debug(F("sendOrListen(): listen"));
+                    log::flush();
                     mode = Mode::LISTENING;
                     int_pin->interruptOnLow();
                     command(0x82DD); // RF_RECEIVER_ON
                 } else {
-                    log::debug("sendOrListen(): standby");
+                    log::debug(F("sendOrListen(): standby"));
                     mode = Mode::SLEEP;
                     command(0xE000 | 0x0500); // RF_WAKEUP_TIMER
                     command(0x8205); // RF_SLEEP_MODE
@@ -203,10 +205,11 @@ private:
     }
 
     void enable(RFM12Band band) {
+
         ss_pin->configureAsOutput();
         ss_pin->setHigh();
         int_pin->configureAsInputWithPullup();
-        int_pin->interruptOnLow();
+        int_pin->interruptOff();
 
         cli();
 
@@ -215,7 +218,8 @@ private:
 
         // wait until RFM12B is out of power-up reset, this takes several *seconds*
         command(0xB800); // RF_TXREG_WRITE in case we're still in OOK mode
-        while (int_pin->isLow()) {
+        uint16_t timeout = 50;
+        while (int_pin->isLow() && (--timeout != 0)) {
             command(0x0000);
         }
 
@@ -239,8 +243,17 @@ private:
         command(0xC049); // 1.66MHz,3.1V
         mode = Mode::IDLE;
 
+        if (timeout > 0) {
+            int_pin->interruptOnLow();
+        }
         sei();
-        sendOrListen();
+
+        if (timeout == 0) {
+            log::debug(F("couldn't find RF12"));
+            log::flush();
+        } else {
+            sendOrListen();
+        }
     }
 
     friend struct OOKTarget;
@@ -404,7 +417,7 @@ public:
     }
 
     bool write_fs20(const FS20::FS20Packet &packet) {
-        log::debug("queueing FS20");
+        log::debug(F("queueing FS20"));
         return txFifo.write_ook(&fs20SerialConfig, &packet);
     }
 };

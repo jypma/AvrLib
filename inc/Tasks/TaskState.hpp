@@ -51,6 +51,13 @@ public:
 	template <typename rt_t, typename value>
 	constexpr TaskState(Time::Deadline<rt_t,value> d, HAL::Atmel::SleepMode s): tLeft(deadlineMillis(d)), maxSleepMode(s) {}
 
+    /**
+     * Returns a TaskState from the given Deadline instance for POWER_DOWN, marking the task as idle
+     * if the deadline isn't currently scheduled.
+     */
+    template <typename rt_t, typename value>
+    constexpr TaskState(Time::Deadline<rt_t,value> d): tLeft(deadlineMillis(d)), maxSleepMode(HAL::Atmel::SleepMode::POWER_DOWN) {}
+
 	/**
 	 * Returns a TaskState from the given VariableDeadline instance, marking the task as idle
 	 * if the deadline isn't currently scheduled.
@@ -59,11 +66,23 @@ public:
 	constexpr TaskState(Time::VariableDeadline<rt_t> d, HAL::Atmel::SleepMode s): tLeft(deadlineMillis(d)), maxSleepMode(s) {}
 
     /**
+     * Returns a TaskState from the given VariableDeadline instance for POWER_DOWN, marking the task as idle
+     * if the deadline isn't currently scheduled.
+     */
+    template <typename rt_t>
+    constexpr TaskState(Time::VariableDeadline<rt_t> d): tLeft(deadlineMillis(d)), maxSleepMode(HAL::Atmel::SleepMode::POWER_DOWN) {}
+
+    /**
      * Returns a TaskState which allows to sleep in the given mode until the next occurrence of [p].
      */
     template <typename rt_t, typename value_t>
     constexpr TaskState(Time::Periodic<rt_t, value_t> d, HAL::Atmel::SleepMode s): tLeft(periodicMillis(d)), maxSleepMode(s) {}
 
+    /**
+     * Returns a TaskState which allows to POWER_DOWN until the next occurrence of [p].
+     */
+    template <typename rt_t, typename value_t>
+    constexpr TaskState(Time::Periodic<rt_t, value_t> d): tLeft(periodicMillis(d)), maxSleepMode(HAL::Atmel::SleepMode::POWER_DOWN) {}
 
 	/**
 	 * Returns a TaskState indicating a non-idle task, which will run for [time] allowing sleep mode [s].
