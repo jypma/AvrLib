@@ -93,6 +93,11 @@ public:
 	template <typename T2> void operator -= (const T2 t2) { if (present) *(memory()) -= t2; }
 	template <typename T2> void operator *= (const T2 t2) { if (present) *(memory()) *= t2; }
 
+    constexpr bool operator < (const Option<T> that) { return present && that.present && get() <= that.get(); }
+    constexpr bool operator <= (const Option<T> that) { return present && that.present && get() < that.get(); }
+    constexpr bool operator >= (const Option<T> that) { return present && that.present && get() >= that.get(); }
+    constexpr bool operator > (const Option<T> that) { return present && that.present && get() > that.get(); }
+
 	template <typename T2> constexpr bool operator < (const T2 t2) { return present && get() < t2; }
 	template <typename T2> constexpr bool operator <= (const T2 t2) { return present && get() <= t2; }
 	template <typename T2> constexpr bool operator > (const T2 t2) { return present && get() > t2; }

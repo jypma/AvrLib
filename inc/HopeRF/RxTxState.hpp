@@ -2,6 +2,7 @@
 
 #include "TxState.hpp"
 #include "RxState.hpp"
+#include "Request.hpp"
 
 namespace HopeRF {
 
@@ -18,6 +19,7 @@ using namespace Streams;
 template <typename rfm_t, typename rt_t, typename T>
 class RxTxState {
     typedef Logging::Log<Loggers::RxState> log;
+    enum class Mode { SYNC, SENDING_STATE, SENDING_REQUEST };
 
     rfm_t *const rfm;
     rt_t *const rt;
@@ -26,47 +28,75 @@ class RxTxState {
 
     T state;
     uint8_t seq = 0;
-    bool tx = false;
+    Mode mode = Mode::SYNC;
     VariableDeadline<rt_t> resend = { *rt };
     uint8_t resendCount = 0;
 
-    void send() {
+    void scheduleResend() {
+        resend.schedule(10_ms * uint8_t(ResendDelays::charAt(resendCount) + resendOffset));
+    }
+
+    void sendState() {
         Packet<T> packet = { seq, nodeId, state };
         rfm->write_fsk(Headers::TXSTATE, &packet);
-        tx = true;
-        resend.schedule(10_ms * uint8_t(ResendDelays::charAt(resendCount) + resendOffset));
+        mode = Mode::SENDING_STATE;
+        scheduleResend();
+    }
+
+    void sendRequest() {
+        Request request = { nodeId };
+        rfm->write_fsk(Headers::REQ, &request);
+        mode = Mode::SENDING_REQUEST;
+        scheduleResend();
+    }
+
+    void cancelSend() {
+        mode = Mode::SYNC;
+        resend.cancel();
+        resendCount = 0;
     }
 public:
     RxTxState(rfm_t &r, rt_t &t, T initial, uint16_t _nodeId):
         rfm(&r), rt(&t), nodeId(_nodeId),
         resendOffset(((_nodeId) ^ (_nodeId >> 4) ^ (_nodeId >> 8) ^ (_nodeId >> 12)) & 0x000F),
         state(initial) {
-        send();
+        sendState();
     }
 
-    void setState(T t) {
+    void requestLatest() {
+        resendCount = 0;
+        sendRequest();
+    }
+
+    void set(T t) {
         if (t != state) {
             seq++;
             state = t;
             resendCount = 0;
-            send();
+            sendState();
         }
     }
 
-    T getState() const {
+    T get() const {
         return state;
     }
 
     bool isStateChanged() {
-        if (readAck(rfm->in(), seq, nodeId)) {
-            tx = false;
-            resend.cancel();
-            resendCount = 0;
-        } else if (tx && resend.isNow()) {
+        if (readRequest(rfm->in(), nodeId)) {
+            sendState();
+        } else if (readAck(rfm->in(), seq, nodeId)) {
+            // We'll accept receiving an Ack while requesting resend, since we'd still be pretty up-to-date,
+            // and it probably was an out-of-order packet.
+            cancelSend();
+        } else if (mode != Mode::SYNC && resend.isNow()) {
             if (resendCount < ResendDelays::size() - 1) {
                 resendCount++;
+                if (mode == Mode::SENDING_STATE) {
+                    sendState();
+                } else {
+                    sendRequest();
+                }
             }
-            send();
         }
         for (auto packet: readPacket<T>(rfm->in(), nodeId)) {
             if (packet.seq == seq + 1 || (packet.seq == seq && !(packet.body != state))) {
@@ -83,8 +113,12 @@ public:
                 }
             } else {
                 log::debug(F("Invalid seqnr. Got "), dec(packet.seq), F(" expected "), dec(seq + 1));
-                // TODO send nack
                 return false;
+            }
+
+            if (mode == Mode::SENDING_REQUEST) {
+                // We accept any State as having fulfilled our request.
+                cancelSend();
             }
         }
         return false;

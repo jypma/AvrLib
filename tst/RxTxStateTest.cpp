@@ -39,7 +39,7 @@ TEST_F(RxTxStateTest, should_update_state_and_send_ack_when_receiving_valid_pack
 
     EXPECT_TRUE(state.isStateChanged());
     EXPECT_FALSE(rfm.recv.isReading());
-    EXPECT_EQ(123, state.getState().value);
+    EXPECT_EQ(123, state.get().value);
 
     EXPECT_TRUE(rfm.sendFsk.read(FB(
         1,             // rfm header (ACK)
@@ -49,7 +49,7 @@ TEST_F(RxTxStateTest, should_update_state_and_send_ack_when_receiving_valid_pack
 
     EXPECT_FALSE(state.isStateChanged());
     EXPECT_FALSE(rfm.recv.isReading());
-    EXPECT_EQ(123, state.getState().value);
+    EXPECT_EQ(123, state.get().value);
 }
 
 TEST_F(RxTxStateTest, should_send_ack_when_re_receiving_the_same_state) {
@@ -112,7 +112,7 @@ TEST_F(RxTxStateTest, should_transmit_on_creation) {
 
 TEST_F(RxTxStateTest, should_transmit_new_state_even_if_previous_was_not_acked) {
     rfm.sendFsk.clear();
-    state.setState({ 84 });
+    state.set({ 84 });
 
     EXPECT_TRUE(rfm.sendFsk.read(FB(
         3,             // rfm header
@@ -188,7 +188,7 @@ TEST_F(RxTxStateTest, should_retransmit_when_acked_on_wrong_node_id) {
         )));
 }
 
-TEST_F(RxTxStateTest, should_increase_retransmit_delay_until_maximum) {
+TEST_F(RxTxStateTest, should_increase_retransmit_delay_until_maximum_and_then_stop_retransmitting) {
     auto maxDelay = 1560_ms;  // (12+144) * 10ms
     for (int i = 0; i < 20; i++) {
         rfm.sendFsk.clear();
@@ -203,7 +203,35 @@ TEST_F(RxTxStateTest, should_increase_retransmit_delay_until_maximum) {
 
     rt.advance(maxDelay);
     state.isStateChanged();
-    EXPECT_FALSE(rfm.sendFsk.isEmpty());
+    EXPECT_TRUE(rfm.sendFsk.isEmpty());
+}
+
+TEST_F(RxTxStateTest, should_send_request_packet_when_request_is_invoked) {
+    rfm.sendFsk.clear();
+
+    state.requestLatest();
+    EXPECT_TRUE(rfm.sendFsk.read(FB(
+        4,             // rfm header (request)
+        1 << 3, 123    // field 1 (nodeId)
+    )));
+}
+
+TEST_F(RxTxStateTest, should_resend_state_when_receiving_request) {
+    rfm.sendFsk.clear();
+
+    rfm.recv.write(FB(
+        4,            // rfm header (request)
+        1 << 3, 123   // field 1 (nodeId)
+    ));
+    state.isStateChanged();
+
+    EXPECT_TRUE(rfm.sendFsk.read(FB(
+        3,             // rfm header
+        1 << 3, 123,   // field 1 (nodeId)
+        2 << 3, 0,     // field 2 (seq)
+        3 << 3 | 2, 2, // field 3 (message, length 2)
+           1 << 3, 42  //   field 1 (value)
+        )));
 }
 
 }
