@@ -33,10 +33,11 @@ class RxTxState {
     uint8_t resendCount = 0;
 
     void scheduleResend() {
-        resend.schedule(10_ms * uint8_t(ResendDelays::charAt(resendCount) + resendOffset));
+        resend.schedule(4_ms * uint8_t(ResendDelays::charAt(resendCount) + resendOffset));
     }
 
     void sendState() {
+        log::debug(F("-> "), dec(seq), ',', dec(resendCount));
         Packet<T> packet = { seq, nodeId, state };
         rfm->write_fsk(Headers::TXSTATE, &packet);
         mode = Mode::SENDING_STATE;
@@ -44,6 +45,7 @@ class RxTxState {
     }
 
     void sendRequest() {
+        log::debug(F("?> "), dec(resendCount));
         Request request = { nodeId };
         rfm->write_fsk(Headers::REQ, &request);
         mode = Mode::SENDING_REQUEST;
@@ -81,6 +83,10 @@ public:
         return state;
     }
 
+    bool isSynchronized() {
+        return mode == Mode::SYNC;
+    }
+
     bool isStateChanged() {
         if (readRequest(rfm->in(), nodeId)) {
             sendState();
@@ -99,7 +105,10 @@ public:
             }
         }
         for (auto packet: readPacket<T>(rfm->in(), nodeId)) {
-            if (packet.seq == seq + 1 || (packet.seq == seq && !(packet.body != state))) {
+            if (mode == Mode::SENDING_REQUEST || packet.seq == seq + 1 || (packet.seq == seq && !(packet.body != state))) {
+                log::debug(F("<- "), dec(packet.seq));
+                cancelSend();
+
                 const Ack ack = { packet.seq, nodeId };
                 rfm->write_fsk(Headers::ACK, &ack);
                 rfm->write_fsk(Headers::ACK, &ack);
@@ -114,11 +123,6 @@ public:
             } else {
                 log::debug(F("Invalid seqnr. Got "), dec(packet.seq), F(" expected "), dec(seq + 1));
                 return false;
-            }
-
-            if (mode == Mode::SENDING_REQUEST) {
-                // We accept any State as having fulfilled our request.
-                cancelSend();
             }
         }
         return false;
