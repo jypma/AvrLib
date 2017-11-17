@@ -206,7 +206,7 @@ TEST_F(RxTxStateTest, should_increase_retransmit_delay_until_maximum_and_then_st
     EXPECT_TRUE(rfm.sendFsk.isEmpty());
 }
 
-TEST_F(RxTxStateTest, should_send_request_packet_when_request_is_invoked) {
+TEST_F(RxTxStateTest, should_send_request_packet_when_request_is_invoked_and_accept_any_seqnr_after_that) {
     rfm.sendFsk.clear();
 
     state.requestLatest();
@@ -214,6 +214,17 @@ TEST_F(RxTxStateTest, should_send_request_packet_when_request_is_invoked) {
         4,             // rfm header (request)
         1 << 3, 123    // field 1 (nodeId)
     )));
+
+    rfm.sendFsk.clear();
+    auto incoming = FB(
+            2,              // RFM header
+            1 << 3, 123,    // field 1, nodeId = 123
+            2 << 3, 15,      // field 2, seq = 15
+            3 << 3 | 2, 2,  // field 3, nested, length 2
+              1 << 3, 123);
+    rfm.recv.write(incoming);
+    EXPECT_TRUE(state.isStateChanged());
+    EXPECT_EQ(123, state.get().value);
 }
 
 TEST_F(RxTxStateTest, should_resend_state_when_receiving_request) {
