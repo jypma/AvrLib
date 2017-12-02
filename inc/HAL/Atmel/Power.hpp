@@ -222,6 +222,22 @@ public:
     	}
     }
 
+    bool sleepUntilTasks(TaskState *states, uint8_t N) {
+        if (N == 0) {
+            return false;
+        //} else if (N == 1) {
+        //    return sleepFor(states->timeLeft(), states->getMaxSleepMode(), SleepGranularity::_8000ms);
+        } else {
+            SleepMode mode = states[0].getMaxSleepMode();
+            Milliseconds time = states[0].timeLeft();
+            for (uint8_t i = 1; i < N; i++) {
+                mode = (mode > states[i].getMaxSleepMode()) ? states[i].getMaxSleepMode() : mode;
+                time = (time > states[i].timeLeft()) ? states[i].timeLeft() : time;
+            }
+            return sleepFor(time, mode, SleepGranularity::_8000ms);
+        }
+    }
+
     /**
      * Attempts to sleep (power down) for at most the given time.
      * A hardware or pin change interrupt can cause premature wake-up.
