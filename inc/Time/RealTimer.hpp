@@ -9,6 +9,8 @@
 #define REALTIMER_HPP_
 
 #include "HAL/Atmel/InterruptHandlers.hpp"
+#include "HAL/Atmel/SleepMode.hpp"
+#include "Tasks/TaskState.hpp"
 #include "Time/Prescaled.hpp"
 #include "Time/Units.hpp"
 #include "AtomicScope.hpp"
@@ -36,6 +38,7 @@ struct Overflow {
 };
 
 using namespace HAL::Atmel::InterruptHandlers;
+using HAL::Atmel::SleepMode;
 
 template<typename timer_t, uint32_t initialTicks = 0, void (*wait)() = Impl::noop>
 class RealTimer: public Time::Prescaled<typename timer_t::value_t, typename timer_t::prescaler_t, timer_t::prescaler> {
@@ -154,6 +157,22 @@ RealTimer<timer_t,initialTicks,wait> realTimer(timer_t &timer) {
     return RealTimer<timer_t,initialTicks,wait>(timer);
 }
 
+template<typename timed_t, typename T, void (T::*handler)()>
+struct TimedTask {
+    timed_t * const timed;
+    T * const target;
+public:
+    TaskState getTaskState() const {
+        return TaskState(timed->timeLeftIfScheduled(), SleepMode::POWER_DOWN);
+    }
+
+    void loop() {
+        if (timed->isNow()) {
+            (target->*handler)();
+        }
+    }
+};
+
 class AbstractPeriodic {
     volatile uint32_t next;
     bool waitForOverflow = false;
@@ -187,10 +206,20 @@ public:
     void reschedule() {
         calculateNextCounts(rt->counts(), delay);
     }
+
+    Option<Milliseconds> timeLeftIfScheduled() const {
+        return some(toMillisOn<rt_t>(timeLeft()));
+    }
+
+    template <typename T, void (T::*handler)()>
+    const TimedTask<Periodic<rt_t,value,check>, T, handler> invoking(T &target) {
+        return { this, &target };
+    }
 };
 
 template <typename rt_t, typename value>
 class Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::countsLargerThanUint31>::type>: public AbstractPeriodic {
+    typedef Periodic<rt_t, value, typename std::enable_if<Overflow<rt_t, value>::countsLargerThanUint31>::type> This;
     static constexpr uint32_t delay = toTicksOn<rt_t, value>().getValue();
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer inter wraparound");
 
@@ -211,6 +240,15 @@ public:
     /** Reschedule this Periodic starting from now */
     void reschedule() {
         calculateNextCounts(rt->ticks(), delay);
+    }
+
+    Option<Milliseconds> timeLeftIfScheduled() const {
+        return some(toMillisOn<rt_t>(timeLeft()));
+    }
+
+    template <typename T, void (T::*handler)()>
+    const TimedTask<This, T, handler> invoking(T &target) {
+        return { this, &target };
     }
 };
 
@@ -236,14 +274,14 @@ public:
     /**
      * Returns whether the deadline has already elapsed, i.e. is not scheduled.
      */
-    bool isElapsed() {
+    bool isElapsed() const {
         return elapsed;
     }
 
     /**
      * Returns whether the deadline is scheduled to elapsed some time in the future.
      */
-    bool isScheduled() {
+    bool isScheduled() const {
         return !elapsed;
     }
 
@@ -279,6 +317,14 @@ public:
     Counts timeLeft() const {
         return getTimeLeft(rt->counts());
     }
+
+    Option<Milliseconds> timeLeftIfScheduled() const {
+        if (isScheduled()) {
+            return some(toMillisOn<rt_t>(timeLeft()));
+        } else {
+            return none();
+        }
+    }
 };
 
 template <typename rt_t, typename value>
@@ -304,6 +350,19 @@ public:
 
     Ticks timeLeft() const {
         return getTimeLeft(rt->ticks());
+    }
+
+    Option<Milliseconds> timeLeftIfScheduled() const {
+        if (isScheduled()) {
+            return some(toMillisOn<rt_t>(timeLeft()));
+        } else {
+            return none();
+        }
+    }
+
+    template <typename T, void (T::*handler)()>
+    const TimedTask<Deadline<rt_t,value>, T, handler> invoking(T &target) {
+        return { this, &target };
     }
 };
 
@@ -342,6 +401,14 @@ public:
 
     Counts timeLeft() const {
         return getTimeLeft(rt->counts());
+    }
+
+    Option<Milliseconds> timeLeftIfScheduled() const {
+        if (isScheduled()) {
+            return some(toMillisOn<rt_t>(timeLeft()));
+        } else {
+            return none();
+        }
     }
 };
 

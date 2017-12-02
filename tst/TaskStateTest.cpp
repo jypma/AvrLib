@@ -8,6 +8,10 @@ namespace TaskStateTest {
 using namespace Mocks;
 using namespace Time;
 
+struct TestApp {
+    void onTime() {}
+};
+
 TEST(TaskStateTest, should_return_correct_ms_if_deadline_returns_ticks) {
 	auto rt = MockRealTimerPrescaled<1>();
 	auto d = deadline(rt, 3000_s);
@@ -15,7 +19,8 @@ TEST(TaskStateTest, should_return_correct_ms_if_deadline_returns_ticks) {
 	Ticks check1 = d.timeLeft();
 	EXPECT_EQ(93750000, check1.getValue());
 
-	auto state = TaskState(d, SleepMode::IDLE);
+	TestApp testApp;
+	TaskState state = d.invoking<TestApp, &TestApp::onTime>(testApp).getTaskState();
 	Milliseconds check2 = state.timeLeft();
 	EXPECT_EQ(3000000, check2.getValue());
 }

@@ -134,6 +134,51 @@ TEST(PowerTest, sleepUntilTasks_should_sleep_for_lowest_task_duration) {
     onSleep_cpu = nullptr;
 }
 
+TEST(PowerTest, sleepUntilTasks_array_should_sleep_for_lowest_task_duration) {
+    MockRealTimer rt;
+    auto power = Power<MockRealTimer>(rt);
+    onSleep_cpu = [&power] {
+        // simulate always waking up by watchdog
+        invoke<Int_WDT_>(power);
+    };
+
+    constexpr uint8_t N = 3;
+    TaskState t1[N] = {
+      TaskState::busy(1000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(8000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(16000_ms, SleepMode::POWER_DOWN) };
+
+    power.sleepUntilTasks(t1, N);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    TaskState t2[N] = {
+      TaskState::busy(8000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(1000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(16000_ms, SleepMode::POWER_DOWN) };
+    power.sleepUntilTasks(t2, N);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    TaskState t3[N] = {
+      TaskState::busy(16000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(1000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(8000_ms, SleepMode::POWER_DOWN) };
+    power.sleepUntilTasks(t3, N);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    TaskState t4[N] = {
+      TaskState::busy(16000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(8000_ms, SleepMode::POWER_DOWN),
+      TaskState::busy(1000_ms, SleepMode::POWER_DOWN) };
+    power.sleepUntilTasks(t4, N);
+    EXPECT_EQ(992, rt.slept);
+    rt.slept = 0;
+
+    onSleep_cpu = nullptr;
+}
+
 TEST(PowerTest, should_ignore_idle_task) {
     MockRealTimer rt;
     auto power = Power<MockRealTimer>(rt);
