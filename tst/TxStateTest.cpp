@@ -44,7 +44,7 @@ TEST(TxStateTest, should_transmit_new_state_even_if_previous_was_not_acked) {
     TxState<MockRFM12, MockRealTimer, State> txState = { rfm, rt, state, 123 };
     rfm.sendFsk.clear();
     state.value = 84;
-    txState.setState(state);
+    txState.set(state);
 
     EXPECT_TRUE(rfm.sendFsk.read(FB(
         3,             // rfm header

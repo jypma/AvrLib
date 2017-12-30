@@ -89,10 +89,12 @@ public:
 
     bool isStateChanged() {
         if (readRequest(rfm->in(), nodeId)) {
+            log::debug(F("<- req"));
             sendState();
         } else if (readAck(rfm->in(), seq, nodeId)) {
             // We'll accept receiving an Ack while requesting resend, since we'd still be pretty up-to-date,
             // and it probably was an out-of-order packet.
+            log::debug(F("<- ack"));
             cancelSend();
         } else if (mode != Mode::SYNC && resend.isNow()) {
             if (resendCount < ResendDelays::size() - 1) {
