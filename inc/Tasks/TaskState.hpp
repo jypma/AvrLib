@@ -22,8 +22,8 @@ public:
 	constexpr TaskState(Option<Milliseconds> t, HAL::Atmel::SleepMode s): tLeft(t), maxSleepMode(s) {}
 
 	/**
-	 * Returns a TaskState indicating a non-idle task, which will run for [time] allowing sleep mode [s].
-	 * FIXME put in a check that it's actually a time unit
+	 * Returns a TaskState indicating a task, which expects a periodic or deadline to fire after [time], and
+	 * allows the system to read the deepest sleep mode of [s].
 	 */
 	template <typename time_t>
 	static constexpr TaskState busy(time_t time, HAL::Atmel::SleepMode s) {
@@ -40,7 +40,7 @@ public:
 	}
 
 	/**
-	 * A TaskState indicating an idle task, that allows for the system to go to full shutdown.
+	 * A TaskState that's idle (when not inside its loop()), that allows for the system to go to full shutdown.
 	 */
 	static constexpr TaskState idle() {
 		return { none(), HAL::Atmel::SleepMode::POWER_DOWN };

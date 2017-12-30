@@ -1,9 +1,32 @@
 #pragma once
 
-using namespace Mocks;
+#include "gcc_type_traits.h"
+
 using namespace Time;
 
 namespace TasksImpl {
+template<typename T>
+
+struct has_loop_method
+{
+private:
+    typedef std::true_type yes;
+    typedef std::false_type no;
+
+    template<typename U> static auto test(int) -> decltype(std::declval<U>().loop(), yes());
+    template<typename> static no test(...);
+public:
+    static constexpr bool value = std::is_same<decltype(test<T>(0)),yes>::value;
+};
+
+
+template <typename T>
+void invokeIfHasLoop(T &t, std::true_type) {
+    t.loop();
+}
+
+template <typename T>
+void invokeIfHasLoop(T &t, std::false_type) {}
 
 template <typename power_t, typename... types_t>
 struct MultiLoop {
@@ -27,7 +50,7 @@ struct MultiLoop<power_t, head_t, tail_t...> {
     }
 
     static void invokeLoop(head_t &head, tail_t &...tail) {
-        head.loop();
+        invokeIfHasLoop(head, std::integral_constant<bool, has_loop_method<head_t>::value>());
         Tail::invokeLoop(tail...);
     }
 
@@ -48,6 +71,6 @@ struct MultiLoop<power_t, head_t, tail_t...> {
  * - Sleeps for the lowest duration, and deepest allowed sleep state, according to the earlier-gathered task states.
  */
 template <typename power_t, typename... types_t>
-void loop(power_t &power, types_t &... args) {
+void loopTasks(power_t &power, types_t &... args) {
     TasksImpl::MultiLoop<power_t, types_t...>::loop(power, args...);
 }
