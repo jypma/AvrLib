@@ -39,8 +39,8 @@ namespace Logging {
     template<> class Log<Loggers::Timing>: public MessagesEnabled<STR("Timing")> {};
     template<> class Log<Loggers::Main>: public MessagesEnabled<STR("M")> {};
     template<> class Log<Loggers::ESP8266>: public MessagesEnabled<STR("E")> {};
-    template<> class Log<Loggers::RFM12>: public MessagesEnabled<STR("R")> {};
-    //template<> class Log<Loggers::RxState>: public MessagesEnabled<STR("Rx")> {};
+    //template<> class Log<Loggers::RFM12>: public MessagesEnabled<STR("R")> {};
+    template<> class Log<Loggers::RxState>: public MessagesEnabled<STR("Rx")> {};
     //template<> class Log<Loggers::Scanner>: public MessagesEnabled<STR("S")> {};
     //template<> class Log<Loggers::PIR>: public MessagesEnabled<STR("PIR")> {};
     //template<> class Log<Loggers::Power>: public MessagesEnabled<STR("Power")> {};
