@@ -234,8 +234,29 @@ TEST_F(RxTxStateTest, should_resend_state_when_receiving_request) {
         4,            // rfm header (request)
         1 << 3, 123   // field 1 (nodeId)
     ));
-    state.isStateChanged();
+    EXPECT_FALSE(state.isStateChanged());
+    EXPECT_EQ(42, state.get().value);
+    EXPECT_TRUE(rfm.sendFsk.read(FB(
+        3,             // rfm header
+        1 << 3, 123,   // field 1 (nodeId)
+        2 << 3, 0,     // field 2 (seq)
+        3 << 3 | 2, 2, // field 3 (message, length 2)
+           1 << 3, 42  //   field 1 (value)
+        )));
+}
 
+TEST_F(RxTxStateTest, should_send_current_state_when_receiving_invalid_seqnr) {
+    rfm.sendFsk.clear();
+
+    rfm.recv.write(FB(
+        2,              // RFM header
+        1 << 3, 123,    // field 1 = 123
+        2 << 3, 5,      // field 2 = 5 (invalid seqnr)
+        3 << 3 | 2, 2,  // field 3, nested, length 2
+          1 << 3, 123));//   field 1 = 123
+
+    EXPECT_FALSE(state.isStateChanged());
+    EXPECT_EQ(42, state.get().value);
     EXPECT_TRUE(rfm.sendFsk.read(FB(
         3,             // rfm header
         1 << 3, 123,   // field 1 (nodeId)

@@ -124,6 +124,8 @@ public:
                 }
             } else {
                 log::debug(F("Invalid seqnr. Got "), dec(packet.seq), F(" expected "), dec(seq + 1));
+                resendCount = 0;
+                sendState();
                 return false;
             }
         }
