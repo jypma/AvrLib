@@ -10,7 +10,7 @@
 
 #include "Logging.hpp"
 #include "HAL/Atmel/InterruptHandlers.hpp"
-#include "SPI.hpp"
+#include "HAL/Atmel/SPI.hpp"
 #include "BitSet.hpp"
 #include "Fifo.hpp"
 #include "CRC.hpp"

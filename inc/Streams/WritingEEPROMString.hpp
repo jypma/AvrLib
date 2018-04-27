@@ -2,7 +2,11 @@
 #define STREAMS_WRITINGEEPROMSTRING_HPP_
 
 #include <stdint.h>
+#define _AVR_IO_H_
+#define E2END 0x3FF // anything
 #include <avr/eeprom.h>
+#undef E2END
+#undef _AVR_IO_H_
 
 namespace Streams {
 namespace Impl {

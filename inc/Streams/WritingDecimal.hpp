@@ -130,6 +130,28 @@ bool write1(fifo_t &fifo, const Decimal<Option<T>> optValue) {
 	}
 }
 
+template <
+  typename sem,
+  typename fifo_t,
+  uintptr_t addr,
+  template<typename, uint8_t> class _bit0,
+  template<typename, uint8_t> class _bit1,
+  template<typename, uint8_t> class _bit2,
+  template<typename, uint8_t> class _bit3,
+  template<typename, uint8_t> class _bit4,
+  template<typename, uint8_t> class _bit5,
+  template<typename, uint8_t> class _bit6,
+  template<typename, uint8_t> class _bit7
+>
+bool write1(fifo_t &fifo, const Decimal<Register8<addr,_bit0,_bit1,_bit2,_bit3,_bit4,_bit5,_bit6,_bit7>> v) {
+    return write1decimalInt<sem>(fifo, dec(v.value.val()));
+}
+
+template <typename sem, typename fifo_t, typename Reg>
+bool write1(fifo_t &fifo, const Decimal<StaticRegister8<Reg>> v) {
+    return write1decimalInt<sem>(fifo, dec(v.value.val()));
+}
+
 }
 }
 

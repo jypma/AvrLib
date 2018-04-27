@@ -4,25 +4,31 @@
 using namespace HAL::Atmel;
 
 Impl::BaseADC::BaseADC() {
-    ADMUX |= (1 << REFS0); // Set ADC reference to AVCC
-    ADCSRA |= (1 << ADIE);  // Enable ADC Interrupt
+	REFS0.set();   // Set ADC reference to AVCC
+	ADIE.set();    // Enable ADC Interrupt
     enable();
 }
 
 void Impl::BaseADC::enable() {
-    ADCSRA |= (1 << ADEN);  // Enable ADC
+	ADEN.set(); // Enable ADC
 }
 
 void Impl::BaseADC::setReference(ADReference ref) {
     switch (ref) {
     case ADReference::AREF:
-        ADMUX &= ~(_BV(REFS0) | _BV(REFS1));
+    	REFS0.clear();
+    	REFS1.clear();
+        //ADMUX &= ~(_BV(REFS0) | _BV(REFS1));
         break;
     case ADReference::AVCC:
-        ADMUX = (ADMUX | _BV(REFS0)) & ~_BV(REFS1);
+    	REFS0.set();
+    	REFS1.clear();
+        //ADMUX = (ADMUX | _BV(REFS0)) & ~_BV(REFS1);
         break;
     case ADReference::BANDGAP:
-        ADMUX |= _BV(REFS0) | _BV(REFS1);
+    	REFS0.set();
+    	REFS1.set();
+        //ADMUX |= _BV(REFS0) | _BV(REFS1);
         break;
     }
 }

@@ -7,7 +7,7 @@ using namespace HAL::Atmel;
 
 struct MockPin {
     struct info_t {
-        static constexpr uint8_t adc_mux = 0;
+        static constexpr auto adc_mux = ~(MUX0 | MUX1 | MUX2 | MUX3);
     };
 };
 

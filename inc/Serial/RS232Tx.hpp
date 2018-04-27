@@ -1,11 +1,11 @@
 #pragma once
 
-#include "avr/common.h"
 #include "HAL/Atmel/Timer.hpp"
 #include "Fifo.hpp"
 #include "AtomicScope.hpp"
 #include "Time/UnitLiterals.hpp"
 #include "HAL/Atmel/InterruptHandlers.hpp"
+#include "HAL/Atmel/Registers.hpp"
 #include "Logging.hpp"
 
 #define SAFE
@@ -15,6 +15,7 @@ namespace Serial {
 namespace Impl {
 
 using namespace HAL::Atmel;
+using namespace HAL::Atmel::Registers;
 using namespace HAL::Atmel::InterruptHandlers;
 using namespace Time;
 using namespace Streams;
@@ -274,7 +275,7 @@ public:
     }
 
     void flush() {
-        if (SREG & SREG_I) {
+        if (SREG_I.isSet()) {
             uint16_t count = 65000;
             while (transmitting) count--;
         }

@@ -1,15 +1,18 @@
-#ifndef HAL_ATMEL_POWER_HPP_
-#define HAL_ATMEL_POWER_HPP_
+#pragma once
 
 #include "SleepMode.hpp"
 #include "HAL/Atmel/InterruptHandlers.hpp"
 #include "AtomicScope.hpp"
 #include "HAL/Atmel/Device.hpp"
 #include "Time/Units.hpp"
-#include <util/atomic.h>
-#include <avr/sleep.h>
 #include "Tasks/TaskState.hpp"
 #include "Logging.hpp"
+#include "HAL/attributes.hpp"
+
+#ifndef AVR
+#include <functional>
+extern std::function<void()> onSleep_cpu;
+#endif
 
 namespace HAL {
 namespace Atmel {
@@ -39,6 +42,12 @@ enum class SleepGranularity: uint8_t {
 
 namespace Impl {
 
+/**
+ * Powers down (sleeps) into the given sleep mode, until a hardware interrupt wakes the microcontroller up again.
+ * Which hardware interrupts are available, and how long it takes to wake up, depends on the sleep mode.
+ */
+void sleep(SleepMode mode);
+
 template <typename rt_t>
 class Power {
     typedef Power<rt_t> This;
@@ -48,19 +57,20 @@ class Power {
     volatile uint8_t _watchdogCounter;
 
     void setWatchdogInterrupts (int8_t mode) {
-        // correct for the fact that WDP3 is *not* in bit position 3!
-        if (mode & _BV(3))
-            mode ^= _BV(3) | _BV(WDP3);
-        // pre-calculate the WDTCSR value, can't do it inside the timed sequence
-        // we only generate interrupts, no reset
-        uint8_t wdtcsr = mode >= 0 ? _BV(WDIE) | mode : 0;
-        MCUSR &= ~(1<<WDRF);
-        ATOMIC_BLOCK(ATOMIC_FORCEON) {
-    #ifndef WDTCSR
-    #define WDTCSR WDTCR
-    #endif
-            WDTCSR |= (1<<WDCE) | (1<<WDE); // timed sequence
-            WDTCSR = wdtcsr;
+        WDTCSR_t wdtcsr { ~(WDP0 | WDP1 | WDP2 | WDE | WDCE | WDP3 | WDIE | WDIF) };
+
+        if (mode >= 0) {
+            wdtcsr |= WDIE;
+            if (mode & 1) { wdtcsr |= WDP0; }
+            if (mode & 2) { wdtcsr |= WDP1; }
+            if (mode & 4) { wdtcsr |= WDP2; }
+            if (mode & 8) { wdtcsr |= WDP3; }
+        }
+        WDRF.clear();
+        {
+        	AtomicScope::SEI _;
+			WDTCSR |= WDCE | WDE; // timed sequence
+			WDTCSR = wdtcsr;
         }
     }
 
@@ -133,32 +143,6 @@ public:
     typedef On<This, Int_WDT_, &This::onWatchdog> Handlers;
 
     Power(rt_t &_rt): rt(&_rt) {}
-
-    /**
-     * Powers down (sleeps) into the given sleep mode, until a hardware interrupt wakes the microcontroller up again.
-     * Which hardware interrupts are available, and how long it takes to wake up, depends on the sleep mode.
-     */
-    void sleep(SleepMode mode) {
-        uint8_t adcsraSave = ADCSRA;
-        ADCSRA &= ~ _BV(ADEN); // disable the ADC
-        switch(mode) {
-        case SleepMode::POWER_DOWN:
-            set_sleep_mode(SLEEP_MODE_PWR_DOWN); break;
-        case SleepMode::STANDBY:
-            set_sleep_mode(SLEEP_MODE_STANDBY); break;
-        case SleepMode::IDLE:
-            set_sleep_mode(SLEEP_MODE_IDLE); break;
-        }
-
-        ATOMIC_BLOCK(ATOMIC_FORCEON) {
-            sleep_enable();
-            sleep_bod_disable();
-        }
-        sleep_cpu();
-        sleep_disable();
-        // re-enable what we disabled
-        ADCSRA = adcsraSave;
-    }
 
     /**
      * Attempts to sleep (power down) for at most until the given Deadline or Periodic timer fires.
@@ -277,7 +261,3 @@ Impl::Power<rt_t> Power(rt_t &rt) {
 
 }
 }
-
-
-
-#endif /* HAL_ATMEL_POWER_HPP_ */

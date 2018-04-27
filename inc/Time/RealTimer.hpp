@@ -16,8 +16,6 @@
 #include "AtomicScope.hpp"
 #include <gcc_limits.h>
 #include <gcc_type_traits.h>
-#include <util/atomic.h>
-#include <avr/sleep.h>
 
 namespace HAL { namespace Atmel { namespace Impl { template <typename> class Power; }}}
 
@@ -325,6 +323,11 @@ public:
             return none();
         }
     }
+
+    template <typename T, void (T::*handler)()>
+    const TimedTask<Deadline<rt_t,value,check>, T, handler> invoking(T &target) {
+        return { this, &target };
+    }
 };
 
 template <typename rt_t, typename value>
@@ -409,6 +412,11 @@ public:
         } else {
             return none();
         }
+    }
+
+    template <typename T, void (T::*handler)()>
+    const TimedTask<VariableDeadline<rt_t>, T, handler> invoking(T &target) {
+        return { this, &target };
     }
 };
 

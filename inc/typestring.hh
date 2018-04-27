@@ -18,7 +18,28 @@
 #define IRQUS_TYPESTRING_HH_
 
 #include <stdint.h>
-#include <avr/pgmspace.h>
+#include "HAL/attributes.hpp"
+
+#ifdef AVR
+#define __LPM_enhanced__(addr)  \
+(__extension__({                \
+    uint16_t __addr16 = (uint16_t)(addr); \
+    uint8_t __result;           \
+    __asm__ __volatile__        \
+    (                           \
+        "lpm %0, Z" "\n\t"      \
+        : "=r" (__result)       \
+        : "z" (__addr16)        \
+    );                          \
+    __result;                   \
+}))
+
+#define __LPM(addr)         __LPM_enhanced__(addr)
+#define pgm_read_byte_near(address_short) __LPM((uint16_t)(address_short))
+#define pgm_read_byte(address_short)    pgm_read_byte_near(address_short)
+#else
+#define pgm_read_byte(address_short)    (*((uint8_t*)address_short))
+#endif
 
 template <uint8_t length>
 struct StringInProgmem {};

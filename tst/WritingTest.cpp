@@ -10,6 +10,7 @@ namespace WritingTest {
 
 using namespace Streams;
 using namespace Espressif;
+using namespace HAL::Atmel::Registers;
 
 struct MockFifo {
     uint8_t fullCount = 0;
@@ -445,7 +446,7 @@ TEST(WritingTest, blocking_writes_do_not_occur_in_an_atomic_block) {
     Fifo<8> fifo;
     sei();
     bool intWasEnabled = false;
-    fifo.write(Nested([&] (auto write) { intWasEnabled = (SREG & (1 << SREG_I)) > 0; return true; }));
+    fifo.write(Nested([&] (auto write) { intWasEnabled = SREG_I.isSet(); return true; }));
     EXPECT_TRUE(intWasEnabled);
 }
 

@@ -6,9 +6,12 @@
 #include "TypeTraits.hpp"
 #include "EEPROM.hpp"
 #include "Strings.hpp"
+#include "HAL/Register8.hpp"
 
 namespace Streams {
 namespace Impl {
+
+using namespace HAL;
 
 template <typename T, typename check = void> struct StreamedSizeReading {
     static constexpr bool fixed = false;
@@ -70,6 +73,37 @@ struct StreamedSizeWriting<StringInProgmem<length>*>: public FixedSize<length> {
 //we don't enable fixed-size reading(checking) of strings, since we need partial matches during scanning
 //template <uint8_t length>
 //struct StreamedSizeReading<StringInProgmem<length>*>: public FixedSize<length> {};
+
+template <
+  uintptr_t addr,
+  template<typename, uint8_t> class _bit0,
+  template<typename, uint8_t> class _bit1,
+  template<typename, uint8_t> class _bit2,
+  template<typename, uint8_t> class _bit3,
+  template<typename, uint8_t> class _bit4,
+  template<typename, uint8_t> class _bit5,
+  template<typename, uint8_t> class _bit6,
+  template<typename, uint8_t> class _bit7
+>
+struct StreamedSizeReading<Register8<addr, _bit0, _bit1, _bit2, _bit3, _bit4, _bit5, _bit6, _bit7>>: public FixedSize<1> {};
+
+template <
+uintptr_t addr,
+  template<typename, uint8_t> class _bit0,
+  template<typename, uint8_t> class _bit1,
+  template<typename, uint8_t> class _bit2,
+  template<typename, uint8_t> class _bit3,
+  template<typename, uint8_t> class _bit4,
+  template<typename, uint8_t> class _bit5,
+  template<typename, uint8_t> class _bit6,
+  template<typename, uint8_t> class _bit7
+>
+struct StreamedSizeWriting<Register8<addr, _bit0, _bit1, _bit2, _bit3, _bit4, _bit5, _bit6, _bit7>>: public FixedSize<1> {};
+
+template <typename Reg>
+struct StreamedSizeWriting<StaticRegister8<Reg>>: public FixedSize<1> {};
+template <typename Reg>
+struct StreamedSizeReading<StaticRegister8<Reg>>: public FixedSize<1> {};
 
 }
 

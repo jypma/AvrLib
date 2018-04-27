@@ -47,7 +47,7 @@ TEST_SOURCES=$(wildcard $(TEST_SOURCEDIR)/*.cpp)
 TEST_OBJECTS=$(patsubst $(TEST_SOURCEDIR)/%.cpp,$(TEST_BUILDDIR)/%.o,$(TEST_SOURCES)) 
 GOOGLETEST_OBJECTS=$(TEST_BUILDDIR)/gtest-all.o $(TEST_BUILDDIR)/gtest_main.o
 TEST_MAIN_OBJECTS=$(patsubst $(SOURCEDIR)/%.cpp,$(TEST_BUILDDIR)/%.o,$(SOURCES))
-TEST_CPPFLAGS = -Iinc -Itst -Iapps -I$(GOOGLETEST_ROOT)/include -std=gnu++14 
+TEST_CPPFLAGS=-D__AVR_ATmega328P__ -DF_CPU=16000000 -Iinc -Itst -Iapps -I$(GOOGLETEST_ROOT)/include -std=gnu++14 -O1
 TEST_TARGET=target/test/AvrLib
 TEST_LDFLAGS=
 TEST_LDLIBS=-lpthread

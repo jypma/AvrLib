@@ -1,22 +1,27 @@
 #ifndef EXTERNALINTERRUPT_HPP_
 #define EXTERNALINTERRUPT_HPP_
 
-#include <avr/common.h>
-#include <avr/interrupt.h>
+#include "HAL/attributes.hpp"
 
 namespace HAL {
 namespace Atmel {
 
 template <typename info>
 class ExtInterrupt {
+	template <typename bits_t>
+	INLINE void interruptOn(bits_t bits) {
+		info::INTF.set();
+		info::EICR.apply(bits);
+		info::INT_r.set();
+	}
 public:
     typedef typename info::INT INT;
 
     /**
      * Disables raising any interrupts for this pin
      */
-    __attribute__((always_inline)) inline void interruptOff() {
-        info::off();
+    INLINE void interruptOff() {
+        info::INT_r.clear();
     }
 
     /**
@@ -24,32 +29,32 @@ public:
      * You should call interruptOff() from your handler, otherwise it might be
      * repeatedly invoked if the pin is still low when the interrupt handler returns.
      */
-    __attribute__((always_inline)) inline void interruptOnLow() {
-        info::on(0);
+    INLINE void interruptOnLow() {
+        interruptOn(~info::ISC0 & ~info::ISC1);
     }
 
     /**
      * Invokes an attached interrupt handler whenever the pin changes value. Only works when
      * the I/O clock is running.
      */
-    __attribute__((always_inline)) inline void interruptOnChange() {
-        info::on(1);
+    INLINE void interruptOnChange() {
+    	interruptOn(info::ISC0 & ~info::ISC1);
     }
 
     /**
      * Invokes an attached interrupt handler whenever the pin goes from low to high. Only works when
      * the I/O clock is running.
      */
-    __attribute__((always_inline)) inline void interruptOnRising() {
-        info::on(3);
+    INLINE void interruptOnRising() {
+    	interruptOn(info::ISC0 | info::ISC1);
     }
 
     /**
      * Invokes an attached interrupt handler whenever the pin goes from high to low. Only works when
      * the I/O clock is running.
      */
-    __attribute__((always_inline)) inline void interruptOnFalling() {
-        info::on(2);
+    INLINE void interruptOnFalling() {
+    	interruptOn(~info::ISC0 | info::ISC1);
     }
 };
 

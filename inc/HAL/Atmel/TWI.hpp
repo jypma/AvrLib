@@ -2,7 +2,6 @@
 #define TWI_HPP_
 
 #include "HAL/Atmel/InterruptHandlers.hpp"
-#include <util/twi.h>
 #include "Fifo.hpp"
 #include "ChunkedFifo.hpp"
 #include "Logging.hpp"
@@ -14,6 +13,7 @@ namespace Impl {
 enum class TWIState { IDLE, WRITING, READING };
 
 using namespace HAL::Atmel::InterruptHandlers;
+using namespace HAL::Atmel::Registers;
 using namespace Streams;
 
 /**
@@ -24,6 +24,27 @@ using namespace Streams;
  */
 template <typename info_t, uint8_t txFifoSize, uint8_t rxFifoSize, uint32_t twiFreq>
 class TWI {
+	static constexpr uint8_t TW_START = 0x08;
+	static constexpr uint8_t TW_REP_START = 0x10;
+	static constexpr uint8_t TW_MT_SLA_ACK	= 0x18;
+	static constexpr uint8_t TW_MT_SLA_NACK = 0x20;
+	static constexpr uint8_t TW_MT_DATA_ACK = 0x28;
+	static constexpr uint8_t TW_MT_DATA_NACK = 0x30;
+	static constexpr uint8_t TW_MT_ARB_LOST= 0x38;
+	static constexpr uint8_t TW_MR_SLA_ACK = 0x40;
+	static constexpr uint8_t TW_MR_DATA_ACK= 0x50;
+	static constexpr uint8_t TW_MR_DATA_NACK = 0x58;
+	static constexpr uint8_t TW_MR_SLA_NACK = 0x48;
+	static constexpr uint8_t TW_NO_INFO = 0xF8;
+	static constexpr uint8_t TW_BUS_ERROR = 0x00;
+
+	static constexpr uint8_t TW_WRITE = 0;
+	static constexpr uint8_t TW_READ = 1;
+
+	static uint8_t TW_STATUS() {
+		return TWSR.get() & (TWS3 | TWS4 | TWS5 | TWS6 | TWS7);
+	}
+
     typedef TWI<info_t, txFifoSize,rxFifoSize,twiFreq> This;
     typedef Logging::Log<Loggers::TWI> log;
 
@@ -42,25 +63,25 @@ public:
     	log::debug(F("go!"), '0' + transceiving, ' ', dec(TWCR));
         if (!transceiving) {
             transceiving = true;
-            TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTA);
+            TWCR = TWEN | TWIE | TWEA | TWINT | TWSTA;
         }
     }
 
     void replyAck() {
-        TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWINT) | _BV(TWEA);
+        TWCR = TWEN | TWIE | TWINT | TWEA;
     }
 
     void replyNack() {
-        TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWINT);
+        TWCR = TWEN | TWIE | TWINT;
     }
 
     void stop() {
-        TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT) | _BV(TWSTO);
+        TWCR = TWEN | TWIE | TWEA | TWINT | TWSTO;
 
         // wait for stop condition to be executed on bus
         // TWINT is not set after a stop condition!
         uint16_t maxWait = 65000;
-        while (maxWait > 0 && (TWCR & _BV(TWSTO)) != 0) maxWait--;
+        while (maxWait > 0 && TWSTO.isSet()) maxWait--;
 
         txFifo.readEnd();
         rxFifo.writeEnd();
@@ -70,7 +91,7 @@ public:
     }
 
     void releaseBus() {
-        TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA) | _BV(TWINT);
+        TWCR = TWEN | TWIE | TWEA | TWINT;
         txFifo.readEnd();
         rxFifo.writeEnd();
         readExpected = 0;
@@ -81,7 +102,7 @@ public:
     void onTWI() {
     	ints++;
     	//log::debug('t',':',dec(TW_STATUS));
-        switch(TW_STATUS) {
+        switch(TW_STATUS()) {
         // All Master
     case TW_START:     // sent start condition
     case TW_REP_START: // sent repeated start condition
@@ -95,7 +116,7 @@ public:
         txFifo.read(&address_and_rw_bit);
         log::debug('>',dec(address_and_rw_bit),',',dec(avail),',','0'+c);
         //log::debug(dec(uint16_t(&txFifo)));
-        TWDR = address_and_rw_bit; // twi_slarw;
+        TWDR.set(address_and_rw_bit); // twi_slarw;
         replyAck();
       break;
 
@@ -105,7 +126,7 @@ public:
         if (txFifo.hasReadAvailable()) {
             uint8_t b;
             txFifo.read(&b);
-            TWDR = b;
+            TWDR.set(b);
             replyAck();
         } else {
             stop();
@@ -116,7 +137,7 @@ public:
         if (txFifo.hasReadAvailable()) {
             uint8_t b;
             txFifo.read(&b);
-            TWDR = b;
+            TWDR.set(b);
             replyAck();
         } else {
             stop();
@@ -267,18 +288,18 @@ public:
         transceiving = false;
 
         // switch to input, without pull up for now
-        *info_t::PinSDA::ddr &= ~info_t::PinSDA::bitmask;
-        *info_t::PinSDA::port &= ~info_t::PinSDA::bitmask;
-        *info_t::PinSCL::ddr &= ~info_t::PinSCL::bitmask;
-        *info_t::PinSCL::port &= ~info_t::PinSCL::bitmask;
+        info_t::PinSDA::DDR.clear();
+        info_t::PinSDA::PORT.clear();
+        info_t::PinSCL::DDR.clear();
+        info_t::PinSCL::PORT.clear();
 
         // initialize twi prescaler and bit rate
-        TWSR &= ~_BV(TWPS0);
-        TWSR &= ~_BV(TWPS1);
+        TWPS0.clear();
+        TWPS1.clear();
         static_assert(((F_CPU / twiFreq) - 16) / 2 <= 255, "twiFreq is too low.");
         constexpr uint8_t twbr = ((F_CPU / twiFreq) - 16) / 2;
         static_assert(twbr >= 10, "TWBR should be 10 or higher for master mode.");
-        TWBR = twbr;
+        TWBR.set(twbr);
 
           /* twi bit rate formula from atmega128 manual pg 204
           SCL Frequency = CPU Clock Frequency / (16 + (2 * TWBR))
@@ -286,8 +307,7 @@ public:
           It is 72 for a 16mhz Wiring board with 100kHz TWI */
 
           // enable twi module, acks, and twi interrupt
-        TWCR = _BV(TWEN) | _BV(TWIE) | _BV(TWEA);
-        //TWCR = 0;
+        TWCR = TWEN | TWIE | TWEA;
     }
 
     bool isTransceiving() const {
@@ -336,7 +356,7 @@ public:
     }
 
     void flush() {
-    	if (SREG & _BV(SREG_I)) {
+    	if (SREG_I.isSet()) {
     		while (transceiving) ;
     	}
     }
