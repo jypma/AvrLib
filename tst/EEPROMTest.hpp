@@ -4,7 +4,7 @@
 #include "EEPROM.hpp"
 #include <avr/eeprom.h>
 
-static constexpr EEPROM *eeprom = (EEPROM*) (&eeprom_contents);
+inline EEPROM *eeprom() { return (EEPROM*) (&eeprom_contents); }
 
 struct EEPROM {
     uint8_t data;
@@ -18,17 +18,17 @@ struct EEPROM {
 
 
 inline void eeprom_set(uint8_t EEPROM::*field, uint8_t value) {
-    eeprom->*field = value;
+  eeprom()->*field = value;
 }
 
 inline void eeprom_set(uint16_t EEPROM::*field, uint16_t value) {
-    eeprom->*field = value;
+  eeprom()->*field = value;
 }
 
 template <uint8_t size>
 void eeprom_set(char (EEPROM::*field)[size], const char *value) {
     const char *p = value;
-    char *q = eeprom->*field;
+    char *q = eeprom()->*field;
     uint8_t count = 0;
     while (*p && count < size) {
         *q = *p;

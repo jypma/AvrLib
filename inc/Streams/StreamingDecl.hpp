@@ -5,7 +5,7 @@
 
 namespace Streams {
 
-constexpr auto endl = F("\r\n");
+#define crlf F("\r\n")
 
 namespace Impl {
 

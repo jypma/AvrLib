@@ -68,7 +68,7 @@ TEST(VisonicDecoderTest, visonic_decoder_can_decode_more_bit_sequences) {
         seq1c[i] = MockPulseCounter::comparator_t::us2counts(seq1[i]);
         //std::cout << seq1c[i] << ',';
     }
-    std::cout << int(count) << " pulses." << endl;
+    std::cout << int(count) << " pulses." << std::endl;
 
     sendData(decoder, seq1c, std::extent<decltype(seq1)>::value);
 
