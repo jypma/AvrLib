@@ -14,8 +14,9 @@ void SPIMaster::enable() const {
 	DDB3.set();   // MOSI is output
 	DDB4.clear(); // MISO is input
 	DDB5.set();   // SCK  is output;
-	SPE.set();    // enable SPI
+        SPIE.clear(); // no interrupts
 	MSTR.set();   // in master mode
+	SPE.set();    // enable SPI
     setClockPrescaler(SPIPrescaler::_2);
 }
 
@@ -29,3 +30,4 @@ void SPIMaster::send(uint8_t out) const {
     SPDR.val() = out;
     while (SPIF.isCleared()) ;
 }
+        

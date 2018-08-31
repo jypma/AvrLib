@@ -94,14 +94,14 @@ private:
     constexpr static auto ON_DELAY = 2_s;
 
     void disable_mux() {
-        tx->write(F("AT+CIPMUX=0"), endl);
+        tx->write(F("AT+CIPMUX=0"), crlf);
         state = State::DISABLING_MUX;
         watchdog.schedule(COMMAND_TIMEOUT);
     }
 
     void resync() {
         log::debug(F("resync"));
-        tx->write(F("AT"), endl);
+        tx->write(F("AT"), crlf);
         state = State::RESYNCING;
         watchdog.schedule(COMMAND_TIMEOUT);
     }
@@ -120,7 +120,7 @@ private:
         log::debug(F("restart"));
         tx->clear();
         rx->clear();
-        tx->write(F("AT+RST"), endl);
+        tx->write(F("AT+RST"), crlf);
         state = State::RESTARTING;
         watchdog.schedule(10_s);
     }
@@ -169,7 +169,7 @@ private:
         scan(*rx, [this] (auto &read) {
             if (read(F("ready"))) {
                 log::debug(F("ready"));
-                tx->write(F("ATE0"), endl);
+                tx->write(F("ATE0"), crlf);
                 state = State::DISABLING_ECHO;
                 watchdog.schedule(COMMAND_TIMEOUT);
             }
@@ -179,7 +179,7 @@ private:
     void disabling_echo() {
         scan(*rx, [this] (auto &read) {
             if (read(F("OK\r\n"))) {
-                tx->write(F("AT+CWMODE_CUR=1"), endl);
+                tx->write(F("AT+CWMODE_CUR=1"), crlf);
                 state = State::SETTING_STATION_MODE;
                 watchdog.schedule(COMMAND_TIMEOUT);
             }
@@ -189,7 +189,7 @@ private:
     void setting_station_mode() {
         scan(*rx, [this] (auto &read) {
             if (read(F("OK\r\n"))) {
-                tx->write(F("AT+CIPSTAMAC_CUR?"), endl);
+                tx->write(F("AT+CIPSTAMAC_CUR?"), crlf);
                 state = State::GETTING_MAC_ADDRESS;
                 watchdog.schedule(COMMAND_TIMEOUT);
             }
@@ -203,7 +203,7 @@ private:
                 mac = m;
                 macKnown = true;
             } else if (read(F("OK\r\n"))) {
-                tx->write(F("AT+CWLAP"), endl);
+                tx->write(F("AT+CWLAP"), crlf);
                 state = State::LISTING_ACCESS_POINTS;
                 watchdog.schedule(CONNECT_TIMEOUT);
             }
@@ -213,7 +213,7 @@ private:
     void listing_access_points() {
         scan(*rx, [this] (auto &read) {
             if (read(F("OK\r\n"))) {
-                tx->write(F("AT+CWJAP_CUR=\""), accessPoint, F("\",\""), password, F("\""), endl);
+                tx->write(F("AT+CWJAP_CUR=\""), accessPoint, F("\",\""), password, F("\""), crlf);
                 state = State::CONNECTING_APN;
                 watchdog.schedule(CONNECT_TIMEOUT);
             }
@@ -234,7 +234,7 @@ private:
     void disabling_mux() {
         scan(*rx, [this] (auto &read) {
             if (read(F("OK\r\n"))) {
-                tx->write(F("AT+CIPCLOSE"), endl);
+                tx->write(F("AT+CIPCLOSE"), crlf);
                 state = State::CLOSING_OLD_CONNECTION;
                 watchdog.schedule(COMMAND_TIMEOUT);
             }
@@ -247,7 +247,7 @@ private:
             // Datasheet: "Prints UNLINK when there is no connection"
             if (read(F("OK\r\n")) || read(F("ERROR\r\n")) || read(F("UNLINK\r\n"))) {
                 // local UDP port is always 4123
-                tx->write(F("AT+CIPSTART=\"UDP\",\""), remoteIP, F("\","), dec(remotePort), F(",4123,0"), endl);
+                tx->write(F("AT+CIPSTART=\"UDP\",\""), remoteIP, F("\","), dec(remotePort), F(",4123,0"), crlf);
                 state = State::CONNECTING_UDP;
                 watchdog.schedule(COMMAND_TIMEOUT);
             }
@@ -294,7 +294,7 @@ private:
             txFifo.readStart();
             auto len = txFifo.getReadAvailable();
             txFifo.readAbort();
-            tx->write(F("AT+CIPSEND="), dec(len), endl);
+            tx->write(F("AT+CIPSEND="), dec(len), crlf);
             state = State::SENDING_LENGTH;
             watchdog.schedule(CONNECT_TIMEOUT);
         }

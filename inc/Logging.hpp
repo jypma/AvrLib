@@ -102,7 +102,7 @@ struct MessagesEnabled {
 #else
     template <typename... types>
     inline static void debug(types... args) {
-        onMessage(loggerName::instance(), F(": "), args..., ::Streams::endl);
+        onMessage(loggerName::instance(), F(": "), args..., crlf);
     }
 
     static void flush() {
