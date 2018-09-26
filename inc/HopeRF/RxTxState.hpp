@@ -57,6 +57,10 @@ class RxTxState {
         resend.cancel();
         resendCount = 0;
     }
+
+  bool isAcceptableSeqNr(uint8_t s) {
+    return (s - seq) < 126;
+  }
 public:
     RxTxState(rfm_t &r, rt_t &t, T initial, uint16_t _nodeId):
         rfm(&r), rt(&t), nodeId(_nodeId),
@@ -107,7 +111,7 @@ public:
             }
         }
         for (auto packet: readPacket<T>(rfm->in(), nodeId)) {
-            if (mode == Mode::SENDING_REQUEST || packet.seq == seq + 1 || (packet.seq == seq && !(packet.body != state))) {
+          if (mode == Mode::SENDING_REQUEST || uint8_t(packet.seq - seq) < 126) {
                 log::debug(F("<- "), dec(packet.seq));
                 cancelSend();
 
