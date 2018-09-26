@@ -52,6 +52,31 @@ TEST_F(RxTxStateTest, should_update_state_and_send_ack_when_receiving_valid_pack
     EXPECT_EQ(123, state.get().value);
 }
 
+TEST_F(RxTxStateTest, should_update_state_and_send_ack_when_receiving_reasonably_close_seqnr) {
+    rfm.sendFsk.clear();
+
+    rfm.recv.write(FB(
+        2,              // RFM header
+        1 << 3, 123,    // field 1 = 123
+        2 << 3, 42,     // field 2 (seqnr) = 42
+        3 << 3 | 2, 2,  // field 3, nested, length 2
+          1 << 3, 123));//   field 1 = 123
+
+    EXPECT_TRUE(state.isStateChanged());
+    EXPECT_FALSE(rfm.recv.isReading());
+    EXPECT_EQ(123, state.get().value);
+
+    EXPECT_TRUE(rfm.sendFsk.read(FB(
+        1,             // rfm header (ACK)
+        1 << 3, 123,   // field 1 (nodeId)
+        2 << 3, 42     // field 2 (seq)
+    )));
+
+    EXPECT_FALSE(state.isStateChanged());
+    EXPECT_FALSE(rfm.recv.isReading());
+    EXPECT_EQ(123, state.get().value);
+}
+
 TEST_F(RxTxStateTest, should_send_ack_when_re_receiving_the_same_state) {
     rfm.sendFsk.clear();
 
@@ -251,7 +276,7 @@ TEST_F(RxTxStateTest, should_send_current_state_when_receiving_invalid_seqnr) {
     rfm.recv.write(FB(
         2,              // RFM header
         1 << 3, 123,    // field 1 = 123
-        2 << 3, 5,      // field 2 = 5 (invalid seqnr)
+        2 << 3, 0xFF, 1, // field 2 = 255 (invalid seqnr)
         3 << 3 | 2, 2,  // field 3, nested, length 2
           1 << 3, 123));//   field 1 = 123
 
