@@ -160,7 +160,7 @@ public:
     case TW_MR_DATA_ACK: // data received, ack sent
         log::debug(F("TW_MR_DATA_ACK "), dec(TWDR), dec(readExpected));
       // put byte into buffer
-        rxFifo.write(TWDR);
+      rxFifo.write(TWDR.get());
         if (readExpected > 1) {
             readExpected--;
             replyAck();
@@ -363,6 +363,10 @@ public:
 
     template <typename... types>
     ReadResult read(uint8_t address, types... args) {
+      if (SREG_I.isCleared()) {
+        // We need interrupts in order to be able to read.
+        return ReadResult::type::Invalid;
+      }
         flush();
         readExpected = Streams::StreamedSize<types...>::fixedSizeReading;
         log::debug(F("read start: "), dec(readExpected));
@@ -370,6 +374,8 @@ public:
         rxFifo.writeStart();
         if (txFifo.write(uint8_t(TW_READ | (address << 1)))) {
         	startWriting();
+        } else {
+          return ReadResult::type::Invalid;
         }
         flush();
         log::debug(F("read: "), dec(rxFifo.getSize()));
