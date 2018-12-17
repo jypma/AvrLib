@@ -115,6 +115,10 @@ public:
 	template <typename T2> constexpr auto operator / (const T2 t2) -> Option<decltype(get() / t2)> {
 		if (present) return (get() / t2); else return NONE;
 	}
+
+  template <typename T2> constexpr auto operator & (const T2 t2) -> Option<decltype(get() & t2)> {
+    if (present) return (get() & t2); else return NONE;
+  }
 };
 
 

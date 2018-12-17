@@ -6,6 +6,7 @@
 #include "Option.hpp"
 #include "Time/RealTimer.hpp"
 #include "Tasks/TaskState.hpp"
+#include "Logging.hpp"
 
 #define auto_field(name, expr) decltype(expr) name = expr
 
