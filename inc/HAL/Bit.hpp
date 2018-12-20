@@ -27,7 +27,9 @@ public:
 	template <typename r, typename check = typename std::enable_if<std::is_same<typename r::Reg, Reg>::value>::type>
 	Bit<_Reg, Or<Mask, typename r::Mask>> constexpr operator| (r expr) const volatile { return {}; };
 
-	template <typename r, typename check = typename std::enable_if<std::is_same<typename r::Reg, Reg>::value>::type>
+	template <typename r, typename check = typename std::enable_if<std::is_same<typename r::Reg, Reg>::value &&
+                                                                       bitMask == 0 &&
+                                                                       r::Mask::bitMask == 0>::type>
 	Bit<_Reg, And<Mask, typename r::Mask>> constexpr operator& (r expr) const volatile { return {}; };
 
 	Bit<_Reg, Not<Mask>> constexpr operator~() const volatile { return {}; }
@@ -41,52 +43,47 @@ public:
     }
 };
 
-template<typename _Reg, typename This>
-INLINE void operator |= (uint8_t &i, const Bit<_Reg,This> bits) {
-    i |= This::bitMask;
+template<typename Reg, typename Mask>
+INLINE uint8_t operator | (const uint8_t i, const Bit<Reg,Mask> bits) {
+    return i | Mask::bitMask;
+}
+
+template<typename Reg, typename Mask>
+INLINE uint8_t operator & (const uint8_t i, const Bit<Reg,Mask> bits) {
+    return i & Mask::bitMask;
 }
 
 template<typename _Reg, typename This>
-INLINE void operator &= (uint8_t &i, const Bit<_Reg,This> bits) {
-    i &= This::bitMask;
-}
-
-template<typename _Reg, typename This>
-INLINE uint8_t operator | (const uint8_t i, const Bit<_Reg,This> bits) {
-    return i | This::bitMask;
-}
-
-template<typename _Reg, typename This>
-INLINE uint8_t operator & (const uint8_t i, const Bit<_Reg,This> bits) {
-    return i & This::bitMask;
+INLINE void apply(uint8_t &i, const Bit<_Reg,This> bits) {
+  i = (i & This::applyMask) | This::bitMask;
 }
 
 template<typename t>
 class Not {
 public:
-	static constexpr uint8_t bitMask = (uint8_t) (~t::bitMask);
-	static constexpr uint8_t applyMask = t::applyMask;
+  static constexpr uint8_t bitMask = (uint8_t) (~t::applyMask);
+  static constexpr uint8_t applyMask = (uint8_t) (~t::bitMask);
 };
 
 template<typename l, typename r>
 class Or {
 public:
-	static constexpr uint8_t bitMask =  l::bitMask | (r::bitMask & r::applyMask);
-	static constexpr uint8_t applyMask =  l::applyMask | r::applyMask;
+  static constexpr uint8_t bitMask =  l::bitMask | r::bitMask;
+  static constexpr uint8_t applyMask =  l::applyMask & r::applyMask;
 };
 
 template<typename l, typename r>
 class And {
 public:
-	static constexpr uint8_t bitMask =  l::bitMask & r::bitMask;
-	static constexpr uint8_t applyMask =  l::applyMask | r::applyMask;
+  static constexpr uint8_t bitMask =  l::bitMask & r::bitMask;
+  static constexpr uint8_t applyMask =  l::applyMask & r::applyMask;
 };
 
 template <uint8_t _idx>
 struct MaskBit {
 	static constexpr uint8_t idx = _idx;
     static constexpr uint8_t bitMask = 1 << idx;
-    static constexpr uint8_t applyMask = bitMask;
+    static constexpr uint8_t applyMask = 0xFF;
 };
 
 /**

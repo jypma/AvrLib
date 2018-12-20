@@ -384,7 +384,7 @@ public:
           hi = 36000;
           lo = 200;
           break;
-        case TSL2561_Time::_402ms:
+        default:
           hi = 63000;
           lo = 500;
           break;

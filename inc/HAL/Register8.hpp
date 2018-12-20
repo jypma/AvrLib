@@ -112,8 +112,8 @@ public:
     /**
      * Sets the given bitmask, e.g. CS |= CS00 | CS01;
      */
-	template <typename Mask, typename check = typename std::enable_if<Mask::applyMask == Mask::bitMask>::type>
-	                                                             //  all applyMask bits in bitMask must be one.
+	template <typename Mask, typename check = typename std::enable_if<Mask::applyMask == 0xFF>::type>
+	                                                             //  must not have used & operator
 	INLINE void operator|=(HAL::Bit<This,Mask>) volatile {
 	    value |= Mask::bitMask;
 #ifndef AVR
@@ -124,10 +124,10 @@ public:
 	/**
 	 * Clears the inverse of the given bitmask, e.g. CS &= ~(CS00 | CS01);
 	 */
-    template <typename Mask, typename check = typename std::enable_if<(Mask::bitMask & Mask::applyMask) == 0>::type>
-                                                                  //  all applyMask bits in bitMask must be zero.
+    template <typename Mask, typename check = typename std::enable_if<Mask::bitMask == 0>::type>
+                                                                  //  must not have used | operator
 	INLINE void operator&=(HAL::Bit<This,Mask>) volatile {
-	    value &= Mask::bitMask;
+	    value &= Mask::applyMask;
 #ifndef AVR
 	    Register8_onChange(this);
 #endif
@@ -139,7 +139,7 @@ public:
      */
 	template <typename Mask>
 	INLINE void apply(HAL::Bit<This,Mask>) volatile {
-        value = (value & ~Mask::applyMask) | Mask::bitMask;
+        value = (value & Mask::applyMask) | Mask::bitMask;
 #ifndef AVR
         Register8_onChange(this);
 #endif
@@ -161,11 +161,13 @@ public:
         return (value & Mask::applyMask) == Mask::bitMask;
     }
 
+/*
 	template <typename T, typename check = typename std::enable_if<std::is_same<typename T::Reg, This>::value>::type>
-	INLINE This operator &(T t) const volatile { return value & T::bitMask; }
+	INLINE This operator &(T t) const volatile { return value & (T::applyMask & T::bitMask); }
 
     template <typename T, typename check = typename std::enable_if<std::is_same<typename T::Reg, This>::value>::type>
-    INLINE This operator |(T t) const volatile { return value | T::bitMask; }
+    INLINE This operator |(T t) const volatile { return value | (T::applyMask & T::bitMask); }
+*/
 };
 
 template <typename Reg>

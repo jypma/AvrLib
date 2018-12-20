@@ -158,7 +158,7 @@ public:
 
     // Master Receiver
     case TW_MR_DATA_ACK: // data received, ack sent
-        log::debug(F("TW_MR_DATA_ACK "), dec(TWDR), dec(readExpected));
+      log::debug(F("TW_MR_DATA_ACK "), dec(TWDR.get()),' ', dec(readExpected));
       // put byte into buffer
       rxFifo.write(TWDR.get());
         if (readExpected > 1) {
@@ -170,7 +170,7 @@ public:
         }
         break;
     case TW_MR_SLA_ACK:  // address sent, ack received
-        log::debug(F("TW_MR_SLA_ACK "), dec(readExpected));
+      log::debug(F("TW_MR_SLA_ACK "), ' ', dec(readExpected));
       // ack if more bytes are expected, otherwise nack
         if (readExpected > 0) {
             replyAck();
@@ -179,9 +179,9 @@ public:
         }
         break;
     case TW_MR_DATA_NACK: // data received, nack sent
-        log::debug(F("TW_MR_DATA_NACK "), dec(TWDR), dec(readExpected));
+      log::debug(F("TW_MR_DATA_NACK "), dec(TWDR.get()), dec(readExpected));
       // put final byte into buffer
-        rxFifo.write(TWDR);
+        rxFifo.write(TWDR.get());
         stop();
         break;
     case TW_MR_SLA_NACK: // address sent, nack received
@@ -356,9 +356,16 @@ public:
     }
 
     void flush() {
-    	if (SREG_I.isSet()) {
-    		while (transceiving) ;
-    	}
+#ifdef AVR
+      volatile uint16_t timeout = 5000;
+#else
+      volatile uint32_t timeout = 0xFFFFFFF;
+#endif
+      if (SREG_I.isSet()) {
+        while (transceiving && timeout) {
+           timeout--;
+        }
+      }
     }
 
     template <typename... types>
@@ -367,7 +374,12 @@ public:
         // We need interrupts in order to be able to read.
         return ReadResult::type::Invalid;
       }
-        flush();
+      flush();
+      if (transceiving) {
+        log::debug(F("not connected"));
+        return ReadResult::type::Invalid;
+      }
+
         readExpected = Streams::StreamedSize<types...>::fixedSizeReading;
         log::debug(F("read start: "), dec(readExpected));
         rxFifo.clear();

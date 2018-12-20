@@ -166,8 +166,8 @@ public:
     }
 
     TaskState getTaskState() {
-    	update();
-    	return TaskState(measureDone, HAL::Atmel::SleepMode::POWER_DOWN);
+      update();
+      return TaskState(measureDone.timeLeftIfScheduled(), HAL::Atmel::SleepMode::POWER_DOWN);
     }
 };
 

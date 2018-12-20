@@ -41,7 +41,7 @@ class BaseADC {
 
     template <typename pin_t>
     void selectPin() {
-        ADMUX.apply(pin_t::info_t::adc_mux);
+      ADMUX.apply(pin_t::info_t::adc_mux);
     }
 
 public:
@@ -106,6 +106,7 @@ public:
     	ADPS0.set();
         //ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0);
 #endif
+        ADLAR.clear();
     }
 
     uint16_t awaitValue(){
@@ -132,6 +133,7 @@ public:
     	ADPS0.set();
         //ADCSRA |= (1 << ADPS2) | (1 << ADPS0);
 #endif
+
     	ADLAR.set();    // Using only 8 bits in ADCH register
         //ADMUX |= (1 << ADLAR);
     }

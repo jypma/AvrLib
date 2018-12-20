@@ -32,7 +32,7 @@ template <typename Reg>
 class StaticRegister16 {
 public:
     static INLINE Reg &reg() { return Reg::reg(); }
-    INLINE static uint16_t get() { return reg().get(); }
+  INLINE static uint16_t get() { return *((volatile uint16_t *) Reg::address); }
     INLINE static void set(uint16_t v) { reg().set(v); }
   INLINE static uint16_t &val() { return reg().val(); }
 };
