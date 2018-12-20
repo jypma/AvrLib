@@ -6,6 +6,7 @@
 
 namespace TWITest {
 
+using namespace Streams;
 using namespace HAL::Atmel;
 using namespace HAL::Atmel::Registers;
 
@@ -32,7 +33,7 @@ struct MockTWIInfo {
 TEST(TWITest, can_write_a_one_byte_message) {
     TWCR = ~(TWIE | TWEN | TWWC | TWSTO | TWSTA | TWEA | TWINT);
 
-    Impl::TWI<MockTWIInfo,32,32,100000> twi;
+    HAL::Atmel::Impl::TWI<MockTWIInfo,32,32,100000> twi;
     EXPECT_FALSE(twi.isTransceiving());
     twi.write(uint8_t(84), uint8_t(42));
     EXPECT_TRUE(twi.isTransceiving());
@@ -72,7 +73,7 @@ TEST(TWITest, can_read_a_one_byte_message_ended_with_NACK) {
     TWCR = ~(TWIE | TWEN | TWWC | TWSTO | TWSTA | TWEA | TWINT);
     sei();
 
-    Impl::TWI<MockTWIInfo,32,32,100000> twi;
+    HAL::Atmel::Impl::TWI<MockTWIInfo,32,32,100000> twi;
 
     volatile bool running = true;
     std::thread t([&](){
@@ -108,7 +109,8 @@ TEST(TWITest, can_read_a_one_byte_message_ended_with_NACK) {
 	});
 
     uint8_t b;
-    twi.read(uint8_t(84), &b);
+    auto result = twi.read(uint8_t(84), &b);
+    EXPECT_EQ(ReadResult::Valid, result);
 
     running = false;
     t.join();

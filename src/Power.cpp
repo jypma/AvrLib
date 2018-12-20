@@ -26,7 +26,7 @@ INLINE static void sleep_bod_disable() {
 }
 
 void HAL::Atmel::Impl::sleep(SleepMode mode) {
-    auto adcsraSave = ADCSRA;
+  auto adcsraSave = ADCSRA.get();
     ADEN.clear(); // disable the ADC
     switch(mode) {
     case SleepMode::POWER_DOWN:
@@ -44,5 +44,5 @@ void HAL::Atmel::Impl::sleep(SleepMode mode) {
     }
     sleep_cpu();
     SE.clear(); // sleep disable
-    ADCSRA = adcsraSave;
+    ADCSRA.set(adcsraSave);
 }
