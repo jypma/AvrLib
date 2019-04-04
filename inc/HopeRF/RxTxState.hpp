@@ -116,8 +116,8 @@ public:
                 cancelSend();
 
                 const Ack ack = { packet.seq, nodeId };
-                rfm->write_fsk(Headers::ACK, &ack);
-                rfm->write_fsk(Headers::ACK, &ack);
+                rfm->write_fsk(Headers::TX_ACK, &ack);
+                rfm->write_fsk(Headers::TX_ACK, &ack);
 
                 seq = packet.seq;
                 if (packet.body != state) {

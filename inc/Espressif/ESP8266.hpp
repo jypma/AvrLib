@@ -247,7 +247,9 @@ private:
             // Datasheet: "Prints UNLINK when there is no connection"
             if (read(F("OK\r\n")) || read(F("ERROR\r\n")) || read(F("UNLINK\r\n"))) {
                 // local UDP port is always 4123
-                tx->write(F("AT+CIPSTART=\"UDP\",\""), remoteIP, F("\","), dec(remotePort), F(",4123,0"), crlf);
+                // ,0 means link to whomever sends the first UDP packet
+                // ,2 means accept incoming from anyone
+                tx->write(F("AT+CIPSTART=\"UDP\",\""), remoteIP, F("\","), dec(remotePort), F(",4123,2"), crlf);
                 state = State::CONNECTING_UDP;
                 watchdog.schedule(COMMAND_TIMEOUT);
             }

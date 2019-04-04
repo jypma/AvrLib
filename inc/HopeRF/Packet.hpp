@@ -29,6 +29,8 @@ struct Packet {
 
 template <typename T, typename in_t>
 Option<Packet<T>> readPacket(in_t in, const uint16_t nodeId) {
+  typedef Logging::Log<Loggers::RxState> log;
+
     if (!in.hasContent()) {
         return none();
     }
@@ -38,7 +40,11 @@ Option<Packet<T>> readPacket(in_t in, const uint16_t nodeId) {
         if (packet.nodeId == nodeId) {
             in.readEnd();
             return packet;
+        } else {
+          log::debug(F("Ign "), dec(packet.nodeId));
+          log::debug(F("Exp "), dec(nodeId));
         }
+
     }
     in.readAbort();
     return none();

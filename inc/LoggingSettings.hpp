@@ -1,27 +1,4 @@
 
-namespace Loggers {
-    // All loggers must be listed here as empty classes
-    class VisonicDecoder;
-    class Streams;
-    class Scanner;
-    class Serial;
-    class RS232Tx;
-    class RFM12;
-    class ESP8266;
-    class DHT11;
-    class Timing;
-    class Dallas;
-    class Main;
-    class Passive;
-    class TWI;
-    class PIR;
-    class PinChangeInterrupt;
-    class Power;
-    class RxState;
-    class FrequencyCounter;
-class Ambient;
-}
-
 namespace Logging {
     // Enabled loggers go here, default is disabled.
 #ifdef AVR
@@ -42,6 +19,7 @@ namespace Logging {
     template<> class Log<Loggers::ESP8266>: public MessagesEnabled<STR("E")> {};
     //template<> class Log<Loggers::RFM12>: public MessagesEnabled<STR("R")> {};
     template<> class Log<Loggers::RxState>: public MessagesEnabled<STR("Rx")> {};
+    template<> class Log<Loggers::TxState>: public MessagesEnabled<STR("Tx")> {};
     //template<> class Log<Loggers::Ambient>: public MessagesEnabled<STR("Am")> {};
     //template<> class Log<Loggers::Scanner>: public MessagesEnabled<STR("S")> {};
     //template<> class Log<Loggers::PIR>: public MessagesEnabled<STR("PIR")> {};
@@ -57,6 +35,7 @@ namespace Logging {
     //template<> class Log<Loggers::VisonicDecoder>: public TimingEnabled, public MessagesEnabled<STR("Vison")> {};
     //template<> class Log<Loggers::Streams>: public MessagesEnabled<STR("Streams")> {};
     //template<> class Log<Loggers::Serial>: public MessagesEnabled<STR("Serial")> {};
+    template<> class Log<Loggers::TxState>: public MessagesEnabled<STR("TxState")> {};
     template<> class Log<Loggers::RxState>: public MessagesEnabled<STR("RxState")> {};
     template<> class Log<Loggers::FrequencyCounter>: public MessagesEnabled<STR("FrequencyCounter")> {};
     template<> class Log<Loggers::TWI>: public MessagesEnabled<STR("TWI")> {};

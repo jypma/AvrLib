@@ -166,7 +166,7 @@ TEST(ESP8266Test, ESP_can_initialize_send_and_receive) {
 
     rx.write(F("\r\nOK\r\n"));
     esp.loop();
-    EXPECT_TRUE(tx.read(F("AT+CIPSTART=\"UDP\",\"host\",123,4123,0\r\n")));
+    EXPECT_TRUE(tx.read(F("AT+CIPSTART=\"UDP\",\"host\",123,4123,2\r\n")));
 
     rx.write(F("\r\nOK\r\n"));
     esp.loop();
@@ -338,7 +338,7 @@ TEST(ESP8266Test, ESP_skips_invalid_received_packets) {
 
     rx.write(F("\r\nOK\r\n"));
     esp.loop();
-    EXPECT_TRUE(tx.read(F("AT+CIPSTART=\"UDP\",\"host\",123,4123,0\r\n")));
+    EXPECT_TRUE(tx.read(F("AT+CIPSTART=\"UDP\",\"host\",123,4123,2\r\n")));
 
     rx.write(F("\r\nOK\r\n"));
     esp.loop();
