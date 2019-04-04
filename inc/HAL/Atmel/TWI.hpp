@@ -18,9 +18,6 @@ using namespace Streams;
 
 /**
  * Hardware Atmel TWI support. Based off the arduino libraries.
- *
- * TODO experiment with what happens when the bus is pulled low/high, e.g. with a floating
- * broken logic analyser. Interrupt won't occur in that case. Do we need a timeout?
  */
 template <typename info_t, uint8_t txFifoSize, uint8_t rxFifoSize, uint32_t twiFreq>
 class TWI {

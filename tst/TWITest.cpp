@@ -119,5 +119,43 @@ TEST(TWITest, can_read_a_one_byte_message_ended_with_NACK) {
     EXPECT_EQ(123, b);
 }
 
-}
+TEST(TWITest, starts_a_second_queued_up_write_after_first_completes) {
+  TWCR = ~(TWIE | TWEN | TWWC | TWSTO | TWSTA | TWEA | TWINT);
 
+  HAL::Atmel::Impl::TWI<MockTWIInfo,32,32,100000> twi;
+  EXPECT_FALSE(twi.isTransceiving());
+  twi.write(uint8_t(84), uint8_t(42));
+  EXPECT_TRUE(twi.isTransceiving());
+  EXPECT_TRUE(TWCR.val() != 0);
+
+
+  TWSR = TW_START;
+  invoke<Int_TWI_>(twi);
+
+  EXPECT_EQ(84 << 1, TWDR.val());
+  EXPECT_EQ(TWCR, TWEN | TWIE | TWINT | TWEA);
+
+  TWSR = TW_MT_SLA_ACK;
+  invoke<Int_TWI_>(twi);
+
+  EXPECT_EQ(TWEN | TWIE | TWINT | TWEA, TWCR);
+  EXPECT_EQ(42, TWDR.val());
+
+  // launch thread that clears TWSTO in TWCR
+  volatile bool running = true;
+  std::thread t([&](){
+                  while(running) {
+                    TWCR &= ~TWSTO;
+                  }
+                });
+
+  TWSR = TW_MT_DATA_ACK;
+  invoke<Int_TWI_>(twi);
+
+  running = false;
+  t.join();
+
+  EXPECT_FALSE(twi.isTransceiving());
+
+}
+}
