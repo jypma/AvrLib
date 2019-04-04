@@ -30,7 +30,7 @@ public:
      * repeatedly invoked if the pin is still low when the interrupt handler returns.
      */
     INLINE void interruptOnLow() {
-        interruptOn(~info::ISC0 & ~info::ISC1);
+        interruptOn(~info::ISC0 | ~info::ISC1);
     }
 
     /**
@@ -38,7 +38,7 @@ public:
      * the I/O clock is running.
      */
     INLINE void interruptOnChange() {
-    	interruptOn(info::ISC0 & ~info::ISC1);
+    	interruptOn(info::ISC0 | ~info::ISC1);
     }
 
     /**

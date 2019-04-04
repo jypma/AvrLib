@@ -30,7 +30,7 @@ bool readAck(in_t in, uint8_t seq, uint16_t nodeId) {
 
     Ack ack;
     in.readStart();
-    if (in.read(FB(Headers::ACK), &ack)) {
+    if (in.read(FB(Headers::RX_ACK), &ack)) {
         if (ack.nodeId == nodeId && ack.seq == seq) {
             in.readEnd();
             return true;

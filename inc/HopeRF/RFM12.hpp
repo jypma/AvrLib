@@ -36,7 +36,8 @@ enum class RFM12Band: uint8_t {
 enum class RFM12Mode: uint8_t { IDLE, LISTENING, RECEIVING, SENDING_FSK, SENDING_OOK, SLEEP };
 
 struct Headers {
-    static constexpr uint8_t ACK = 1;
+    static constexpr uint8_t TX_ACK = 1;
+    static constexpr uint8_t RX_ACK = 5;
     static constexpr uint8_t RXSTATE = 2; // State from spark to node
     static constexpr uint8_t TXSTATE = 3; // State from node to spark
     static constexpr uint8_t REQ = 4;     // Request re-send of latest state

@@ -1,6 +1,36 @@
+#pragma once
 
-#ifndef LOGGING_HPP_
-#define LOGGING_HPP_
+namespace Logging {
+
+template <typename T>
+struct Log;
+
+}
+
+namespace Loggers {
+// All loggers must be listed here as empty classes
+class VisonicDecoder;
+class Streams;
+class Scanner;
+class Serial;
+class RS232Tx;
+class RFM12;
+class ESP8266;
+class DHT11;
+class Timing;
+class Dallas;
+class Main;
+class Passive;
+class TWI;
+class PIR;
+class PinChangeInterrupt;
+class Power;
+class RxState;
+class TxState;
+class FrequencyCounter;
+class Ambient;
+}
+
 
 #include "Strings.hpp"
 #include "Fifo.hpp"
@@ -139,5 +169,3 @@ inline void printTimings() {
 }
 
 }
-
-#endif /* DEBUG_HPP_ */

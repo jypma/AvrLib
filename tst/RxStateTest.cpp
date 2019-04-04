@@ -24,7 +24,7 @@ struct State {
 TEST(RxStateTest, should_update_state_and_send_ack_when_receiving_valid_packet) {
     MockRFM12 rfm;
     State state = { 42 };
-    RxState<MockRFM12, State> rxState = { rfm, 15, state };
+    RxState<MockRFM12, State> rxState = { rfm, state, 15 };
     rfm.recv.write(FB(
         2,              // RFM header
         1 << 3, 15,     // field 1 = 15
@@ -34,7 +34,7 @@ TEST(RxStateTest, should_update_state_and_send_ack_when_receiving_valid_packet) 
 
     EXPECT_TRUE(rxState.isStateChanged());
     EXPECT_FALSE(rfm.recv.isReading());
-    EXPECT_EQ(123, rxState.getState().value);
+    EXPECT_EQ(123, rxState.get().value);
 
     EXPECT_TRUE(rfm.sendFsk.read(FB(
         1,             // rfm header (ACK)
@@ -44,13 +44,13 @@ TEST(RxStateTest, should_update_state_and_send_ack_when_receiving_valid_packet) 
 
     EXPECT_FALSE(rxState.isStateChanged());
     EXPECT_FALSE(rfm.recv.isReading());
-    EXPECT_EQ(123, rxState.getState().value);
+    EXPECT_EQ(123, rxState.get().value);
 }
 
 TEST(RxStateTest, should_send_ack_when_re_receiving_the_same_state) {
     MockRFM12 rfm;
     State state = { 42 };
-    RxState<MockRFM12, State> rxState = { rfm, 15, state };
+    RxState<MockRFM12, State> rxState = { rfm, state, 15 };
 
     auto incoming = FB(
             2,              // RFM header
@@ -76,7 +76,7 @@ TEST(RxStateTest, should_send_ack_when_re_receiving_the_same_state) {
 TEST(RxStateTest, should_ignore_invalid_packets) {
     MockRFM12 rfm;
     State state = { 42 };
-    RxState<MockRFM12, State> rxState = { rfm, 15, state };
+    RxState<MockRFM12, State> rxState = { rfm, state, 15 };
 
     rfm.recv.write(FB(
         2,              // RFM header
