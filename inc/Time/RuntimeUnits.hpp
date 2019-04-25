@@ -25,7 +25,7 @@ protected:
 public:
     constexpr RuntimeTimeUnit(uint32_t v): value(v) {}
     constexpr uint32_t getValue() const { return value; }
-    constexpr operator uint32_t() const { return value; }
+    constexpr explicit operator uint32_t() const { return value; }
     constexpr bool operator== (const This that) const { return that.value == value; }
     constexpr bool operator== (const uint32_t that) const { return that == value; }
     constexpr bool operator== (const int that) const { return that == (int) value; }
@@ -34,16 +34,21 @@ public:
     constexpr bool operator> (const This that) const { return value > that.value; }
     constexpr bool operator>= (const This that) const { return value >= that.value; }
     constexpr This operator* (const uint8_t i) const {
-    	if (i == 0) {
-    		return 0;
-    	} else {
-    		if (value > 0xFFFFFFFE / i) {
-    			return 0xFFFFFFFF;
-    		} else {
-    			return value * i;
-    		}
-    	}
+      if (i == 0) {
+        return 0;
+      } else {
+        if (value > 0xFFFFFFFE / i) {
+          return 0xFFFFFFFF;
+        } else {
+          return value * i;
+        }
+      }
     }
+
+  constexpr This operator/ (const uint8_t i) const { return value / i; }
+  constexpr uint32_t operator/ (const This  that) const { return value / that.value; }
+  constexpr This operator- (const This that) const { return value - that.value; }
+  constexpr This operator+ (const This that) const { return value + that.value; }
 
     void operator += (const This that) { value += that.value; }
 };

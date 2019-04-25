@@ -41,8 +41,8 @@ Option<Packet<T>> readPacket(in_t in, const uint16_t nodeId) {
             in.readEnd();
             return packet;
         } else {
-          log::debug(F("Ign "), dec(packet.nodeId));
-          log::debug(F("Exp "), dec(nodeId));
+          log::debug(F("Ign "), dec(packet.nodeId), '(', char(packet.nodeId << 8), char(packet.nodeId & 0xFF), ')');
+          log::debug(F("Exp "), dec(nodeId), '(', char(packet.nodeId << 8), char(packet.nodeId & 0xFF), ')');
         }
 
     }

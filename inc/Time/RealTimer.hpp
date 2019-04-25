@@ -189,20 +189,20 @@ class Periodic: public AbstractPeriodic {
     rt_t *rt;
 public:
     Periodic(rt_t &_rt): rt(&_rt) {
-        calculateNextCounts(rt->counts(), delay);
+      calculateNextCounts(rt->counts().getValue(), delay);
     }
 
     bool isNow() {
-        return AbstractPeriodic::isNow(rt->counts(), delay);
+      return AbstractPeriodic::isNow(rt->counts().getValue(), delay);
     }
 
     Counts timeLeft() const {
-        return Counts(getTimeLeft(rt->counts()));
+      return Counts(getTimeLeft(rt->counts().getValue()));
     }
 
     /** Reschedule this Periodic starting from now */
     void reschedule() {
-        calculateNextCounts(rt->counts(), delay);
+      calculateNextCounts(rt->counts().getValue(), delay);
     }
 
     Option<Milliseconds> timeLeftIfScheduled() const {
@@ -299,21 +299,21 @@ public:
     static_assert(delay < 0xFFFFFFF, "Delay must fit in 2^31 in order to cope with timer integer wraparound");
 public:
     Deadline(rt_t &_rt): AbstractDeadline(false), rt(&_rt) {
-        calculateNext(rt->counts(), delay);
+      calculateNext(rt->counts().getValue(), delay);
     }
 
     bool isNow() {
-        return AbstractDeadline::isNow(rt->counts());
+      return AbstractDeadline::isNow(rt->counts().getValue());
     }
 
     void schedule() {
         AtomicScope _;
-        calculateNext(rt->counts(), delay);
+        calculateNext(rt->counts().getValue(), delay);
         elapsed = false;
     }
 
     Counts timeLeft() const {
-        return getTimeLeft(rt->counts());
+      return getTimeLeft(rt->counts().getValue());
     }
 
     Option<Milliseconds> timeLeftIfScheduled() const {
@@ -375,9 +375,9 @@ class VariableDeadline: public AbstractDeadline {
     rt_t *rt;
 
     void doSchedule(const uint32_t delay) {
-        AtomicScope _;
-        calculateNext(rt->counts(), delay);
-        elapsed = false;
+      AtomicScope _;
+      calculateNext(rt->counts().getValue(), delay);
+      elapsed = false;
     }
 protected:
     uint32_t getNow() {
@@ -387,7 +387,7 @@ public:
     VariableDeadline(rt_t &_rt): AbstractDeadline(true), rt(&_rt) {}
 
     bool isNow() {
-        return AbstractDeadline::isNow(rt->counts());
+      return AbstractDeadline::isNow(rt->counts().getValue());
     }
 
     template <typename value>
@@ -403,7 +403,7 @@ public:
     }
 
     Counts timeLeft() const {
-        return getTimeLeft(rt->counts());
+      return getTimeLeft(rt->counts().getValue());
     }
 
     Option<Milliseconds> timeLeftIfScheduled() const {
