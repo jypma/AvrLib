@@ -15,6 +15,13 @@ using namespace Registers;
  * Configures the USART to use the given baud rate, and configures both pins (0 and 1) as transmitter
  * and receiver, respectively. If only one of them is to be used for USART, you can call Pin.configureAsGPIO() after
  * this method on either of them.
+ * 
+ * When transmitting over USART AVR core should be powered up or in
+ * IDLE state. Failing to do shut down UART transmitter and results
+ * in a framing errors. So you must either:
+ * 
+ * - spin-wait after write using `flush()` method;
+ * - have at least one task with `SleepMode::IDLE`.
  *
  * Also enables interrupts.
  */
